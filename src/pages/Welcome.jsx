@@ -40,6 +40,7 @@ export default function Welcome() {
   const [bootDone, setBootDone]   = useState(false);
   const [speaking, setSpeaking]   = useState(false);
   const [done, setDone]           = useState(false);
+  const [activated, setActivated] = useState(false);
   const audioRef = useRef(null);
   const didSpeak = useRef(false);
 
@@ -63,32 +64,35 @@ export default function Welcome() {
     return () => clearInterval(iv);
   }, []);
 
-  // Once boot done + user loaded → speak greeting automatically
-  // Browser allows autoplay here because the user just clicked Sign In
-  useEffect(() => {
-    if (!bootDone || !user?.name || didSpeak.current) return;
+  // Activate — called directly from button click (guarantees browser allows audio)
+  const activate = async () => {
+    if (didSpeak.current) return;
     didSpeak.current = true;
-    const greeting = buildGreeting(user.name);
+    setActivated(true);
+    const greeting = buildGreeting(user?.name);
     setSpeaking(true);
-    speakText(greeting)
-      .then((audio) => {
-        audioRef.current = audio;
-        audio.play().catch(() => setSpeaking(false));
-        audio.onended = () => {
-          setSpeaking(false);
-          audioRef.current = null;
-          setDone(true);
-        };
-      })
-      .catch(() => {
+    try {
+      const audio = await speakText(greeting);
+      audioRef.current = audio;
+      await audio.play();
+      audio.onended = () => {
         setSpeaking(false);
+        audioRef.current = null;
         setDone(true);
-      });
-  }, [bootDone, user?.name]);
+      };
+    } catch {
+      setSpeaking(false);
+      setDone(true);
+    }
+  };
 
   const enterDashboard = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     navigate("/dashboard", { replace: true });
+  };
+
+  const activateAndEnter = async () => {
+    await activate();
   };
 
   if (loading) return null;
@@ -223,25 +227,63 @@ export default function Welcome() {
           </div>
         )}
 
-        {/* Enter button — appears when voice done (or after delay) */}
-        {(done || (!speaking && bootDone)) && (
-          <button
-            onClick={enterDashboard}
-            style={{
-              padding: "14px 48px",
-              background: "transparent",
-              border: "1px solid rgba(224,16,16,0.6)",
-              borderRadius: 40, color: COLORS.red,
-              fontSize: 13, fontWeight: 600, letterSpacing: 2,
-              textTransform: "uppercase", cursor: "pointer",
-              animation: "fadeSlideIn 0.5s ease, enterPulse 2.5s ease-in-out infinite",
-              transition: "background 0.2s, border-color 0.2s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(224,16,16,0.12)"; e.currentTarget.style.borderColor = "#e01010"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(224,16,16,0.6)"; }}
-          >
-            ENTER THE OS
-          </button>
+        {/* Buttons — appear after boot */}
+        {bootDone && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, animation: "fadeSlideIn 0.6s ease" }}>
+            {/* Primary: Hear Jarvis — plays voice on click */}
+            {!activated && !speaking && !done && (
+              <button
+                onClick={activate}
+                style={{
+                  padding: "15px 52px",
+                  background: COLORS.red,
+                  border: "none", borderRadius: 40,
+                  color: "#fff", fontSize: 13, fontWeight: 700,
+                  letterSpacing: 2, textTransform: "uppercase", cursor: "pointer",
+                  boxShadow: "0 0 30px rgba(224,16,16,0.5)",
+                  animation: "enterPulse 2s ease-in-out infinite",
+                }}
+              >
+                ▶ HEAR JARVIS
+              </button>
+            )}
+
+            {/* Speaking indicator */}
+            {speaking && (
+              <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 3, animation: "cursorBlink 1s ease-in-out infinite" }}>
+                SPEAKING...
+              </div>
+            )}
+
+            {/* Enter button — appears after voice finishes */}
+            {done && (
+              <button
+                onClick={enterDashboard}
+                style={{
+                  padding: "15px 52px",
+                  background: "transparent",
+                  border: "1px solid rgba(224,16,16,0.6)",
+                  borderRadius: 40, color: COLORS.red,
+                  fontSize: 13, fontWeight: 600, letterSpacing: 2,
+                  textTransform: "uppercase", cursor: "pointer",
+                  animation: "fadeSlideIn 0.4s ease",
+                  transition: "background 0.2s, border-color 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(224,16,16,0.12)"; e.currentTarget.style.borderColor = "#e01010"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(224,16,16,0.6)"; }}
+              >
+                ENTER THE OS
+              </button>
+            )}
+
+            {/* Skip — always visible after boot */}
+            <button
+              onClick={enterDashboard}
+              style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", letterSpacing: 1 }}
+            >
+              skip →
+            </button>
+          </div>
         )}
       </div>
 
