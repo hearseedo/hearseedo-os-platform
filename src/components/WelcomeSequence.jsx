@@ -1,29 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getWelcomeLine } from "../constants/bundles";
 
-// Activates automatically when VITE_ELEVENLABS_API_KEY is set in .env
-// Voice ID defaults to "Adam" — swap VITE_ELEVENLABS_VOICE_ID for your custom Jarvis voice
-let audioCtx = null;
-async function playWelcomeVoice(text) {
-  const key     = import.meta.env.VITE_ELEVENLABS_API_KEY;
-  const voiceId = import.meta.env.VITE_ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
-  if (!key) return;
+// AudioContext — unlocked on first user gesture, persists across calls
+let _ctx = null;
+let _pendingBuffer = null;
+
+function getCtx() {
+  if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
+  return _ctx;
+}
+
+async function _playBuffer(arrayBuffer) {
+  const ctx = getCtx();
+  if (ctx.state === "suspended") {
+    _pendingBuffer = arrayBuffer; // will play when user taps
+    return;
+  }
   try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+    const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    const src = ctx.createBufferSource();
+    src.buffer = decoded;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {}
+}
+
+export async function unlockAndFlush() {
+  const ctx = getCtx();
+  await ctx.resume();
+  if (_pendingBuffer) {
+    const ab = _pendingBuffer;
+    _pendingBuffer = null;
+    _playBuffer(ab);
+  }
+}
+
+async function playWelcomeVoice(text) {
+  try {
+    const res = await fetch("/api/tts", {
       method: "POST",
-      headers: { "xi-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.55, similarity_boost: 0.85, style: 0.2, use_speaker_boost: true },
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
     });
     if (!res.ok) return;
-    const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
-    const url  = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.onended = () => URL.revokeObjectURL(url);
-    audio.play();
+    await _playBuffer(await res.arrayBuffer());
   } catch {}
 }
 
@@ -62,6 +82,17 @@ const STEPS = {
 export default function WelcomeSequence({ user, onComplete }) {
   const [step, setStep]     = useState(STEPS.FADE_IN);
   const [skipped, setSkipped] = useState(false);
+
+  // Unlock AudioContext on first interaction (tap, click, touchstart)
+  useEffect(() => {
+    const handler = () => unlockAndFlush();
+    document.addEventListener("click",      handler, { once: true });
+    document.addEventListener("touchstart", handler, { once: true });
+    return () => {
+      document.removeEventListener("click",      handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
 
   const firstName    = user?.name?.split(" ")[0] ?? "there";
   const confidence   = user?.confidenceScore ?? 0;
