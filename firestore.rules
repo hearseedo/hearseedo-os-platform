@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Public read-only meta (signup counter) ─────────────────────────────
+    match /meta/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── AI cache — public read (cache hits), server write only ─────────────
+    match /aiCache/{hash} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── Platform analytics — public read, server write only ────────────────
+    match /analytics/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── App Registry — public read, server write only ──────────────────────
+    match /appRegistry/{appId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── Referral links — public read (code lookup), owner write ───────────
+    match /referralLinks/{code} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+    }
+
+    // ── Referral stats — owner read only, server write ────────────────────
+    match /referrals/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ── User profiles — owner read/write, no cross-user access ───────────
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /chatUsage/{day} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /weeklyCheckin/{week} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /missions/{day} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // ── Learner Intelligence profiles — owner read, server write ──────────
+    // Server writes via /api/intelligence and /api/chat (using Firebase API key)
+    // Clients can read their own profile for dashboard display
+    match /learnerProfiles/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+
+      // Interaction log — owner read only
+      match /interactions/{interactionId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // Confidence history — owner read only
+      match /confidenceHistory/{date} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
+    // ── Deny everything else ──────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

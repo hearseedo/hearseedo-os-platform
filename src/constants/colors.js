@@ -1,0 +1,17 @@
+export const COLORS = {
+  bg: "#0a0a0a",
+  surface: "#111111",
+  card: "#161616",
+  cardHover: "#1c1c1c",
+  border: "#2a2a2a",
+  red: "#e01010",
+  redBright: "#ff2020",
+  redGlow: "rgba(224,16,16,0.3)",
+  redDim: "#8b0000",
+  text: "#ffffff",
+  textMuted: "#888888",
+  textDim: "#555555",
+  success: "#22c55e",
+  gold: "#f59e0b",
+  purple: "#7B5EA7",
+};

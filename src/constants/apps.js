@@ -1,0 +1,108 @@
+// All 7 HSD OS apps
+// iframeUrl is read from env at runtime; falls back to branded placeholder
+export const APPS = [
+  {
+    id: "phonics",
+    name: "Monkey Yoga Phonics™",
+    desc: "Phonics • Yoga • Mind • Body",
+    icon: "🎵",
+    image: "/assets/icon-phonics.png",
+    accent: "#e01010",
+    audience: "kids",
+    price: 980,
+    iframeUrl: import.meta.env.VITE_APP_URL_PHONICS || "",
+  },
+  {
+    id: "eiken",
+    name: "Eiken AI Monkey",
+    desc: "Study Japanese with AI",
+    icon: "🐒",
+    image: "/assets/icon-eiken.png",
+    accent: "#e01010",
+    audience: "kids",
+    price: 1280,
+    iframeUrl: import.meta.env.VITE_APP_URL_EIKEN || "",
+  },
+  {
+    id: "speak",
+    name: "Speak & Sweat",
+    desc: "Speak English. Build Confidence.",
+    icon: "💬",
+    image: "/assets/icon-speak.png",
+    accent: "#e01010",
+    audience: "kids",
+    price: 980,
+    iframeUrl: import.meta.env.VITE_APP_URL_SPEAK || "",
+  },
+  {
+    id: "wondercamp",
+    name: "Wondercamp",
+    desc: "Adventures in Learning",
+    icon: "🏕️",
+    image: "/assets/icon-wondercamp.png",
+    accent: "#e01010",
+    audience: "kids",
+    price: 1380,
+    iframeUrl: import.meta.env.VITE_APP_URL_WONDERCAMP || "",
+  },
+  {
+    id: "family",
+    name: "HSD Family",
+    desc: "Track your family's learning journey",
+    icon: "👨‍👩‍👧",
+    image: "/assets/icon-family.png",
+    accent: "#e01010",
+    audience: "both",
+    price: 680,
+    iframeUrl: import.meta.env.VITE_APP_URL_FAMILY || "",
+  },
+  {
+    id: "sipswitch",
+    name: "Sip & Switch™",
+    desc: "English Conversation. One Sip at a Time.",
+    icon: "☕",
+    image: "/assets/icon-sipswitch.png",
+    accent: "#7B5EA7",
+    audience: "adult",
+    price: 1280,
+    iframeUrl: import.meta.env.VITE_APP_URL_SIPSWITCH || "",
+  },
+  {
+    id: "innerkey",
+    name: "The Inner Key Blueprint™",
+    desc: "Unlock the Mind. Transform the Life.",
+    icon: "🔑",
+    image: "/assets/icon-innerkey.png",
+    accent: "#f59e0b",
+    audience: "adult",
+    price: 1480,
+    iframeUrl: import.meta.env.VITE_APP_URL_INNERKEY || "",
+  },
+];
+
+// Orbit layouts per view
+export const ORBIT_LAYOUTS = {
+  kids: [
+    { id: "eiken",     position: "top-left"  },
+    { id: "speak",     position: "top-right" },
+    { id: "phonics",   position: "mid-left"  },
+    { id: "wondercamp",position: "mid-right" },
+    { id: "family",    position: "bottom"    },
+  ],
+  adult: [
+    { id: "sipswitch", position: "mid-left"  },
+    { id: "innerkey",  position: "mid-right" },
+    { id: "family",    position: "bottom"    },
+  ],
+  all: [
+    { id: "eiken",     position: "top-left"    },
+    { id: "speak",     position: "top-right"   },
+    { id: "phonics",   position: "mid-left"    },
+    { id: "wondercamp",position: "mid-right"   },
+    { id: "sipswitch", position: "bottom-left" },
+    { id: "innerkey",  position: "bottom-right"},
+    { id: "family",    position: "bottom"      },
+  ],
+};
+
+export const APP_MAP = Object.fromEntries(APPS.map((a) => [a.id, a]));
