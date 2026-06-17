@@ -3,39 +3,22 @@ import { getWelcomeLine } from "../constants/bundles";
 
 // AudioContext — unlocked on first user gesture, persists across calls
 let _ctx = null;
-let _pendingBuffer = null;
+let _unlocked = false;
 
 function getCtx() {
   if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
   return _ctx;
 }
 
-async function _playBuffer(arrayBuffer) {
-  const ctx = getCtx();
-  if (ctx.state === "suspended") {
-    _pendingBuffer = arrayBuffer; // will play when user taps
-    return;
-  }
-  try {
-    const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
-    const src = ctx.createBufferSource();
-    src.buffer = decoded;
-    src.connect(ctx.destination);
-    src.start(0);
-  } catch {}
-}
-
-export async function unlockAndFlush() {
+export async function unlockAudio() {
+  if (_unlocked) return;
   const ctx = getCtx();
   await ctx.resume();
-  if (_pendingBuffer) {
-    const ab = _pendingBuffer;
-    _pendingBuffer = null;
-    _playBuffer(ab);
-  }
+  _unlocked = ctx.state === "running";
 }
 
 async function playWelcomeVoice(text) {
+  if (!_unlocked) return; // only play if user has already tapped
   try {
     const res = await fetch("/api/tts", {
       method: "POST",
@@ -43,7 +26,12 @@ async function playWelcomeVoice(text) {
       body: JSON.stringify({ text }),
     });
     if (!res.ok) return;
-    await _playBuffer(await res.arrayBuffer());
+    const ctx     = getCtx();
+    const decoded = await ctx.decodeAudioData(await res.arrayBuffer());
+    const src     = ctx.createBufferSource();
+    src.buffer    = decoded;
+    src.connect(ctx.destination);
+    src.start(0);
   } catch {}
 }
 
@@ -80,18 +68,15 @@ const STEPS = {
 };
 
 export default function WelcomeSequence({ user, onComplete }) {
-  const [step, setStep]     = useState(STEPS.FADE_IN);
+  const [step, setStep]       = useState(STEPS.FADE_IN);
   const [skipped, setSkipped] = useState(false);
+  const [started, setStarted] = useState(false); // waiting for tap
 
-  // Unlock AudioContext on first interaction (tap, click, touchstart)
-  useEffect(() => {
-    const handler = () => unlockAndFlush();
-    document.addEventListener("click",      handler, { once: true });
-    document.addEventListener("touchstart", handler, { once: true });
-    return () => {
-      document.removeEventListener("click",      handler);
-      document.removeEventListener("touchstart", handler);
-    };
+  // User taps "TAP TO BEGIN" → unlock audio → start sequence
+  const begin = useCallback(async (e) => {
+    e.stopPropagation();
+    await unlockAudio();
+    setStarted(true);
   }, []);
 
   const firstName    = user?.name?.split(" ")[0] ?? "there";
@@ -110,8 +95,9 @@ export default function WelcomeSequence({ user, onComplete }) {
     onComplete();
   }, [onComplete]);
 
-  // Auto-advance through steps
+  // Auto-advance through steps — only after user has tapped
   useEffect(() => {
+    if (!started) return;
     const delays = {
       [STEPS.FADE_IN]:   600,   // fade in
       [STEPS.ORB]:      1200,   // orb appears, pause to admire
@@ -125,7 +111,7 @@ export default function WelcomeSequence({ user, onComplete }) {
     if (step === STEPS.DONE) return;
     const id = setTimeout(() => setStep((s) => s + 1), delays[step] ?? 400);
     return () => clearTimeout(id);
-  }, [step]);
+  }, [step, started]);
 
   // Voice
   useEffect(() => {
@@ -145,6 +131,50 @@ export default function WelcomeSequence({ user, onComplete }) {
   const tLine4 = useTypewriter(line4, 35, step >= STEPS.LINE4 && !skipped);
 
   if (step === STEPS.DONE) return null;
+
+  // Splash: tap to begin (guarantees AudioContext is unlocked before sequence)
+  if (!started) {
+    return (
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "#000",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          cursor: "pointer",
+          animation: "fadeIn 0.6s ease",
+        }}
+      >
+        <OrbMini />
+        <div style={{
+          marginTop: 48, fontFamily: "monospace",
+          fontSize: 13, color: "#e01010",
+          letterSpacing: 4, textTransform: "uppercase",
+          animation: "blink 1.4s step-end infinite",
+        }}>
+          TAP TO BEGIN
+        </div>
+        <button
+          onClick={begin}
+          style={{
+            marginTop: 32, padding: "14px 48px",
+            background: "#e01010", border: "none", borderRadius: 40,
+            color: "#fff", fontSize: 13, fontWeight: 700,
+            letterSpacing: 2, textTransform: "uppercase", cursor: "pointer",
+            boxShadow: "0 0 30px rgba(224,16,16,0.5)",
+          }}
+        >
+          ▶ ENTER HSD OS
+        </button>
+        <style>{`
+          @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+          @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
+          @keyframes spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+          @keyframes pulse  { 0%,100%{opacity:1;box-shadow:0 0 20px rgba(224,16,16,0.3)} 50%{opacity:0.8;box-shadow:0 0 40px rgba(224,16,16,0.6)} }
+        `}</style>
+      </div>
+    );
+  }
 
   const isExiting = step >= STEPS.SLIDE_OUT;
 
