@@ -6,6 +6,13 @@ import { db } from "../lib/firebase";
 
 const LANDING = import.meta.env.VITE_LANDING_PAGE_URL || "https://hearseedo.jp";
 
+function buildIframeSrc(url, uid) {
+  if (!url || !uid) return url;
+  const u = new URL(url);
+  u.searchParams.set("sso_token", uid);
+  return u.toString();
+}
+
 export default function AppModal({ app, onClose, user }) {
   const { isUnlocked } = useSubscription();
   const iframeRef = useRef(null);
@@ -96,7 +103,7 @@ export default function AppModal({ app, onClose, user }) {
           app.iframeUrl ? (
             <iframe
               ref={iframeRef}
-              src={app.iframeUrl}
+              src={buildIframeSrc(app.iframeUrl, user?.uid)}
               title={app.name}
               style={{ width: "100%", height: "100%", border: "none", background: "#0a0a0a", display: "block" }}
               allow="microphone; camera; autoplay; fullscreen"
