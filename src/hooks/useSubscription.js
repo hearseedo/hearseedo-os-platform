@@ -7,6 +7,7 @@ export function useSubscription() {
   const plan          = user?.plan ?? "individual";
 
   function isUnlocked(appId) {
+    if (appId === "family") return true; // HSD Family is free for everyone
     return subscriptions.includes(appId);
   }
 

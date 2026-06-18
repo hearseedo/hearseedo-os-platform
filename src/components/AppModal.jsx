@@ -75,7 +75,10 @@ export default function AppModal({ app, onClose, user }) {
           : <span style={{ fontSize: 22 }}>{app.icon}</span>
         }
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{app.name}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, display: "flex", alignItems: "center", gap: 8 }}>
+            {app.name}
+            {app.free && <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 4, padding: "1px 6px", letterSpacing: 1 }}>FREE</span>}
+          </div>
           <div style={{ fontSize: 11, color: COLORS.textMuted }}>{app.desc}</div>
         </div>
         <div style={{ flex: 1 }} />

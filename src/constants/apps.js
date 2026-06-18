@@ -51,9 +51,11 @@ export const APPS = [
     desc: "Track your family's learning journey",
     icon: "👨‍👩‍👧",
     image: "/assets/icon-family.png",
-    accent: "#e01010",
+    accent: "#22c55e",
     audience: "both",
     price: 680,
+    free: true,
+    badge: "FREE",
     iframeUrl: import.meta.env.VITE_APP_URL_FAMILY || "",
   },
   {
