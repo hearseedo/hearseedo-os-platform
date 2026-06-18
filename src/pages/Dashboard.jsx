@@ -206,7 +206,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} />
+      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} />
     </>
   );
 }

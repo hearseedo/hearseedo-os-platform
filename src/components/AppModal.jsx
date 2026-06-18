@@ -1,14 +1,55 @@
+import { useEffect, useRef } from "react";
 import { COLORS } from "../constants/colors";
 import { useSubscription } from "../hooks/useSubscription";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 const LANDING = import.meta.env.VITE_LANDING_PAGE_URL || "https://hearseedo.jp";
 
-export default function AppModal({ app, onClose }) {
+export default function AppModal({ app, onClose, user }) {
   const { isUnlocked } = useSubscription();
+  const iframeRef = useRef(null);
   if (!app) return null;
 
   const unlocked = isUnlocked(app.id);
   const accent   = app.accent ?? COLORS.red;
+
+  // postMessage bridge — receive messages from iframe apps
+  useEffect(() => {
+    if (!unlocked || !app.iframeUrl) return;
+
+    const handleMessage = async (e) => {
+      const data = e.data;
+      if (!data?.type) return;
+
+      // App is ready — send auth token back
+      if (data.type === "HSD_OS_READY") {
+        iframeRef.current?.contentWindow?.postMessage({
+          type:      "HSD_OS_AUTH",
+          token:     user?.uid ?? "",
+          studentId: user?.uid ?? "",
+        }, "*");
+      }
+
+      // App sending progress update — save to Firestore
+      if (data.type === "HSD_OS_PROGRESS" && user?.uid) {
+        try {
+          await setDoc(
+            doc(db, "users", user.uid, "appProgress", data.module ?? app.id),
+            {
+              module:       data.module ?? app.id,
+              lessonsToday: data.lessonsToday ?? 0,
+              updatedAt:    new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        } catch {}
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [unlocked, app.iframeUrl, user?.uid]);
 
   return (
     <div
@@ -51,6 +92,7 @@ export default function AppModal({ app, onClose }) {
         {unlocked ? (
           app.iframeUrl ? (
             <iframe
+              ref={iframeRef}
               src={app.iframeUrl}
               title={app.name}
               style={{ width: "100%", height: "100%", border: "none", background: "#0a0a0a", display: "block" }}
