@@ -93,36 +93,44 @@ export default function LearningPath({ user }) {
     setGenerating(true);
     setOnboarding(false);
     try {
-      const prompt = `Based on this learner profile, create a personalised 4-week English learning path.
-Level: ${finalAnswers.level}
-Goal: ${finalAnswers.goal}
-Daily time: ${finalAnswers.time}
-Learning style: ${finalAnswers.style}
-Available apps: ${(user?.subscriptions ?? []).join(", ") || "phonics (starter)"}
+      // Gemini API via Netlify function — satisfies hackathon Google Cloud requirement
+      const res = await fetch("/api/learning-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level:           finalAnswers.level,
+          goal:            finalAnswers.goal,
+          time:            finalAnswers.time,
+          style:           finalAnswers.style,
+          subscriptions:   user?.subscriptions ?? [],
+          confidenceScore: user?.confidenceScore ?? 0,
+          streak:          user?.streak ?? 0,
+        }),
+      });
 
-Reply in this exact JSON format only, no markdown:
-{
-  "cefr": "A1",
-  "weeklyFocus": ["Week 1 focus", "Week 2 focus", "Week 3 focus", "Week 4 focus"],
-  "primaryApp": "appId",
-  "tip": "One personalised tip in 1 sentence",
-  "milestone": "What they'll be able to do in 4 weeks"
-}`;
-
-      const reply = await sendMessage([{ role: "user", text: prompt }], user);
-      const parsed = JSON.parse(reply.trim());
-      const data = { ...parsed, answers: finalAnswers, createdAt: Date.now() };
+      if (!res.ok) throw new Error("Gemini API error");
+      const parsed = await res.json();
+      const data   = { ...parsed, answers: finalAnswers, createdAt: Date.now() };
       setPathData(data);
       if (user?.uid) {
         await setDoc(doc(db, "users", user.uid, "learningPath", "current"), data);
       }
     } catch {
-      // Fallback if AI fails or JSON parse fails
+      // Fallback if Gemini fails
       const fallback = {
-        cefr: "A2", weeklyFocus: ["Build daily habit", "Core vocabulary", "Speaking practice", "Review & advance"],
+        cefr: "A2", cefrName: "Elementary",
+        weeklyFocus: ["Build daily habit", "Core vocabulary", "Speaking practice", "Review & advance"],
         primaryApp: user?.subscriptions?.[0] ?? "phonics",
+        secondaryApp: null,
+        dailyPlan: {
+          morning: "5-minute vocabulary review",
+          main:    "20-minute focused study session",
+          evening: "Listen to 5 minutes of English audio",
+        },
         tip: "Consistency beats intensity — 10 minutes daily beats 2 hours on weekends.",
         milestone: "You'll be able to hold simple conversations with confidence.",
+        encouragement: "Every expert was once a beginner. You've got this.",
+        generatedBy: "fallback",
         answers: finalAnswers, createdAt: Date.now(),
       };
       setPathData(fallback);
@@ -203,6 +211,35 @@ function MyPath({ pathData, user, onReset }) {
           ))}
         </div>
       </div>
+
+      {/* Daily plan — new Gemini field */}
+      {pathData?.dailyPlan && (
+        <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 14, padding: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>Daily Study Plan</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { label: "MORNING", text: pathData.dailyPlan.morning, color: "#f59e0b" },
+              { label: "MAIN SESSION", text: pathData.dailyPlan.main, color: COLORS.red },
+              { label: "EVENING", text: pathData.dailyPlan.evening, color: "#4488ff" },
+            ].map(({ label, text, color }) => (
+              <div key={label} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 14px", background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 10 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: 1, minWidth: 80, paddingTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>{text}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Encouragement + Gemini badge */}
+      {pathData?.encouragement && (
+        <div style={{ padding: "12px 16px", background: "rgba(224,16,16,0.05)", border: "1px solid rgba(224,16,16,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontSize: 13, color: COLORS.textMuted, fontStyle: "italic", lineHeight: 1.5 }}>"{pathData.encouragement}"</div>
+          {pathData?.generatedBy === "gemini" && (
+            <div style={{ fontSize: 9, color: "#4285f4", letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap", flexShrink: 0 }}>✦ Gemini AI</div>
+          )}
+        </div>
+      )}
 
       {/* Milestone + primary app */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

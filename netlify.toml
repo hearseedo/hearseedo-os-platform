@@ -37,6 +37,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/learning-path"
+  to     = "/.netlify/functions/learning-path"
+  status = 200
+
+[[redirects]]
   from   = "/api/*"
   to     = "/.netlify/functions/:splat"
   status = 200
