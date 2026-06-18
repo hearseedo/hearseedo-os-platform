@@ -94,9 +94,13 @@ export default function LearningPath({ user }) {
     setOnboarding(false);
     try {
       // Gemini API via Netlify function — satisfies hackathon Google Cloud requirement
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
       const res = await fetch("/api/learning-path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           level:           finalAnswers.level,
           goal:            finalAnswers.goal,
@@ -107,6 +111,7 @@ export default function LearningPath({ user }) {
           streak:          user?.streak ?? 0,
         }),
       });
+      clearTimeout(timeout);
 
       if (!res.ok) throw new Error("Gemini API error");
       const parsed = await res.json();
