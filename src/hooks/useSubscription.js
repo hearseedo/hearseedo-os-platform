@@ -1,13 +1,17 @@
 import { useAuth } from "./useAuth";
 
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
+
 export function useSubscription() {
   const { user } = useAuth();
 
   const subscriptions = user?.subscriptions ?? [];
   const plan          = user?.plan ?? "individual";
+  const isAdmin       = user?.email === ADMIN_EMAIL;
 
   function isUnlocked(appId) {
-    if (appId === "family") return true; // HSD Family is free for everyone
+    if (isAdmin) return true;
+    if (appId === "family") return true;
     return subscriptions.includes(appId);
   }
 
