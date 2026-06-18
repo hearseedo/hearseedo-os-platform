@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { COLORS } from "../constants/colors";
 import { useSubscription } from "../hooks/useSubscription";
 import { doc, setDoc } from "firebase/firestore";
@@ -16,6 +16,8 @@ function buildIframeSrc(url, uid) {
 export default function AppModal({ app, onClose, user }) {
   const { isUnlocked } = useSubscription();
   const iframeRef = useRef(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  useEffect(() => { setIframeLoaded(false); }, [app?.id]);
   if (!app) return null;
 
   const unlocked = isUnlocked(app.id);
@@ -101,13 +103,31 @@ export default function AppModal({ app, onClose, user }) {
       <div style={{ flex: 1, overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
         {unlocked ? (
           app.iframeUrl ? (
-            <iframe
-              ref={iframeRef}
-              src={buildIframeSrc(app.iframeUrl, user?.uid)}
-              title={app.name}
-              style={{ width: "100%", height: "100%", border: "none", background: "#0a0a0a", display: "block" }}
-              allow="microphone; camera; autoplay; fullscreen"
-            />
+            <div style={{ position: "relative", width: "100%", height: "100%" }}>
+              {!iframeLoaded && (
+                <div style={{
+                  position: "absolute", inset: 0, background: "#0a0a0a",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 16, zIndex: 1,
+                }}>
+                  <div style={{
+                    width: 40, height: 40, border: `3px solid ${app.accent ?? COLORS.red}33`,
+                    borderTop: `3px solid ${app.accent ?? COLORS.red}`,
+                    borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                  }} />
+                  <div style={{ fontSize: 13, color: COLORS.textMuted }}>Loading {app.name}…</div>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+              <iframe
+                ref={iframeRef}
+                src={buildIframeSrc(app.iframeUrl, user?.uid)}
+                title={app.name}
+                onLoad={() => setIframeLoaded(true)}
+                style={{ width: "100%", height: "100%", border: "none", background: "#0a0a0a", display: "block" }}
+                allow="microphone; camera; autoplay; fullscreen"
+              />
+            </div>
           ) : (
             <ComingSoon app={app} accent={accent} />
           )
