@@ -367,8 +367,8 @@ function OnboardingFlow({ step, answers, onAnswer }) {
   const q = QUESTIONS[step];
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", animation: "fadeIn 0.3s ease" }}>
-      <img src="/assets/jarvis.png" alt="Jarvis" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", marginBottom: 16, filter: "drop-shadow(0 0 12px rgba(224,16,16,0.6))" }} />
-      <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, marginBottom: 12 }}>JARVIS · LEARNING ASSESSMENT</div>
+      <img src="/assets/kai.png" alt="Kai" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", marginBottom: 16, filter: "drop-shadow(0 0 12px rgba(224,16,16,0.6))" }} />
+      <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, marginBottom: 12 }}>KAI · LEARNING ASSESSMENT</div>
       <div style={{ fontSize: 14, color: COLORS.textMuted, marginBottom: 6, textAlign: "center" }}>Question {step + 1} of {QUESTIONS.length}</div>
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, textAlign: "center", maxWidth: 420, lineHeight: 1.4 }}>{q.question}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 380 }}>
@@ -397,8 +397,8 @@ function OnboardingFlow({ step, answers, onAnswer }) {
 function LoadingState({ generating }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px", gap: 16 }}>
-      <img src="/assets/jarvis.png" alt="Jarvis" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", animation: "pulse 2s ease-in-out infinite", filter: "drop-shadow(0 0 16px rgba(224,16,16,0.7))" }} />
-      <div style={{ fontSize: 14, color: COLORS.textMuted }}>{generating ? "Jarvis is building your personal learning path…" : "Loading your path…"}</div>
+      <img src="/assets/kai.png" alt="Kai" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", animation: "pulse 2s ease-in-out infinite", filter: "drop-shadow(0 0 16px rgba(224,16,16,0.7))" }} />
+      <div style={{ fontSize: 14, color: COLORS.textMuted }}>{generating ? "Kai is building your personal learning path…" : "Loading your path…"}</div>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }`}</style>
     </div>
   );

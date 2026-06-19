@@ -149,7 +149,7 @@ export default function Welcome() {
             animation: speaking ? "avatarSpeak 0.8s ease-in-out infinite alternate" : "avatarIdle 3s ease-in-out infinite",
             transition: "border-color 0.4s, box-shadow 0.4s",
           }}>
-            <img src="/assets/jarvis.png" alt="HSD AI" style={{ width: 128, height: 128, borderRadius: "50%", objectFit: "cover" }} />
+            <img src="/assets/kai.png" alt="HSD AI" style={{ width: 128, height: 128, borderRadius: "50%", objectFit: "cover" }} />
 
             {/* Scanning line — shows while booting */}
             {!bootDone && (
@@ -230,7 +230,7 @@ export default function Welcome() {
         {/* Buttons — appear after boot */}
         {bootDone && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, animation: "fadeSlideIn 0.6s ease" }}>
-            {/* Primary: Hear Jarvis — plays voice on click */}
+            {/* Primary: Hear Kai — plays voice on click */}
             {!activated && !speaking && !done && (
               <button
                 onClick={activate}
@@ -244,7 +244,7 @@ export default function Welcome() {
                   animation: "enterPulse 2s ease-in-out infinite",
                 }}
               >
-                ▶ HEAR JARVIS
+                ▶ HEAR KAI
               </button>
             )}
 

@@ -359,7 +359,7 @@ function RecommendationsCard({ user }) {
 
   return (
     <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 16 }}>
-      <SectionTitle>Jarvis Recommends</SectionTitle>
+      <SectionTitle>Kai Recommends</SectionTitle>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <RecItem icon="📚" label="Today's Lesson" text={recs.lesson} />
         <RecItem icon="⚡" label="Challenge" text={recs.challenge} />
