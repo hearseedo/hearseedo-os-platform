@@ -1,6 +1,6 @@
 // Gemini-powered personalised learning path generator
 // Uses: gemini-2.0-flash via Google AI Studio API
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-2.5-flash-lite-preview-06-17";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -78,7 +78,6 @@ Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
           generationConfig: {
             temperature:     0.7,
             maxOutputTokens: 800,
-            responseMimeType: "application/json",
           },
         }),
       }
@@ -92,7 +91,9 @@ Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
 
     const data     = await res.json();
     const text     = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    const parsed   = JSON.parse(text.trim());
+    // Strip markdown code fences if model wraps JSON in them
+    const cleaned  = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const parsed   = JSON.parse(cleaned);
 
     // Log for hackathon evidence — agent execution record
     console.log("GEMINI_LEARNING_PATH_GENERATED", JSON.stringify({
