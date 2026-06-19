@@ -1,6 +1,6 @@
 // Gemini-powered personalised learning path generator
 // Uses: gemini-2.0-flash via Google AI Studio API
-const MODEL = "gemini-2.5-flash-lite-preview-06-17";
+const MODEL = "gemini-2.5-flash-lite";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
