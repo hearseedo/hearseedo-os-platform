@@ -17,21 +17,20 @@ export default function AppModal({ app, onClose, user }) {
   const { isUnlocked } = useSubscription();
   const iframeRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  // Reset loader when app changes — all hooks must be before any early return
   useEffect(() => { setIframeLoaded(false); }, [app?.id]);
-  if (!app) return null;
 
-  const unlocked = isUnlocked(app.id);
-  const accent   = app.accent ?? COLORS.red;
-
-  // postMessage bridge — receive messages from iframe apps
+  // postMessage bridge
   useEffect(() => {
-    if (!unlocked || !app.iframeUrl) return;
+    if (!app || !app.iframeUrl) return;
+    const unlocked = isUnlocked(app.id);
+    if (!unlocked) return;
 
     const handleMessage = async (e) => {
       const data = e.data;
       if (!data?.type) return;
 
-      // App is ready — send auth token back
       if (data.type === "HSD_OS_READY") {
         iframeRef.current?.contentWindow?.postMessage({
           type:      "HSD_OS_AUTH",
@@ -40,7 +39,6 @@ export default function AppModal({ app, onClose, user }) {
         }, "*");
       }
 
-      // App sending progress update — save to Firestore
       if (data.type === "HSD_OS_PROGRESS" && user?.uid) {
         try {
           await setDoc(
@@ -58,7 +56,12 @@ export default function AppModal({ app, onClose, user }) {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [unlocked, app.iframeUrl, user?.uid]);
+  }, [app?.id, app?.iframeUrl, user?.uid]);
+
+  if (!app) return null;
+
+  const unlocked = isUnlocked(app.id);
+  const accent   = app.accent ?? COLORS.red;
 
   return (
     <div
@@ -111,8 +114,8 @@ export default function AppModal({ app, onClose, user }) {
                   gap: 16, zIndex: 1,
                 }}>
                   <div style={{
-                    width: 40, height: 40, border: `3px solid ${app.accent ?? COLORS.red}33`,
-                    borderTop: `3px solid ${app.accent ?? COLORS.red}`,
+                    width: 40, height: 40, border: `3px solid ${accent}33`,
+                    borderTop: `3px solid ${accent}`,
                     borderRadius: "50%", animation: "spin 0.8s linear infinite",
                   }} />
                   <div style={{ fontSize: 13, color: COLORS.textMuted }}>Loading {app.name}…</div>
