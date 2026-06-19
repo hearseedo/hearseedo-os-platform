@@ -16,7 +16,7 @@ function thisMonday() {
 const SESSION_TYPES = [
   { id: "vocab",    label: "Vocabulary Drill",   icon: "📖", desc: "Build and test your word bank",        color: "#4488ff" },
   { id: "speaking", label: "Speaking Practice",  icon: "🎤", desc: "Speak freely, get instant feedback",   color: COLORS.red },
-  { id: "grammar",  label: "Grammar Focus",      icon: "✏️", desc: "Fix common mistakes with Kai",      color: "#22c55e" },
+  { id: "grammar",  label: "Grammar Focus",      icon: "✏️", desc: "Fix common mistakes with Jona",      color: "#22c55e" },
   { id: "eiken",    label: "Eiken Prep",         icon: "📝", desc: "Exam-style questions & band scoring",  color: COLORS.gold },
 ];
 
@@ -75,7 +75,7 @@ Give a personalised Monday briefing in exactly this structure (use line breaks b
 1. One sentence acknowledging their week (reference their actual stats, be specific)
 2. THIS WEEK'S FOCUS: One clear focus area for the week (2 sentences max)
 3. YOUR CHALLENGE: One specific challenge to complete this week
-4. KAI SAYS: One motivational line in your KAI voice
+4. JONA SAYS: One motivational line in your JONA voice
 
 Keep the whole thing under 120 words. Sound human, not corporate.`;
 
@@ -114,7 +114,7 @@ export default function AICoach({ user }) {
       setWeeklyData(data);
       if (user?.uid) await setDoc(doc(db, "users", user.uid, "weeklyCheckin", thisMonday()), data);
     } catch (e) {
-      setWeeklyData({ content: "Kai couldn't connect this week — try again in a moment.", week: thisMonday(), generatedAt: Date.now() });
+      setWeeklyData({ content: "Jona couldn't connect this week — try again in a moment.", week: thisMonday(), generatedAt: Date.now() });
     }
     setLoadingWeekly(false);
   };
@@ -190,7 +190,7 @@ export default function AICoach({ user }) {
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{sessionType.label}</div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted }}>with Kai · session active</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>with Jona · session active</div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.success, animation: "pulse 2s ease-in-out infinite" }} />
@@ -211,8 +211,8 @@ export default function AICoach({ user }) {
               }}>
                 {m.role === "assistant" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <img src="/assets/kai.png" alt="Kai" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
-                    <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>KAI</span>
+                    <img src="/assets/jona.png" alt="Jona" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
+                    <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>JONA</span>
                   </div>
                 )}
                 {m.text}
@@ -236,7 +236,7 @@ export default function AICoach({ user }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Reply to Kai…"
+              placeholder="Reply to Jona…"
               style={{ flex: 1, background: "none", border: "none", color: COLORS.text, fontSize: 13, padding: "8px 0" }}
             />
             <button onClick={() => send()} style={{ background: "none", border: "none", color: COLORS.red, cursor: "pointer", fontSize: 16 }}>➤</button>
@@ -262,10 +262,10 @@ export default function AICoach({ user }) {
       {/* Weekly check-in card */}
       <div style={{ background: COLORS.card, border: `1px solid ${weeklyData ? "rgba(34,197,94,0.25)" : "#1e1e1e"}`, borderRadius: 14, padding: 20, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <img src="/assets/kai.png" alt="Kai" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 8px rgba(224,16,16,0.5))" }} />
+          <img src="/assets/jona.png" alt="Jona" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 8px rgba(224,16,16,0.5))" }} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>Monday Check-In</div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted }}>Kai reviews your week and sets your focus</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>Jona reviews your week and sets your focus</div>
           </div>
           {weeklyData && <span style={{ marginLeft: "auto", fontSize: 10, color: COLORS.success, fontWeight: 700, border: "1px solid rgba(34,197,94,0.3)", padding: "3px 8px", borderRadius: 20 }}>THIS WEEK</span>}
         </div>
@@ -279,7 +279,7 @@ export default function AICoach({ user }) {
         ) : (
           <div>
             <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 12 }}>
-              {isMonday ? `It's Monday, ${firstName}. Let Kai review your week and set your focus.` : `Your next check-in is this Monday. Come back then for your weekly briefing.`}
+              {isMonday ? `It's Monday, ${firstName}. Let Jona review your week and set your focus.` : `Your next check-in is this Monday. Come back then for your weekly briefing.`}
             </div>
             {isMonday && (
               <button

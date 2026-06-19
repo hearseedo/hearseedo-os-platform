@@ -39,7 +39,7 @@ export default function Terms() {
 
     <Section title="5. AI Features and Limitations">
       <ul>
-        <li>The HSD AI assistant ("Kai") is powered by a third-party large language model. Responses are generated automatically and may occasionally be inaccurate or incomplete.</li>
+        <li>The HSD AI assistant ("Jona") is powered by a third-party large language model. Responses are generated automatically and may occasionally be inaccurate or incomplete.</li>
         <li>AI-generated content is for educational support only and does not constitute professional advice.</li>
         <li>Daily message limits apply based on your subscription plan and reset at midnight Japan Standard Time (JST).</li>
         <li>We reserve the right to adjust AI usage limits to maintain service quality and manage operational costs.</li>

@@ -75,7 +75,7 @@ function recommendLesson(confidence, weakest, trend) {
 function recommendChallenge(confidence, skills) {
   if (confidence < 30) return "Say one sentence in English out loud right now — any sentence";
   if (confidence < 50) return "Start today's conversation without looking anything up";
-  if (confidence < 70) return "Teach Kai something you know — explain it in English";
+  if (confidence < 70) return "Teach Jona something you know — explain it in English";
   return "Have a full 10-minute English-only conversation with no Japanese";
 }
 

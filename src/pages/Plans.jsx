@@ -160,7 +160,7 @@ export default function Plans() {
         {/* AI limits table */}
         <div style={{ marginTop: 64, background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 16, padding: 28 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 20 }}>
-            Kai AI Chat — Daily Message Limits
+            Jona AI Chat — Daily Message Limits
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
             {[

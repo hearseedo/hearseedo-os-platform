@@ -46,7 +46,7 @@ export default function Subscriptions({ user }) {
         borderRadius: 16, padding: 24, marginBottom: 24,
         display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
       }}>
-        <img src="/assets/kai.png" alt="Kai" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 10px rgba(224,16,16,0.5))", flexShrink: 0 }} />
+        <img src="/assets/jona.png" alt="Jona" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 10px rgba(224,16,16,0.5))", flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
             {planId === "free" ? "Free Plan" : "Active Subscription"}
@@ -91,7 +91,7 @@ export default function Subscriptions({ user }) {
       {/* AI Chat usage */}
       <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 20, marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>
-          Kai AI Chat
+          Jona AI Chat
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div>

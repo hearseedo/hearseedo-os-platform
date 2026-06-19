@@ -157,7 +157,7 @@ export default function AIChat() {
           {/* Voice toggle */}
           <button
             onClick={toggleVoice}
-            title={voiceOn ? "Voice on — click to mute" : "Click to enable Kai voice"}
+            title={voiceOn ? "Voice on — click to mute" : "Click to enable Jona voice"}
             style={{
               background: voiceOn ? "rgba(224,16,16,0.15)" : "transparent",
               border: `1px solid ${voiceOn ? "rgba(224,16,16,0.5)" : "#2a2a2a"}`,
@@ -172,7 +172,7 @@ export default function AIChat() {
                 {[0,1,2,3].map((i) => (
                   <span key={i} style={{
                     width: 2, borderRadius: 2, background: COLORS.red,
-                    animation: `kaiBar 0.8s ${i * 0.15}s ease-in-out infinite alternate`,
+                    animation: `jonaBar 0.8s ${i * 0.15}s ease-in-out infinite alternate`,
                     height: `${6 + i * 3}px`,
                   }} />
                 ))}
@@ -221,7 +221,7 @@ export default function AIChat() {
                     animation: "greetPulse 2s ease-in-out infinite",
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>▶</span> Hear Kai
+                  <span style={{ fontSize: 14 }}>▶</span> Hear Jona
                 </button>
               )}
             </div>
@@ -307,12 +307,12 @@ export default function AIChat() {
         </button>
       </div>
       <div style={{ textAlign: "center", fontSize: 10, color: COLORS.textDim, marginTop: 8 }}>
-        {voiceOn ? "Kai voice active — responses will be spoken aloud" : "Tap to talk • Enable voice for Kai responses"}
+        {voiceOn ? "Jona voice active — responses will be spoken aloud" : "Tap to talk • Enable voice for Jona responses"}
       </div>
 
       <style>{`
         @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-        @keyframes kaiBar { from{opacity:0.4} to{opacity:1} }
+        @keyframes jonaBar { from{opacity:0.4} to{opacity:1} }
         @keyframes greetPulse { 0%,100%{box-shadow:0 0 0 0 rgba(224,16,16,0.3)} 50%{box-shadow:0 0 0 6px rgba(224,16,16,0)} }
         @keyframes glowPulse { 0%,100%{box-shadow:0 0 8px rgba(224,16,16,0.4)} 50%{box-shadow:0 0 18px rgba(224,16,16,0.8)} }
       `}</style>

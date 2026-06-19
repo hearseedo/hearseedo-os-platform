@@ -399,7 +399,7 @@ function OrbMini({ pulse, speaking }) {
         overflow: "hidden",
         boxShadow: "0 0 30px rgba(224,16,16,0.4)",
       }}>
-        <img src="/assets/kai.png" alt="Kai" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src="/assets/jona.png" alt="Jona" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       {/* Corner brackets */}
       {[

@@ -78,7 +78,7 @@ export default function SignIn() {
             animation: "glowPulse 3s ease-in-out infinite",
             filter: "drop-shadow(0 0 18px rgba(224,16,16,0.7))",
           }}>
-            <img src="/assets/kai.png" alt="Kai" style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover" }} />
+            <img src="/assets/jona.png" alt="Jona" style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover" }} />
           </div>
           <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 4, textTransform: "uppercase", marginBottom: 4 }}>HEAR SEE DO™</div>
           <div style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: 3 }}>OS AI</div>
