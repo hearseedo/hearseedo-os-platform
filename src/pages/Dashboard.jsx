@@ -369,7 +369,7 @@ export default function Dashboard() {
 
           {/* RIGHT PANEL */}
           <aside style={{ width: 280, background: COLORS.surface, borderLeft: "1px solid #1e1e1e", padding: 16, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flexShrink: 0 }}>
-            <CoachingCard user={user} />
+            <CoachingCard user={user} member={activeMember ?? undefined} />
             <ProgressJourney user={user} />
             <Leaderboard currentUid={user?.uid} />
             <MissionsCard user={user} />
@@ -846,21 +846,41 @@ function RecItem({ icon, label, text }) {
   );
 }
 
-function CoachingCard({ user }) {
+function CoachingCard({ user, member }) {
   const [card, setCard]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
+  const [voices, setVoices]   = useState([]);
   const { lang }              = useLang();
   const jp                    = lang === "jp";
+  const isKid                 = !!member;
+
+  // Load available Speech API voices (populated async in some browsers)
+  useEffect(() => {
+    const load = () => setVoices(window.speechSynthesis?.getVoices() ?? []);
+    load();
+    window.speechSynthesis?.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis?.removeEventListener("voiceschanged", load);
+  }, []);
+
+  // Stop any speech when unmounting
+  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
   useEffect(() => {
     if (!user?.uid) return;
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+    setCard(null);
+    setLoading(true);
 
-    getDoc(doc(db, "users", user.uid, "coachingCards", today)).then(async snap => {
+    const today   = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    const cardRef = member
+      ? doc(db, "users", user.uid, "familyMembers", member.id, "coachingCards", today)
+      : doc(db, "users", user.uid, "coachingCards", today);
+
+    getDoc(cardRef).then(async snap => {
       const cached = snap.exists() ? snap.data() : null;
-      // Require focus_jp to contain actual Japanese characters — guards against
-      // stale cache entries where focus_jp accidentally stored English text.
-      const hasJP = (s) => s && /[぀-ゟ゠-ヿ一-鿿]/.test(s);
+      const hasJP  = (s) => s && /[぀-ゟ゠-ヿ一-鿿]/.test(s);
       if (cached?.focus && hasJP(cached?.focus_jp)) {
         setCard(cached);
         setLoading(false);
@@ -871,7 +891,14 @@ function CoachingCard({ user }) {
         const res = await fetch("/api/coaching-card", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: JSON.stringify(member ? {
+            uid:             user.uid,
+            name:            member.name?.split(" ")[0] ?? "there",
+            age:             member.age ?? null,
+            confidenceScore: member.confidenceScore ?? 40,
+            plan:            user.plan ?? "free",
+            isKid:           true,
+          } : {
             uid:             user.uid,
             name:            user.name?.split(" ")[0] ?? "there",
             confidenceScore: user.confidenceScore ?? 50,
@@ -885,11 +912,8 @@ function CoachingCard({ user }) {
         const data = await res.json();
         if (data.focus) {
           setCard(data);
-          // Only persist when bilingual — so incomplete cards re-fetch next time
           if (hasJP(data.focus_jp)) {
-            setDoc(doc(db, "users", user.uid, "coachingCards", today), {
-              ...data, generatedAt: serverTimestamp(),
-            }).catch(() => {});
+            setDoc(cardRef, { ...data, generatedAt: serverTimestamp() }).catch(() => {});
           }
         }
       } catch {
@@ -897,13 +921,47 @@ function CoachingCard({ user }) {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [user?.uid]);
+  }, [user?.uid, member?.id]);
+
+  function speak() {
+    if (!window.speechSynthesis || !card) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    // Kids hear the current language; adults always hear English (language practice)
+    const useJP = isKid && lang === "jp";
+    const text  = useJP
+      ? [card.focus_jp, card.message_jp, card.challenge_jp, card.tip_jp].filter(Boolean).join("。 ")
+      : [card.focus,    card.message,    card.challenge,    card.tip   ].filter(Boolean).join(". ");
+
+    const utt  = new SpeechSynthesisUtterance(text);
+    utt.lang   = useJP ? "ja-JP" : "en-US";
+    utt.rate   = 0.88;
+    utt.pitch  = 1.1;
+
+    const match = voices.find(v =>
+      v.lang.startsWith(useJP ? "ja" : "en") &&
+      /samantha|karen|moira|victoria|kyoko|o-ren|female|woman/i.test(v.name)
+    ) ?? voices.find(v => v.lang.startsWith(useJP ? "ja" : "en"));
+    if (match) utt.voice = match;
+
+    utt.onstart = () => setSpeaking(true);
+    utt.onend   = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utt);
+  }
+
+  const cardTitle = isKid
+    ? (jp ? `${member.name?.split(" ")[0]}のコーチ` : `${member.name?.split(" ")[0]}'s Coach`)
+    : (jp ? "デイリーコーチ" : "Daily Coach");
 
   if (loading) return (
     <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 14 }}>🧠</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#06b6d4", letterSpacing: 2, textTransform: "uppercase" }}>Daily Coach</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#06b6d4", letterSpacing: 2, textTransform: "uppercase" }}>{cardTitle}</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {[80, 60, 90].map((w, i) => (
@@ -921,16 +979,43 @@ function CoachingCard({ user }) {
       border: "1px solid rgba(6,182,212,0.2)",
       borderRadius: 12, padding: 16, position: "relative", overflow: "hidden",
     }}>
+      <style>{`
+        @keyframes monkeyTalk {
+          from { transform: scale(1)    rotate(-6deg); }
+          to   { transform: scale(1.18) rotate(6deg);  }
+        }
+      `}</style>
+
       <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, borderRadius: "50%", background: "rgba(6,182,212,0.06)", pointerEvents: "none" }} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <span style={{ fontSize: 15 }}>🧠</span>
         <span style={{ fontSize: 10, fontWeight: 700, color: "#06b6d4", letterSpacing: 2, textTransform: "uppercase" }}>
-          {jp ? "デイリーコーチ" : "Daily Coach"}
+          {cardTitle}
         </span>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#06b6d433", fontStyle: "italic" }}>
+        <span style={{ fontSize: 9, color: "#06b6d433", fontStyle: "italic" }}>
           {new Date().toLocaleDateString(jp ? "ja-JP" : "en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Tokyo" })}
         </span>
+        <button
+          onClick={speak}
+          title={speaking ? (jp ? "止める" : "Stop") : (jp ? "聞く" : "Listen")}
+          style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 0, flexShrink: 0 }}
+        >
+          <img
+            src="/assets/monkey.png"
+            alt={speaking ? "Stop" : "Listen"}
+            style={{
+              width: 36, height: 36,
+              borderRadius: "50%",
+              mixBlendMode: "screen",
+              filter: speaking
+                ? "drop-shadow(0 0 10px #e01010) brightness(1.4)"
+                : "drop-shadow(0 0 4px rgba(224,16,16,0.5)) brightness(1.05)",
+              animation: speaking ? "monkeyTalk 0.35s ease-in-out infinite alternate" : "none",
+              transition: "filter 0.25s",
+            }}
+          />
+        </button>
       </div>
 
       {/* Focus */}
