@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { NAV_ITEMS } from "../constants/nav";
@@ -847,24 +847,18 @@ function RecItem({ icon, label, text }) {
 }
 
 function CoachingCard({ user, member }) {
-  const [card, setCard]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [speaking, setSpeaking] = useState(false);
-  const [voices, setVoices]   = useState([]);
-  const { lang }              = useLang();
-  const jp                    = lang === "jp";
-  const isKid                 = !!member;
+  const [card, setCard]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [audioState, setAudioState] = useState("idle"); // idle | loading | playing
+  const audioRef                = useRef(null);
+  const { lang }                = useLang();
+  const jp                      = lang === "jp";
+  const isKid                   = !!member;
 
-  // Load available Speech API voices (populated async in some browsers)
-  useEffect(() => {
-    const load = () => setVoices(window.speechSynthesis?.getVoices() ?? []);
-    load();
-    window.speechSynthesis?.addEventListener("voiceschanged", load);
-    return () => window.speechSynthesis?.removeEventListener("voiceschanged", load);
+  // Stop audio on unmount
+  useEffect(() => () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
   }, []);
-
-  // Stop any speech when unmounting
-  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -923,34 +917,48 @@ function CoachingCard({ user, member }) {
     }).catch(() => setLoading(false));
   }, [user?.uid, member?.id]);
 
-  function speak() {
-    if (!window.speechSynthesis || !card) return;
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
+  async function speak() {
+    if (!card || !user?.uid) return;
+
+    // Stop if already playing
+    if (audioState === "playing" && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setAudioState("idle");
       return;
     }
-    // Kids hear the current language; adults always hear English (language practice)
-    const useJP = isKid && lang === "jp";
-    const text  = useJP
-      ? [card.focus_jp, card.message_jp, card.challenge_jp, card.tip_jp].filter(Boolean).join("。 ")
-      : [card.focus,    card.message,    card.challenge,    card.tip   ].filter(Boolean).join(". ");
+    if (audioState === "loading") return;
 
-    const utt  = new SpeechSynthesisUtterance(text);
-    utt.lang   = useJP ? "ja-JP" : "en-US";
-    utt.rate   = 0.88;
-    utt.pitch  = 1.1;
+    setAudioState("loading");
 
-    const match = voices.find(v =>
-      v.lang.startsWith(useJP ? "ja" : "en") &&
-      /samantha|karen|moira|victoria|kyoko|o-ren|female|woman/i.test(v.name)
-    ) ?? voices.find(v => v.lang.startsWith(useJP ? "ja" : "en"));
-    if (match) utt.voice = match;
+    const text = [
+      `Today's focus: ${card.focus}.`,
+      card.message,
+      `Challenge: ${card.challenge}.`,
+      `Tip: ${card.tip}.`,
+    ].filter(Boolean).join(" ");
 
-    utt.onstart = () => setSpeaking(true);
-    utt.onend   = () => setSpeaking(false);
-    utt.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utt);
+    try {
+      const res = await fetch("/api/tts", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ uid: user.uid, text }),
+      });
+      if (!res.ok) throw new Error("tts failed");
+
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; setAudioState("idle"); };
+      audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; setAudioState("idle"); };
+
+      setAudioState("playing");
+      audio.play();
+    } catch {
+      setAudioState("idle");
+    }
   }
 
   const cardTitle = isKid
@@ -998,20 +1006,24 @@ function CoachingCard({ user, member }) {
         </span>
         <button
           onClick={speak}
-          title={speaking ? (jp ? "止める" : "Stop") : (jp ? "聞く" : "Listen")}
-          style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 0, flexShrink: 0 }}
+          title={audioState === "playing" ? "Stop" : audioState === "loading" ? "Loading…" : "Listen"}
+          style={{ marginLeft: "auto", background: "none", border: "none", cursor: audioState === "loading" ? "wait" : "pointer", padding: 0, lineHeight: 0, flexShrink: 0 }}
         >
           <img
             src="/assets/monkey.png"
-            alt={speaking ? "Stop" : "Listen"}
+            alt="Listen"
             style={{
               width: 36, height: 36,
               borderRadius: "50%",
               mixBlendMode: "screen",
-              filter: speaking
+              filter: audioState === "playing"
                 ? "drop-shadow(0 0 10px #e01010) brightness(1.4)"
+                : audioState === "loading"
+                ? "drop-shadow(0 0 6px rgba(224,16,16,0.7)) brightness(1.2)"
                 : "drop-shadow(0 0 4px rgba(224,16,16,0.5)) brightness(1.05)",
-              animation: speaking ? "monkeyTalk 0.35s ease-in-out infinite alternate" : "none",
+              animation: audioState === "playing" ? "monkeyTalk 0.35s ease-in-out infinite alternate"
+                : audioState === "loading"  ? "monkeyTalk 0.7s ease-in-out infinite alternate"
+                : "none",
               transition: "filter 0.25s",
             }}
           />

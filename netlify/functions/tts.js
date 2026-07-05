@@ -1,7 +1,7 @@
 // Netlify Function — ElevenLabs TTS proxy
 const VOICE_ID = "onwK4e9ZLuTAKqWW03F9"; // Daniel — deep British male
-const MODEL_ID = "eleven_monolingual_v1";
-const MAX_CHARS = 800;
+const MODEL_ID = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
+const MAX_CHARS = 1200;
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
