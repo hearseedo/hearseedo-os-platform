@@ -858,8 +858,10 @@ function CoachingCard({ user }) {
 
     getDoc(doc(db, "users", user.uid, "coachingCards", today)).then(async snap => {
       const cached = snap.exists() ? snap.data() : null;
-      // Serve from cache only when both English AND Japanese fields are present
-      if (cached?.focus && cached?.focus_jp) {
+      // Require focus_jp to contain actual Japanese characters — guards against
+      // stale cache entries where focus_jp accidentally stored English text.
+      const hasJP = (s) => s && /[぀-ゟ゠-ヿ一-鿿]/.test(s);
+      if (cached?.focus && hasJP(cached?.focus_jp)) {
         setCard(cached);
         setLoading(false);
         return;
@@ -884,7 +886,7 @@ function CoachingCard({ user }) {
         if (data.focus) {
           setCard(data);
           // Only persist when bilingual — so incomplete cards re-fetch next time
-          if (data.focus_jp) {
+          if (hasJP(data.focus_jp)) {
             setDoc(doc(db, "users", user.uid, "coachingCards", today), {
               ...data, generatedAt: serverTimestamp(),
             }).catch(() => {});

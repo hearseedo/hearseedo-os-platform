@@ -74,7 +74,7 @@ Rules: address as 'you' in English, '你' is wrong — use warm Japanese tone (�
       },
       body: JSON.stringify({
         model:      MODEL,
-        max_tokens: 400,
+        max_tokens: 800,
         messages:   [{ role: "user", content: prompt }],
       }),
     });
