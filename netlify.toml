@@ -47,6 +47,46 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/coaching-card"
+  to     = "/.netlify/functions/coaching-card"
+  status = 200
+
+[[redirects]]
+  from   = "/api/log-page-view"
+  to     = "/.netlify/functions/log-page-view"
+  status = 200
+
+[[redirects]]
+  from   = "/api/track-event"
+  to     = "/.netlify/functions/track-event"
+  status = 200
+
+[[redirects]]
+  from   = "/api/assessment-score"
+  to     = "/.netlify/functions/assessment-score"
+  status = 200
+
+[[redirects]]
+  from   = "/api/pronunciation-check"
+  to     = "/.netlify/functions/pronunciation-check"
+  status = 200
+
+[[redirects]]
+  from   = "/api/create-custom-token"
+  to     = "/.netlify/functions/create-custom-token"
+  status = 200
+
+[[redirects]]
+  from   = "/api/delete-account"
+  to     = "/.netlify/functions/delete-account"
+  status = 200
+
+[[redirects]]
+  from   = "/api/signup-counter"
+  to     = "/.netlify/functions/signup-counter"
+  status = 200
+
+[[redirects]]
   from   = "/api/*"
   to     = "/.netlify/functions/:splat"
   status = 200
