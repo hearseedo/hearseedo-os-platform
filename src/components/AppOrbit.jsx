@@ -13,9 +13,13 @@ const POSITION_STYLES = {
   "bottom":      { bottom: "2%", left: "50%", transform: "translateX(-50%)"    },
 };
 
-export default function AppOrbit({ view, onViewChange, onAppClick }) {
+export default function AppOrbit({ view, onViewChange, onAppClick, activeMember }) {
   const { isUnlocked } = useSubscription();
-  const layout = ORBIT_LAYOUTS[view] ?? ORBIT_LAYOUTS.all;
+  const rawLayout = ORBIT_LAYOUTS[view] ?? ORBIT_LAYOUTS.all;
+  // Hide adult-only apps when a child profile is active
+  const layout = activeMember
+    ? rawLayout.filter(({ id }) => APP_MAP[id]?.audience !== "adult")
+    : rawLayout;
 
   return (
     <div>

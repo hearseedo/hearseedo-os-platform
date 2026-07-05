@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { COLORS } from "../constants/colors";
-import { loginWithEmail, signupWithEmail, loginWithGoogle, resetPassword } from "../lib/firebase";
+import { loginWithEmail, signupWithEmail, loginWithGoogle, resetPassword, db } from "../lib/firebase";
+import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
@@ -9,6 +10,13 @@ export default function SignIn() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode]       = useState(searchParams.get("mode") === "signup" ? "signup" : "login");
+
+  // Capture referral code from URL and persist to sessionStorage
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) sessionStorage.setItem("hsd_ref", ref);
+  }, []);
+
   const [email, setEmail]     = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +29,16 @@ export default function SignIn() {
     setError("");
     try {
       if (mode === "signup") {
-        await signupWithEmail(email, password);
+        const cred = await signupWithEmail(email, password);
+        await setDoc(doc(db, "users", cred.user.uid), {
+          email, name: email.split("@")[0],
+          createdAt: serverTimestamp(),
+        }, { merge: true }).catch(e => console.error("Email signup user-doc write failed:", e));
+        const ref = sessionStorage.getItem("hsd_ref");
+        if (ref && ref !== cred.user.uid) {
+          await updateDoc(doc(db, "users", cred.user.uid), { referredBy: ref }).catch(() => {});
+          sessionStorage.removeItem("hsd_ref");
+        }
       } else {
         await loginWithEmail(email, password);
       }
@@ -51,6 +68,17 @@ export default function SignIn() {
     setError("");
     try {
       const result = await loginWithGoogle();
+      // Await the write — fast enough not to matter, but critical for admin visibility
+      await setDoc(doc(db, "users", result.user.uid), {
+        email:     result.user.email,
+        name:      result.user.displayName || result.user.email.split("@")[0],
+        createdAt: serverTimestamp(),
+      }, { merge: true }).catch(e => console.error("Google user-doc write failed:", e));
+      const ref = sessionStorage.getItem("hsd_ref");
+      if (ref && ref !== result.user.uid) {
+        await updateDoc(doc(db, "users", result.user.uid), { referredBy: ref }).catch(() => {});
+        sessionStorage.removeItem("hsd_ref");
+      }
       navigate(result.user.email === ADMIN_EMAIL ? "/admin" : "/welcome", { replace: true });
     } catch (err) {
       console.error("Google sign-in error:", err.code, err.message);
@@ -82,6 +110,19 @@ export default function SignIn() {
           </div>
           <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 4, textTransform: "uppercase", marginBottom: 4 }}>HEAR SEE DO™</div>
           <div style={{ fontSize: 10, color: COLORS.textMuted, letterSpacing: 3 }}>OS AI</div>
+        </div>
+
+        {/* Hero copy */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <p style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 700, color: COLORS.text, lineHeight: 1.4 }}>
+            You're not bad at English.<br />You were just never taught to speak it.
+          </p>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: COLORS.textMuted, lineHeight: 1.6 }}>
+            英語が苦手なんじゃない。話す練習をしてこなかっただけ。
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: "#888", lineHeight: 1.6, fontStyle: "italic" }}>
+            What if your whole family learned English — and actually loved it?
+          </p>
         </div>
 
         {/* Card */}

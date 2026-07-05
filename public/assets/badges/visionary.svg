@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#181200"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C9A84C" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C9A84C"/>
+      <stop offset="100%" stop-color="#8a6a1a"/>
+    </linearGradient>
+    <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C9A84C"/>
+      <stop offset="100%" stop-color="#fff8e0"/>
+    </linearGradient>
+    <filter id="glow-filter">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="98" fill="url(#bg)"/>
+  <circle cx="100" cy="100" r="98" fill="url(#glow)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="url(#ring)" stroke-width="3"/>
+  <circle cx="100" cy="100" r="84" fill="none" stroke="#C9A84C" stroke-width="0.5" stroke-dasharray="4 6"/>
+  <!-- Eye of vision -->
+  <ellipse cx="100" cy="88" rx="28" ry="18" fill="#1a1200" stroke="#C9A84C" stroke-width="1.5"/>
+  <circle cx="100" cy="88" r="10" fill="#C9A84C" opacity="0.9" filter="url(#glow-filter)"/>
+  <circle cx="100" cy="88" r="5" fill="#0a0a0a"/>
+  <circle cx="103" cy="85" r="2" fill="#C9A84C" opacity="0.6"/>
+  <!-- Rays from eye -->
+  <line x1="100" y1="62" x2="100" y2="55" stroke="#C9A84C" stroke-width="1.5" opacity="0.7"/>
+  <line x1="120" y1="70" x2="126" y2="65" stroke="#C9A84C" stroke-width="1.5" opacity="0.7"/>
+  <line x1="80" y1="70" x2="74" y2="65" stroke="#C9A84C" stroke-width="1.5" opacity="0.7"/>
+  <line x1="128" y1="88" x2="136" y2="88" stroke="#C9A84C" stroke-width="1.5" opacity="0.7"/>
+  <line x1="72" y1="88" x2="64" y2="88" stroke="#C9A84C" stroke-width="1.5" opacity="0.7"/>
+  <!-- Stars below -->
+  <text x="100" y="120" text-anchor="middle" font-size="11" fill="#C9A84C">★ ★ ★</text>
+  <!-- Labels -->
+  <text x="100" y="142" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="13" letter-spacing="3" fill="url(#text-grad)" filter="url(#glow-filter)">VISIONARY</text>
+  <text x="100" y="158" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" letter-spacing="2" fill="#C9A84C" opacity="0.8">250+ REFERRALS</text>
+  <text x="100" y="175" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="10" fill="#fff8e0" opacity="0.5">HSD OS</text>
+</svg>

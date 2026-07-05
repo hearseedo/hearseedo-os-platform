@@ -4,13 +4,15 @@
 import { APPS } from "../constants/apps";
 
 const SKILL_TO_APP = {
-  pronunciation: "phonics",
+  pronunciation: "eiken",      // phonics only for early literacy — eiken covers pronunciation practice
   vocabulary:    "eiken",
   speaking:      "speak",
   listening:     "sipswitch",
   mindset:       "innerkey",
   family:        "family",
   kids:          "wondercamp",
+  confidence:    "innerkey",
+  creativity:    "wondercamp",
 };
 
 const CONFIDENCE_TOPICS = [
@@ -85,7 +87,7 @@ function recommendApp(weakest, subscriptions) {
   if (app && subscriptions.includes(app.id)) return { appId: app.id, appName: app.name, reason: `Best for improving your ${weakest}` };
   const unlocked = APPS.filter(a => subscriptions.includes(a.id));
   if (unlocked.length > 0) return { appId: unlocked[0].id, appName: unlocked[0].name, reason: "Continue your active learning" };
-  return { appId: "eiken", appName: "EIKEN AI Monkey", reason: "Great starting point for English improvement" };
+  return { appId: "family", appName: "HSD Family", reason: "A great starting point for building confidence and English habits" };
 }
 
 function recommendTopic(confidence, weakest, favoriteTopics) {

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#aaaaaa" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#aaaaaa" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#888888"/>
+      <stop offset="100%" stop-color="#444444"/>
+    </linearGradient>
+    <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#cccccc"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <filter id="glow-filter">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="98" fill="url(#bg)"/>
+  <circle cx="100" cy="100" r="98" fill="url(#glow)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="url(#ring)" stroke-width="3"/>
+  <circle cx="100" cy="100" r="84" fill="none" stroke="#333" stroke-width="1"/>
+  <!-- Handshake / laurel wreath outline -->
+  <!-- Left laurel -->
+  <path d="M55 100 Q50 88 58 78 Q62 88 60 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M55 100 Q46 95 48 82 Q56 88 58 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M55 100 Q50 112 58 122 Q62 112 60 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M55 100 Q46 105 48 118 Q56 112 58 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <!-- Right laurel -->
+  <path d="M145 100 Q150 88 142 78 Q138 88 140 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M145 100 Q154 95 152 82 Q144 88 142 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M145 100 Q150 112 142 122 Q138 112 140 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <path d="M145 100 Q154 105 152 118 Q144 112 142 100" fill="#1a1a1a" stroke="#aaa" stroke-width="1.2"/>
+  <!-- Star center -->
+  <text x="100" y="80" text-anchor="middle" font-size="22" fill="#aaaaaa" filter="url(#glow-filter)">★</text>
+  <!-- HSD small -->
+  <text x="100" y="102" text-anchor="middle" font-family="Georgia,serif" font-weight="900" font-size="18" fill="url(#text-grad)">HSD</text>
+  <!-- Stars -->
+  <text x="100" y="52" text-anchor="middle" font-size="10" fill="#888">★ ★</text>
+  <!-- Labels -->
+  <text x="100" y="140" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="12" letter-spacing="2" fill="url(#text-grad)" filter="url(#glow-filter)">AMBASSADOR</text>
+  <text x="100" y="155" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" letter-spacing="2" fill="#888">50+ REFERRALS</text>
+  <text x="100" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" fill="#555">HSD OS</text>
+</svg>

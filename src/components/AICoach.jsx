@@ -79,6 +79,27 @@ Give a personalised Monday briefing in exactly this structure (use line breaks b
 
 Keep the whole thing under 120 words. Sound human, not corporate.`;
 
+// ── ElevenLabs TTS ────────────────────────────────────────────────────────────
+async function playTTS(text, uid, onStart, onEnd) {
+  try {
+    onStart?.();
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.slice(0, 800), uid }),
+    });
+    if (!res.ok) { onEnd?.(); return; }
+    const buf  = await res.arrayBuffer();
+    const blob = new Blob([buf], { type: "audio/mpeg" });
+    const url  = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    audio.onerror = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    await audio.play();
+    return audio;
+  } catch { onEnd?.(); }
+}
+
 export default function AICoach({ user }) {
   const [view, setView]               = useState("home");      // home | session | weekly
   const [sessionType, setSessionType] = useState(null);
@@ -88,7 +109,25 @@ export default function AICoach({ user }) {
   const [weeklyData, setWeeklyData]   = useState(null);
   const [loadingWeekly, setLoadingWeekly] = useState(true);
   const [listening, setListening]     = useState(false);
+  const [ttsEnabled, setTtsEnabled]   = useState(true);
+  const [speaking, setSpeaking]       = useState(false);
+  const currentAudioRef               = useRef(null);
   const bottomRef                     = useRef(null);
+
+  const speak = (text) => {
+    if (!ttsEnabled || !user?.uid) return;
+    if (currentAudioRef.current) { currentAudioRef.current.pause(); setSpeaking(false); }
+    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false))
+      .then(a => { if (a) currentAudioRef.current = a; });
+  };
+
+  const stopSpeaking = () => {
+    if (currentAudioRef.current) { currentAudioRef.current.pause(); currentAudioRef.current = null; }
+    setSpeaking(false);
+  };
+
+  // Stop audio when leaving session
+  useEffect(() => { if (view !== "session") stopSpeaking(); }, [view]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -135,7 +174,9 @@ export default function AICoach({ user }) {
           plan:     user?.plan ?? "individual",
         }),
       }).then((r) => r.json());
-      setMessages([{ role: "assistant", text: reply.content }]);
+      const text = reply.content;
+      setMessages([{ role: "assistant", text }]);
+      speak(text);
     } catch {
       setMessages([{ role: "assistant", text: "I'm having trouble connecting. Try again in a moment." }]);
     }
@@ -160,7 +201,9 @@ export default function AICoach({ user }) {
           plan:     user?.plan ?? "individual",
         }),
       }).then((r) => r.json());
-      setMessages([...next, { role: "assistant", text: reply.content }]);
+      const replyText = reply.content;
+      setMessages([...next, { role: "assistant", text: replyText }]);
+      speak(replyText);
     } catch {
       setMessages([...next, { role: "assistant", text: "Connection issue — try again." }]);
     }
@@ -192,7 +235,21 @@ export default function AICoach({ user }) {
             <div style={{ fontSize: 15, fontWeight: 700 }}>{sessionType.label}</div>
             <div style={{ fontSize: 11, color: COLORS.textMuted }}>with Jona · session active</div>
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            {speaking && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{ width: 3, borderRadius: 2, background: COLORS.red, animation: `soundbar 0.8s ${i*0.15}s ease-in-out infinite alternate`, height: 6 + i * 4 }} />
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => { setTtsEnabled(v => !v); if (speaking) stopSpeaking(); }}
+              title={ttsEnabled ? "Mute Jona" : "Unmute Jona"}
+              style={{ background: ttsEnabled ? "rgba(224,16,16,0.15)" : "#1a1a1a", border: `1px solid ${ttsEnabled ? "rgba(224,16,16,0.4)" : "#333"}`, borderRadius: 20, padding: "4px 10px", color: ttsEnabled ? COLORS.red : COLORS.textMuted, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+            >
+              {ttsEnabled ? "🔊" : "🔇"}
+            </button>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.success, animation: "pulse 2s ease-in-out infinite" }} />
             <span style={{ fontSize: 11, color: COLORS.success }}>Live</span>
           </div>
@@ -210,9 +267,12 @@ export default function AICoach({ user }) {
                 fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", animation: "fadeIn 0.2s ease",
               }}>
                 {m.role === "assistant" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <img src="/assets/jona.png" alt="Jona" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
-                    <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>JONA</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <img src="/assets/jona.png" alt="Jona" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
+                      <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>JONA</span>
+                    </div>
+                    <button onClick={() => speak(m.text)} title="Replay" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.textDim, padding: "0 4px", opacity: 0.6 }}>🔊</button>
                   </div>
                 )}
                 {m.text}
@@ -247,7 +307,7 @@ export default function AICoach({ user }) {
           >🎤</button>
         </div>
 
-        <style>{`@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        <style>{`@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}} @keyframes soundbar{from{transform:scaleY(0.4)}to{transform:scaleY(1.6)}}`}</style>
       </div>
     );
   }

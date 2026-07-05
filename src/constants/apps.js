@@ -42,7 +42,7 @@ export const APPS = [
     image: "/assets/icon-wondercamp.png",
     accent: "#e01010",
     audience: "kids",
-    price: 1380,
+    price: 1680,
     iframeUrl: import.meta.env.VITE_APP_URL_WONDERCAMP || "",
   },
   {

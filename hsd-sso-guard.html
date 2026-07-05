@@ -1,0 +1,124 @@
+<!--
+  HSD PLATFORM SSO GUARD
+  ──────────────────────
+  Paste this <script> block at the TOP of your app's <head>, before any other scripts.
+  It immediately covers the page with a gate and only removes it once the Firebase
+  ID token (passed by the HSD platform as ?id_token=...) is validated.
+
+  If someone visits the URL directly with no token, they see the locked screen.
+-->
+
+<script>
+(function () {
+  /* ── Config ─────────────────────────────────────────── */
+  var CUSTOM_TOKEN_URL = "https://app.hsdos.ai/api/create-custom-token";
+
+  /* ── Inject gate overlay IMMEDIATELY ────────────────── */
+  var gate = document.createElement("div");
+  gate.id = "hsd-sso-gate";
+  gate.style.cssText = [
+    "position:fixed", "inset:0", "z-index:2147483647",
+    "background:#0a0a0a",
+    "display:flex", "align-items:center", "justify-content:center",
+    "font-family:system-ui,-apple-system,sans-serif",
+  ].join(";");
+  gate.innerHTML = [
+    '<div style="text-align:center;color:#fff;">',
+      '<div style="font-size:13px;letter-spacing:4px;color:#e01010;',
+           'text-transform:uppercase;font-weight:700;margin-bottom:14px;">',
+        'HSD OS AI',
+      '</div>',
+      '<div id="hsd-gate-msg" style="font-size:13px;color:#555;">',
+        'Verifying access…',
+      '</div>',
+    '</div>',
+  ].join("");
+
+  function injectGate() {
+    if (document.body) {
+      document.body.appendChild(gate);
+    } else {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.appendChild(gate);
+      });
+    }
+  }
+  injectGate();
+
+  /* ── Helpers ─────────────────────────────────────────── */
+  function showBlocked() {
+    var g = document.getElementById("hsd-sso-gate");
+    if (!g) return;
+    g.innerHTML = [
+      '<div style="text-align:center;color:#fff;max-width:380px;padding:40px;">',
+        '<div style="font-size:52px;margin-bottom:20px;">&#x1F512;</div>',
+        '<div style="font-size:20px;font-weight:700;margin-bottom:12px;">',
+          'Platform access only',
+        '</div>',
+        '<div style="color:#666;font-size:14px;line-height:1.7;margin-bottom:28px;">',
+          'This app is part of the HSD OS AI Platform.<br>',
+          'Please open it from your dashboard.',
+        '</div>',
+        '<a href="https://app.hsdos.ai"',
+           ' style="display:inline-block;padding:13px 32px;',
+                   'background:#e01010;border-radius:8px;',
+                   'color:#fff;text-decoration:none;',
+                   'font-weight:700;font-size:14px;',
+                   'letter-spacing:0.05em;">',
+          'Go to Dashboard →',
+        '</a>',
+      '</div>',
+    ].join("");
+  }
+
+  function removeGate() {
+    var g = document.getElementById("hsd-sso-gate");
+    if (g) g.remove();
+  }
+
+  /* ── Main verification flow ──────────────────────────── */
+  async function verify() {
+    var params   = new URLSearchParams(window.location.search);
+    var idToken  = params.get("id_token");
+    var ssoToken = params.get("sso_token"); // uid shortcut (non-sensitive)
+
+    if (!idToken) {
+      showBlocked();
+      return;
+    }
+
+    try {
+      var res = await fetch(CUSTOM_TOKEN_URL, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) throw new Error("auth_failed");
+
+      var data = await res.json();
+      if (!data.customToken) throw new Error("no_token");
+
+      /* ── Expose token & fire event for the app to use ── */
+      window.__HSD_CUSTOM_TOKEN__ = data.customToken;
+      window.__HSD_UID__          = ssoToken || null;
+      window.__HSD_AUTH_OK__      = true;
+
+      window.dispatchEvent(
+        new CustomEvent("hsd:auth", {
+          detail: { customToken: data.customToken, uid: ssoToken },
+        })
+      );
+
+      /* ── Remove gate — app content becomes visible ───── */
+      removeGate();
+
+    } catch (err) {
+      console.warn("[HSD SSO] Auth failed:", err.message);
+      showBlocked();
+    }
+  }
+
+  verify();
+})();
+</script>

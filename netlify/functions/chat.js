@@ -6,19 +6,25 @@ const FIREBASE_KEY  = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE       = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const PLAN_LIMITS = {
-  free:          5,
-  individual:    5,
+  // Active plans
+  free:           5,
+  individual:    50,
+  family:       100,
+  // Legacy plans (existing subscribers)
   phonics:       15,
   eiken:         15,
   sipswitch:     15,
   speak:         15,
   innerkey:      15,
+  wondercamp:    15,
   kids_starter:  30,
   english_boost: 30,
   adult_growth:  30,
-  family_full:   30,
   adult_complete:30,
-  all_access:    100,
+  family_core:   30,
+  family_plus:   60,
+  family_premium:100,
+  all_access:   100,
 };
 
 // ── In-memory rate limit cache ─────────────────────────────────────────────
@@ -139,34 +145,41 @@ exports.handler = async (event) => {
 
   const { system, messages, idToken, plan = "free" } = body;
 
-  // ── Auth + rate limit ──────────────────────────────────────────────────
-  let uid = null;
-  if (idToken) {
-    try {
-      const firebaseUser = await verifyIdToken(idToken);
-      if (firebaseUser) {
-        uid = firebaseUser.localId;
-        const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
-        const count = await getCount(uid);
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array is required" }) };
+  }
 
-        if (count >= limit) {
-          return {
-            statusCode: 429,
-            headers: { ...CORS, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              error:   "daily_limit_reached",
-              count, limit,
-              message: plan === "all_access"
-                ? "You've reached today's message limit. Resets at midnight Japan time."
-                : `You've used all ${limit} messages for today. Upgrade for more daily conversations.`,
-            }),
-          };
-        }
-      }
-    } catch (e) {
-      console.error("Auth/rate-limit error:", e.message);
-      // Fail open — don't block legitimate users on auth errors
+  // ── Auth + rate limit — idToken is required ───────────────────────────
+  if (!idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+
+  let uid = null;
+  try {
+    const firebaseUser = await verifyIdToken(idToken);
+    if (!firebaseUser) {
+      return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid session. Please sign in again." }) };
     }
+    uid = firebaseUser.localId;
+    const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+    const count = await getCount(uid);
+
+    if (count >= limit) {
+      return {
+        statusCode: 429,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error:   "daily_limit_reached",
+          count, limit,
+          message: plan === "all_access"
+            ? "You've reached today's message limit. Resets at midnight Japan time."
+            : `You've used all ${limit} messages for today. Upgrade for more daily conversations.`,
+        }),
+      };
+    }
+  } catch (e) {
+    console.error("Auth/rate-limit error:", e.message);
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication failed. Please sign in again." }) };
   }
 
   // ── AI cache check ─────────────────────────────────────────────────────
@@ -189,7 +202,7 @@ exports.handler = async (event) => {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
       max_tokens: 512,
-      system:     system || "You are Jarvis, the HSD OS AI English learning assistant.",
+      system:     system || "You are Jona, the HSD OS AI English learning assistant.",
       messages:   messages || [],
     });
 

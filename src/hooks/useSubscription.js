@@ -12,7 +12,25 @@ export function useSubscription() {
   function isUnlocked(appId) {
     if (isAdmin) return true;
     if (appId === "family") return true;
+    // Workbook bonus: 1 free month of full access
+    if (user?.workbookBonusRedeemed) {
+      const endRaw = user?.workbookBonusEndDate;
+      if (endRaw) {
+        const end = endRaw?.toDate ? endRaw.toDate() : new Date(endRaw);
+        if (new Date() < end) return true;
+      }
+    }
     return subscriptions.includes(appId);
+  }
+
+  // Days remaining on workbook free trial (-1 if not active)
+  function workbookDaysRemaining() {
+    if (!user?.workbookBonusRedeemed) return -1;
+    const endRaw = user?.workbookBonusEndDate;
+    if (!endRaw) return -1;
+    const end  = endRaw?.toDate ? endRaw.toDate() : new Date(endRaw);
+    const diff = Math.ceil((end - new Date()) / 86400000);
+    return diff > 0 ? diff : 0;
   }
 
   // Determine default orbit view based on what the user has
@@ -24,5 +42,5 @@ export function useSubscription() {
     return "all";
   }
 
-  return { isUnlocked, plan, subscriptions, defaultView };
+  return { isUnlocked, plan, subscriptions, defaultView, workbookDaysRemaining };
 }

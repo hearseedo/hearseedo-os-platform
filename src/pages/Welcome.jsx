@@ -2,27 +2,30 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import { useLang } from "../hooks/useLang";
 
-const BOOT_LINES = [
-  "HSD OS v1.0 — INITIALISING...",
-  "LOADING INTELLIGENCE LAYER...",
-  "CALIBRATING VOICE SYSTEMS...",
-  "SYNCING LEARNER PROFILE...",
-  "ALL SYSTEMS ONLINE.",
-];
-
-function buildGreeting(name) {
-  const first  = (name || "").split(" ")[0] || "there";
-  const hour   = new Date().getHours();
-  const period = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-  return `Good ${period}, ${first}. All systems are online. Welcome to HSD OS. I'm ready when you are.`;
+function getBootLines(lang) {
+  return lang === "jp"
+    ? ["ファミリーダッシュボードを準備中...", "あなたの学習ジャーニーを読み込み中...", "準備完了。"]
+    : ["Setting up your family dashboard...", "Loading your learning journey...", "Everything is ready."];
 }
 
-async function speakText(text) {
+function buildGreeting(name, lang) {
+  const first  = (name || "").split(" ")[0] || "there";
+  const hour   = new Date().getHours();
+  if (lang === "jp") {
+    const period = hour < 12 ? "おはようございます" : hour < 17 ? "こんにちは" : "こんばんは";
+    return `${period}、${first}さん。HSDダッシュボードへようこそ。今日も家族の英語学習を始めましょう。`;
+  }
+  const period = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  return `Good ${period}, ${first}. Your HSD dashboard is ready. Let's start your family's English journey today.`;
+}
+
+async function speakText(text, uid) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, uid }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob  = await res.blob();
@@ -34,6 +37,7 @@ async function speakText(text) {
 
 export default function Welcome() {
   const { user, loading } = useAuth();
+  const { lang } = useLang();
   const navigate = useNavigate();
 
   const [bootLines, setBootLines] = useState([]);
@@ -51,6 +55,7 @@ export default function Welcome() {
 
   // Boot sequence — type lines one by one
   useEffect(() => {
+    const BOOT_LINES = getBootLines(lang);
     let i = 0;
     const iv = setInterval(() => {
       if (i < BOOT_LINES.length) {
@@ -62,17 +67,17 @@ export default function Welcome() {
       }
     }, 350);
     return () => clearInterval(iv);
-  }, []);
+  }, [lang]);
 
   // Activate — called directly from button click (guarantees browser allows audio)
   const activate = async () => {
     if (didSpeak.current) return;
     didSpeak.current = true;
     setActivated(true);
-    const greeting = buildGreeting(user?.name);
+    const greeting = buildGreeting(user?.name, lang);
     setSpeaking(true);
     try {
-      const audio = await speakText(greeting);
+      const audio = await speakText(greeting, user?.uid);
       audioRef.current = audio;
       await audio.play();
       audio.onended = () => {
@@ -97,7 +102,7 @@ export default function Welcome() {
 
   if (loading) return null;
 
-  const greeting = user ? buildGreeting(user.name) : "";
+  const greeting = user ? buildGreeting(user.name, lang) : "";
 
   return (
     <div style={{
@@ -244,14 +249,14 @@ export default function Welcome() {
                   animation: "enterPulse 2s ease-in-out infinite",
                 }}
               >
-                ▶ HEAR JONA
+                {lang === "jp" ? "▶ ウェルカムを聞く" : "▶ Hear Your Welcome"}
               </button>
             )}
 
             {/* Speaking indicator */}
             {speaking && (
               <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 3, animation: "cursorBlink 1s ease-in-out infinite" }}>
-                SPEAKING...
+                {lang === "jp" ? "話しています..." : "SPEAKING..."}
               </div>
             )}
 
@@ -272,7 +277,7 @@ export default function Welcome() {
                 onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(224,16,16,0.12)"; e.currentTarget.style.borderColor = "#e01010"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(224,16,16,0.6)"; }}
               >
-                ENTER THE OS
+                {lang === "jp" ? "ダッシュボードへ →" : "Go to Dashboard →"}
               </button>
             )}
 
@@ -281,7 +286,7 @@ export default function Welcome() {
               onClick={enterDashboard}
               style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", letterSpacing: 1 }}
             >
-              skip →
+              {lang === "jp" ? "スキップ →" : "skip →"}
             </button>
           </div>
         )}

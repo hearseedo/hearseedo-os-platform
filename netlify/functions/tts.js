@@ -13,6 +13,9 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || "{}"); }
   catch { return { statusCode: 400, body: "Bad request" }; }
 
+  const uid  = body.uid || body.sso_token;
+  if (!uid) return { statusCode: 401, body: "Unauthorized" };
+
   const text = (body.text || "").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
 
