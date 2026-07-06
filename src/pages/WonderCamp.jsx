@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
+import { useAuth } from "../hooks/useAuth";
+import { useSubscription } from "../hooks/useSubscription";
 
 // ─── Full 36-lesson dataset ───────────────────────────────────────────────────
 const MONTHS = [
@@ -597,8 +599,53 @@ const SCAFFOLDING_COLORS = {
 
 export default function WonderCamp() {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
+  const { subscriptions } = useSubscription();
   const [expandedLesson, setExpandedLesson] = useState(null);
   const [activeMonth, setActiveMonth] = useState(null);
+
+  const workbookActive = user?.workbookBonusRedeemed && (() => {
+    const end = user?.workbookBonusEndDate;
+    if (!end) return false;
+    const d = end?.toDate ? end.toDate() : new Date(end);
+    return new Date() < d;
+  })();
+  const isPaid = isAdmin || subscriptions.length > 0 || workbookActive;
+
+  if (!isPaid) {
+    return (
+      <div style={{
+        minHeight: "100vh", background: "#0a0a0a", color: "#fff",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: 24, fontFamily: "'Nunito', sans-serif", textAlign: "center",
+      }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🌈</div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 10px" }}>WonderCamp Teacher Resources</h1>
+        <p style={{ color: "#999", fontSize: 15, maxWidth: 380, lineHeight: 1.6, margin: "0 0 28px" }}>
+          36 complete lesson plans, materials lists, and teacher training steps. Available on paid plans.
+        </p>
+        <button
+          onClick={() => navigate("/plans")}
+          style={{
+            background: "#e01010", color: "#fff", border: "none",
+            borderRadius: 12, padding: "13px 28px", fontSize: 15,
+            fontWeight: 800, cursor: "pointer", marginBottom: 16,
+          }}
+        >
+          View Plans →
+        </button>
+        <button
+          onClick={() => navigate("/dashboard")}
+          style={{
+            background: "none", border: "none", color: "#555",
+            fontSize: 13, cursor: "pointer",
+          }}
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   const toggleLesson = (key) => {
     setExpandedLesson(prev => prev === key ? null : key);
