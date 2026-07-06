@@ -852,8 +852,20 @@ function CoachingCard({ user, member }) {
   const [audioState, setAudioState] = useState("idle"); // idle | loading | playing
   const audioRef                = useRef(null);
   const { lang }                = useLang();
+  const { subscriptions }       = useSubscription();
+  const { isAdmin }             = useAuth();
+  const navigate                = useNavigate();
   const jp                      = lang === "jp";
   const isKid                   = !!member;
+
+  // Workbook bonus counts as paid
+  const workbookActive = user?.workbookBonusRedeemed && (() => {
+    const end = user?.workbookBonusEndDate;
+    if (!end) return false;
+    const d = end?.toDate ? end.toDate() : new Date(end);
+    return new Date() < d;
+  })();
+  const isPaid = isAdmin || subscriptions.length > 0 || workbookActive;
 
   // Stop audio on unmount
   useEffect(() => () => {
@@ -1004,33 +1016,44 @@ function CoachingCard({ user, member }) {
         <span style={{ fontSize: 9, color: "#06b6d433", fontStyle: "italic" }}>
           {new Date().toLocaleDateString(jp ? "ja-JP" : "en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Tokyo" })}
         </span>
-        <button
-          onClick={speak}
-          title={audioState === "playing" ? "Stop" : audioState === "loading" ? "Loading…" : "Listen"}
-          style={{ marginLeft: "auto", background: "none", border: "none", cursor: audioState === "loading" ? "wait" : "pointer", padding: 0, lineHeight: 0, flexShrink: 0 }}
-        >
-          <img
-            src="/assets/monkey.png"
-            alt="Listen"
-            style={{
-              width: 36, height: 36,
-              borderRadius: "50%",
-              mixBlendMode: "screen",
-              filter: audioState === "playing"
-                ? "drop-shadow(0 0 10px #e01010) brightness(1.4)"
-                : audioState === "loading"
-                ? "drop-shadow(0 0 6px rgba(224,16,16,0.7)) brightness(1.2)"
-                : "drop-shadow(0 0 4px rgba(224,16,16,0.5)) brightness(1.05)",
-              animation: audioState === "playing" ? "monkeyTalk 0.35s ease-in-out infinite alternate"
-                : audioState === "loading"  ? "monkeyTalk 0.7s ease-in-out infinite alternate"
-                : "none",
-              transition: "filter 0.25s",
-            }}
-          />
-        </button>
+        {isPaid ? (
+          <button
+            onClick={speak}
+            title={audioState === "playing" ? "Stop" : audioState === "loading" ? "Loading…" : "Listen"}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: audioState === "loading" ? "wait" : "pointer", padding: 0, lineHeight: 0, flexShrink: 0 }}
+          >
+            <img
+              src="/assets/monkey.png"
+              alt="Listen"
+              style={{
+                width: 36, height: 36,
+                borderRadius: "50%",
+                mixBlendMode: "screen",
+                filter: audioState === "playing"
+                  ? "drop-shadow(0 0 10px #e01010) brightness(1.4)"
+                  : audioState === "loading"
+                  ? "drop-shadow(0 0 6px rgba(224,16,16,0.7)) brightness(1.2)"
+                  : "drop-shadow(0 0 4px rgba(224,16,16,0.5)) brightness(1.05)",
+                animation: audioState === "playing" ? "monkeyTalk 0.35s ease-in-out infinite alternate"
+                  : audioState === "loading"  ? "monkeyTalk 0.7s ease-in-out infinite alternate"
+                  : "none",
+                transition: "filter 0.25s",
+              }}
+            />
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate("/plans")}
+            title="Upgrade to listen"
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 0, flexShrink: 0, position: "relative" }}
+          >
+            <img src="/assets/monkey.png" alt="Locked" style={{ width: 36, height: 36, borderRadius: "50%", mixBlendMode: "screen", filter: "grayscale(1) brightness(0.4)", opacity: 0.6 }} />
+            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔒</span>
+          </button>
+        )}
       </div>
 
-      {/* Focus */}
+      {/* Focus — always visible */}
       <div style={{ marginBottom: 10, padding: "6px 10px", background: "rgba(6,182,212,0.1)", borderRadius: 8, border: "1px solid rgba(6,182,212,0.2)" }}>
         <div style={{ fontSize: 9, color: "#06b6d4", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>
           {jp ? "今日のフォーカス" : "Today's Focus"}
@@ -1040,26 +1063,54 @@ function CoachingCard({ user, member }) {
         </div>
       </div>
 
-      {/* Message */}
-      <div style={{ fontSize: 12, color: "#a0b4b8", lineHeight: 1.6, marginBottom: 10 }}>
-        {jp ? (card.message_jp || card.message) : card.message}
-      </div>
+      {isPaid ? (
+        <>
+          {/* Message */}
+          <div style={{ fontSize: 12, color: "#a0b4b8", lineHeight: 1.6, marginBottom: 10 }}>
+            {jp ? (card.message_jp || card.message) : card.message}
+          </div>
 
-      {/* Challenge */}
-      <div style={{ marginBottom: 10, padding: "8px 10px", background: "#0a1a1a", borderRadius: 8, border: "1px solid #0d2a2a" }}>
-        <div style={{ fontSize: 9, color: "#06b6d4", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>
-          {jp ? "⚡ 2分チャレンジ" : "⚡ 2-min Challenge"}
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
-          {jp ? (card.challenge_jp || card.challenge) : card.challenge}
-        </div>
-      </div>
+          {/* Challenge */}
+          <div style={{ marginBottom: 10, padding: "8px 10px", background: "#0a1a1a", borderRadius: 8, border: "1px solid #0d2a2a" }}>
+            <div style={{ fontSize: 9, color: "#06b6d4", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>
+              {jp ? "⚡ 2分チャレンジ" : "⚡ 2-min Challenge"}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
+              {jp ? (card.challenge_jp || card.challenge) : card.challenge}
+            </div>
+          </div>
 
-      {/* Tip */}
-      <div style={{ fontSize: 11, color: "#4a7a80", lineHeight: 1.5, borderTop: "1px solid #0d2a2a", paddingTop: 8 }}>
-        <span style={{ color: "#06b6d466", fontWeight: 700 }}>💡 </span>
-        {jp ? (card.tip_jp || card.tip) : card.tip}
-      </div>
+          {/* Tip */}
+          <div style={{ fontSize: 11, color: "#4a7a80", lineHeight: 1.5, borderTop: "1px solid #0d2a2a", paddingTop: 8 }}>
+            <span style={{ color: "#06b6d466", fontWeight: 700 }}>💡 </span>
+            {jp ? (card.tip_jp || card.tip) : card.tip}
+          </div>
+        </>
+      ) : (
+        /* Free teaser — blurred preview + upgrade CTA */
+        <div style={{ position: "relative", marginTop: 4 }}>
+          <div style={{ filter: "blur(3px)", opacity: 0.4, pointerEvents: "none", userSelect: "none" }}>
+            <div style={{ fontSize: 12, color: "#a0b4b8", lineHeight: 1.6, marginBottom: 10 }}>
+              {card.message}
+            </div>
+            <div style={{ padding: "8px 10px", background: "#0a1a1a", borderRadius: 8, border: "1px solid #0d2a2a" }}>
+              <div style={{ fontSize: 9, color: "#06b6d4", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>⚡ 2-min Challenge</div>
+              <div style={{ fontSize: 12, color: COLORS.textMuted }}>{card.challenge}</div>
+            </div>
+          </div>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <div style={{ fontSize: 11, color: COLORS.textMuted, textAlign: "center" }}>
+              {jp ? "フルコーチングカードはプレミアムプランで" : "Full coaching card on paid plans"}
+            </div>
+            <button
+              onClick={() => navigate("/plans")}
+              style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: COLORS.red, border: "none", borderRadius: 20, padding: "5px 14px", cursor: "pointer" }}
+            >
+              {jp ? "プランを見る →" : "View Plans →"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
