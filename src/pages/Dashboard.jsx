@@ -862,8 +862,8 @@ function CoachingCard({ user, member }) {
 
   useEffect(() => {
     if (!user?.uid) return;
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setAudioState("idle");
     setCard(null);
     setLoading(true);
 
