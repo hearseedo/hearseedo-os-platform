@@ -242,6 +242,24 @@ export default function Dashboard() {
                   )}
                 </button>
               );})}
+
+              {/* WonderCamp teacher link */}
+              <button
+                onClick={() => navigate("/wondercamp")}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 8px",
+                  background: "rgba(46,196,182,0.10)",
+                  border: "1px solid rgba(46,196,182,0.25)",
+                  borderRadius: 8,
+                  color: "#2ec4b6",
+                  fontSize: 13, cursor: "pointer",
+                  textAlign: "left", marginBottom: 2, marginTop: 4, fontWeight: 600,
+                }}
+              >
+                <span style={{ fontSize: 16 }}>🌈</span>
+                <span>WonderCamp</span>
+              </button>
             </nav>
 
             {/* Badges + referral block */}
