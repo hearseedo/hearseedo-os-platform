@@ -98,6 +98,7 @@ export const APPS = [
     name: "Global Ready",
     desc: "English confidence for study abroad, travel, and international life",
     icon: "🌍",
+    image: "/assets/icon-global-ready.png",
     accent: "#e01010",
     audience: "university",
     price: 0,
