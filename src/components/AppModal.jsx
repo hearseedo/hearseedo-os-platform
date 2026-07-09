@@ -37,10 +37,14 @@ export default function AppModal({ app, onClose, user }) {
   // Reset loader when app changes — all hooks must be before any early return
   useEffect(() => { setIframeLoaded(false); setIframeBlocked(false); }, [app?.id]);
 
-  // Career Ready is a native in-app page, not an iframe sub-app — redirect instead of rendering the modal
+  // Career Ready and Global Ready are native in-app pages, not iframe sub-apps — redirect instead of rendering the modal
   useEffect(() => {
     if (app?.id === "career-ready") {
       navigate("/career-ready");
+      onClose();
+    }
+    if (app?.id === "global-ready") {
+      navigate("/global-ready");
       onClose();
     }
   }, [app?.id]);
@@ -100,7 +104,7 @@ export default function AppModal({ app, onClose, user }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [app?.id, app?.iframeUrl, user?.uid]);
 
-  if (!app || app.id === "career-ready") return null;
+  if (!app || app.id === "career-ready" || app.id === "global-ready") return null;
 
   const unlocked = isUnlocked(app.id);
   const accent   = app.accent ?? COLORS.red;

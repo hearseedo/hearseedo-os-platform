@@ -115,6 +115,20 @@ export const APP_REGISTRY = [
     version:                 "1.0",
     vendor:                  "Hear See Do Empire",
   },
+  {
+    appId:                   "global-ready",
+    appName:                 "Global Ready",
+    category:                "university",
+    audience:                ["university_students", "young_adults"],
+    description:             "Study abroad, travel, international friendship, and campus conversation English coaching",
+    status:                  "active",
+    analyticsEnabled:        true,
+    confidenceTracked:       true,
+    skillsTargeted:          ["speaking", "conversation", "confidence"],
+    subscriptionRequirements: ["free"],
+    version:                 "1.0",
+    vendor:                  "Hear See Do Empire",
+  },
 ];
 
 export const APP_REGISTRY_MAP = Object.fromEntries(APP_REGISTRY.map(a => [a.appId, a]));

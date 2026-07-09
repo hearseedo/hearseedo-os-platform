@@ -93,6 +93,18 @@ export const APPS = [
     badge: "NEW",
     iframeUrl: "", // native page at /career-ready — see AppModal special-case
   },
+  {
+    id: "global-ready",
+    name: "Global Ready",
+    desc: "English confidence for study abroad, travel, and international life",
+    icon: "🌍",
+    accent: "#e01010",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /global-ready — see AppModal special-case
+  },
 ];
 
 // Orbit layouts per view
