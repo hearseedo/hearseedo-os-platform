@@ -14,6 +14,7 @@ import Assessment  from "./pages/Assessment";
 import FamilySetup from "./pages/FamilySetup";
 import ParentView  from "./pages/ParentView";
 import WonderCamp  from "./pages/WonderCamp";
+import CareerReady from "./pages/CareerReady";
 
 function AppShell({ children }) {
   const { user } = useAuth();
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/setup"      element={<ProtectedRoute><AppShell><FamilySetup /></AppShell></ProtectedRoute>} />
         <Route path="/parent/:uid"   element={<ParentView />} />
         <Route path="/wondercamp"    element={<ProtectedRoute><WonderCamp /></ProtectedRoute>} />
+        <Route path="/career-ready"  element={<ProtectedRoute><CareerReady /></ProtectedRoute>} />
         <Route path="/terms"     element={<Terms />} />
         <Route path="/privacy"   element={<Privacy />} />
         <Route path="*"          element={<Navigate to="/" replace />} />

@@ -101,6 +101,20 @@ export const APP_REGISTRY = [
     version:                 "1.0",
     vendor:                  "Hear See Do Empire",
   },
+  {
+    appId:                   "career-ready",
+    appName:                 "Career Ready",
+    category:                "university",
+    audience:                ["university_students", "young_adults"],
+    description:             "Job interview, internship, part-time work, and resume/email English coaching for career readiness",
+    status:                  "active",
+    analyticsEnabled:        true,
+    confidenceTracked:       true,
+    skillsTargeted:          ["speaking", "professional_writing", "confidence"],
+    subscriptionRequirements: ["free"],
+    version:                 "1.0",
+    vendor:                  "Hear See Do Empire",
+  },
 ];
 
 export const APP_REGISTRY_MAP = Object.fromEntries(APP_REGISTRY.map(a => [a.appId, a]));

@@ -30,7 +30,7 @@ export const APPS = [
     icon: "💬",
     image: "/assets/icon-speak.png",
     accent: "#e01010",
-    audience: "kids",
+    audience: "adult",
     price: 980,
     iframeUrl: import.meta.env.VITE_APP_URL_SPEAK || "",
   },
@@ -79,6 +79,19 @@ export const APPS = [
     audience: "adult",
     price: 1480,
     iframeUrl: import.meta.env.VITE_APP_URL_INNERKEY || "",
+  },
+  {
+    id: "career-ready",
+    name: "Career Ready",
+    desc: "English confidence for university life and career",
+    icon: "🎓",
+    image: "/assets/icon-career-ready.png",
+    accent: "#2ec4b6",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /career-ready — see AppModal special-case
   },
 ];
 

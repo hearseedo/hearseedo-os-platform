@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useSubscription } from "../hooks/useSubscription";
 import { useLang } from "../hooks/useLang";
@@ -20,6 +21,7 @@ function buildIframeSrc(url, uid, idToken) {
 export default function AppModal({ app, onClose, user }) {
   const { isUnlocked } = useSubscription();
   const { t } = useLang();
+  const navigate = useNavigate();
   const iframeRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [idToken, setIdToken] = useState(null);
@@ -34,6 +36,14 @@ export default function AppModal({ app, onClose, user }) {
 
   // Reset loader when app changes — all hooks must be before any early return
   useEffect(() => { setIframeLoaded(false); setIframeBlocked(false); }, [app?.id]);
+
+  // Career Ready is a native in-app page, not an iframe sub-app — redirect instead of rendering the modal
+  useEffect(() => {
+    if (app?.id === "career-ready") {
+      navigate("/career-ready");
+      onClose();
+    }
+  }, [app?.id]);
 
   // Blank the iframe before closing — ends iOS scroll session so page scrolls again after
   function handleClose() {
@@ -90,7 +100,7 @@ export default function AppModal({ app, onClose, user }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [app?.id, app?.iframeUrl, user?.uid]);
 
-  if (!app) return null;
+  if (!app || app.id === "career-ready") return null;
 
   const unlocked = isUnlocked(app.id);
   const accent   = app.accent ?? COLORS.red;
