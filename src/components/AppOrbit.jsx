@@ -20,7 +20,7 @@ const PATHS = [
     id:    "university",
     label: "University",
     color: "#2ec4b6",
-    apps:  ["career-ready", "global-ready"],
+    apps:  ["career-ready", "global-ready", "speak-ready"],
   },
   {
     id:    "adult",

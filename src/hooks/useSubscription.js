@@ -14,6 +14,7 @@ export function useSubscription() {
     if (appId === "family") return true;
     if (appId === "career-ready") return true;
     if (appId === "global-ready") return true;
+    if (appId === "speak-ready") return true;
     // Workbook bonus: 1 free month of full access
     if (user?.workbookBonusRedeemed) {
       const endRaw = user?.workbookBonusEndDate;

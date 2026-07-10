@@ -18,7 +18,7 @@ function buildIframeSrc(url, uid, idToken) {
   return u.toString();
 }
 
-export default function AppModal({ app, onClose, user }) {
+export default function AppModal({ app, onClose, user, activeMember }) {
   const { isUnlocked } = useSubscription();
   const { t } = useLang();
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export default function AppModal({ app, onClose, user }) {
   // Reset loader when app changes — all hooks must be before any early return
   useEffect(() => { setIframeLoaded(false); setIframeBlocked(false); }, [app?.id]);
 
-  // Career Ready and Global Ready are native in-app pages, not iframe sub-apps — redirect instead of rendering the modal
+  // Career Ready, Global Ready, and Speak Ready are native in-app pages, not iframe sub-apps — redirect instead of rendering the modal
   useEffect(() => {
     if (app?.id === "career-ready") {
       navigate("/career-ready");
@@ -45,6 +45,10 @@ export default function AppModal({ app, onClose, user }) {
     }
     if (app?.id === "global-ready") {
       navigate("/global-ready");
+      onClose();
+    }
+    if (app?.id === "speak-ready") {
+      navigate("/speak-ready");
       onClose();
     }
   }, [app?.id]);
@@ -104,7 +108,7 @@ export default function AppModal({ app, onClose, user }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [app?.id, app?.iframeUrl, user?.uid]);
 
-  if (!app || app.id === "career-ready" || app.id === "global-ready") return null;
+  if (!app || app.id === "career-ready" || app.id === "global-ready" || app.id === "speak-ready") return null;
 
   const unlocked = isUnlocked(app.id);
   const accent   = app.accent ?? COLORS.red;
@@ -153,7 +157,7 @@ export default function AppModal({ app, onClose, user }) {
         {unlocked ? (
           app.id === "eiken" ? (
             <Suspense fallback={<div style={{ height: "100%", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.textMuted, fontSize: 13 }}>{t("loading")} Eiken AI Coach…</div>}>
-              <EikenApp user={user} />
+              <EikenApp key={activeMember?.id || "self"} user={user} activeMember={activeMember} />
             </Suspense>
           ) : app.iframeUrl ? (
             <div style={{ position: "relative", width: "100%", height: "100%" }}>

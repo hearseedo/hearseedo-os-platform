@@ -85,6 +85,10 @@ service cloud.firestore {
       match /globalReady/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
+
+      match /speakReady/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
     }
 
     // ── Learner Intelligence profiles — owner read, server write ──────────
@@ -102,6 +106,27 @@ service cloud.firestore {
 
       // Confidence history — owner read only
       match /confidenceHistory/{date} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // EIKEN placement/mock-test/achievement/Monkey-Party records — owner
+      // read only, written server-side via eiken-progress.js (its
+      // service-account REST token bypasses this write:false, same pattern
+      // as the profile doc itself).
+      match /eikenPlacementResults/{attemptId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+      match /eikenMockAttempts/{attemptId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+      match /eikenAchievements/{achievementId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+      match /monkeyPartySessions/{sessionId} {
         allow read: if request.auth != null && request.auth.uid == uid;
         allow write: if false;
       }

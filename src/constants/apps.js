@@ -106,6 +106,18 @@ export const APPS = [
     badge: "NEW",
     iframeUrl: "", // native page at /global-ready — see AppModal special-case
   },
+  {
+    id: "speak-ready",
+    name: "Speak Ready",
+    desc: "Confidence-first speaking practice for real life",
+    icon: "🗣️",
+    accent: "#f59e0b",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /speak-ready — see AppModal special-case
+  },
 ];
 
 // Orbit layouts per view
