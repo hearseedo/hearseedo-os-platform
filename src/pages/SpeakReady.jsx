@@ -5,16 +5,19 @@ import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { CATEGORIES } from "../speakReady/data";
 import { srt } from "../speakReady/i18n";
-import { getProgress, getLevelInfo } from "../speakReady/storage";
+import { getProgress, getLevelInfo, getPlacement } from "../speakReady/storage";
 import PracticeSession from "../speakReady/PracticeSession";
 import SavedPhrases from "../speakReady/SavedPhrases";
 import Progress from "../speakReady/Progress";
+import Assessment from "../speakReady/Assessment";
+import PronunciationStudio from "../speakReady/PronunciationStudio";
+import ListeningLab from "../speakReady/ListeningLab";
 
 export default function SpeakReady() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { lang } = useLang();
-  const [view, setView] = useState("home"); // home | practice:<id> | saved | progress
+  const [view, setView] = useState("home"); // home | practice:<id> | saved | progress | assessment | pronunciation | listening
   const [badgeToast, setBadgeToast] = useState(null);
 
   const goHome = () => setView("home");
@@ -39,6 +42,25 @@ export default function SpeakReady() {
   }
   if (view === "progress") {
     return <Shell><Progress user={user} onExit={goHome} /></Shell>;
+  }
+  if (view === "assessment") {
+    return <Shell><Assessment user={user} onFinish={goHome} onStartCategory={(id) => setView(`practice:${id}`)} /></Shell>;
+  }
+  if (view === "pronunciation") {
+    return (
+      <Shell>
+        <PronunciationStudio user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
+        <BadgeToast badge={badgeToast} lang={lang} />
+      </Shell>
+    );
+  }
+  if (view === "listening") {
+    return (
+      <Shell>
+        <ListeningLab user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
+        <BadgeToast badge={badgeToast} lang={lang} />
+      </Shell>
+    );
   }
 
   return (
@@ -131,6 +153,7 @@ function BadgeToast({ badge, lang }) {
 function Home({ user, navigate, setView, lang }) {
   const progress = getProgress(user?.uid);
   const level    = getLevelInfo(user?.uid);
+  const placement = getPlacement(user?.uid);
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const totalSessions = Object.values(progress.sessionsCompleted).reduce((a, b) => a + b, 0);
   const tr = (k) => srt(lang, k);
@@ -139,7 +162,7 @@ function Home({ user, navigate, setView, lang }) {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 16px 20px" }}>
       {/* Hero */}
-      <div style={{ textAlign: "center", marginBottom: 36 }}>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
         <div style={{
           display: "inline-block", fontSize: 11, fontWeight: 700, color: "#f59e0b",
           border: "1px solid rgba(245,158,11,0.4)", borderRadius: 20, padding: "5px 14px",
@@ -170,8 +193,34 @@ function Home({ user, navigate, setView, lang }) {
         </div>
       </div>
 
+      {/* Placement assessment banner */}
+      <div
+        onClick={() => setView("assessment")}
+        style={{
+          background: placement ? COLORS.card : "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))",
+          border: `1px solid ${placement ? "#1e1e1e" : "rgba(245,158,11,0.4)"}`,
+          borderRadius: 14, padding: "16px 20px", marginBottom: 28, cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 14,
+        }}
+      >
+        <span style={{ fontSize: 26 }}>🧭</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 800 }}>
+            {placement
+              ? (jp ? `あなたのレベル: ${placement.level}` : `Your level: ${placement.level}`)
+              : (jp ? "無料のプレイスメント診断を受ける" : "Take the free placement assessment")}
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>
+            {placement
+              ? (jp ? "もう一度受けて、成長を確認しよう" : "Retake it anytime to see how you've grown")
+              : (jp ? "5分であなたに合った練習を見つけよう" : "5 minutes to find your starting point")}
+          </div>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b" }}>{tr("start_arrow")}</span>
+      </div>
+
       {/* Category cards */}
-      <div id="sr-categories" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 36 }}>
+      <div id="sr-categories" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 32 }}>
         {CATEGORIES.map((c) => (
           <div
             key={c.id}
@@ -189,6 +238,39 @@ function Home({ user, navigate, setView, lang }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: c.color }}>{tr("start_arrow")}</div>
           </div>
         ))}
+      </div>
+
+      {/* Skill Labs */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 14 }}>
+        {jp ? "スキルラボ" : "Skill Labs"}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 32 }}>
+        <div
+          onClick={() => setView("pronunciation")}
+          style={{ background: COLORS.card, border: "1px solid rgba(129,140,248,0.33)", borderRadius: 16, padding: 22, cursor: "pointer", transition: "all 0.2s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#818cf8"; e.currentTarget.style.boxShadow = "0 0 20px rgba(129,140,248,0.22)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(129,140,248,0.33)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 12 }}>👂</div>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{jp ? "発音スタジオ" : "Pronunciation Studio"}</div>
+          <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5, marginBottom: 14 }}>
+            {jp ? "お手本と聞き比べて練習しよう" : "Listen, record, and compare with a model"}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#818cf8" }}>{tr("start_arrow")}</div>
+        </div>
+        <div
+          onClick={() => setView("listening")}
+          style={{ background: COLORS.card, border: "1px solid rgba(6,182,212,0.33)", borderRadius: 16, padding: 22, cursor: "pointer", transition: "all 0.2s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#06b6d4"; e.currentTarget.style.boxShadow = "0 0 20px rgba(6,182,212,0.22)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(6,182,212,0.33)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🎧</div>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{jp ? "リスニングラボ" : "Listening Lab"}</div>
+          <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5, marginBottom: 14 }}>
+            {jp ? "様々な英語のアクセントを聞き取ろう" : "American and British accents, answered by speech"}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#06b6d4" }}>{tr("start_arrow")}</div>
+        </div>
       </div>
 
       {/* Dashboard sections */}

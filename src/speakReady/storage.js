@@ -3,13 +3,14 @@
 // keyed per Firebase uid so multiple accounts on one device don't collide.
 import { BADGES, PRACTICE_BANKS, levelForXP } from "./data";
 
-const PROGRESS_KEY = (uid) => `speak_ready_progress_${uid}`;
-const PHRASES_KEY  = (uid) => `speak_ready_phrases_${uid}`;
+const PROGRESS_KEY  = (uid) => `speak_ready_progress_${uid}`;
+const PHRASES_KEY   = (uid) => `speak_ready_phrases_${uid}`;
+const PLACEMENT_KEY = (uid) => `speak_ready_placement_${uid}`;
 
 const DEFAULT_PROGRESS = {
   xp: 0,
-  sessionsCompleted: { missions: 0, quick_thinking: 0, picture: 0, debate: 0, story_builder: 0 },
-  completedScenarioIds: { missions: [], quick_thinking: [], picture: [], debate: [], story_builder: [] },
+  sessionsCompleted: { missions: 0, quick_thinking: 0, picture: 0, debate: 0, story_builder: 0, pronunciation: 0, listening: 0 },
+  completedScenarioIds: { missions: [], quick_thinking: [], picture: [], debate: [], story_builder: [], pronunciation: [], listening: [] },
   confidenceHistory: [], // [{ score, date }]
   badges: [],
 };
@@ -56,6 +57,8 @@ export function recordPracticeResult(uid, { category, scenarioId, confidenceScor
   if (category === "picture" && allDone("picture")) award("picture_perfect");
   if (category === "debate" && allDone("debate")) award("great_debater");
   if (category === "story_builder" && allDone("story_builder")) award("storyteller");
+  if (category === "pronunciation" && allDone("pronunciation")) award("sound_explorer");
+  if (category === "listening" && allDone("listening")) award("sharp_ears");
   if (totalSessions >= 10) award("confidence_builder");
 
   saveProgress(uid, progress);
@@ -91,4 +94,20 @@ export function deleteSavedPhrase(uid, id) {
   const next = getSavedPhrases(uid).filter(p => p.id !== id);
   localStorage.setItem(PHRASES_KEY(uid), JSON.stringify(next));
   return next;
+}
+
+// ── Placement assessment ────────────────────────────────────────────────
+export function getPlacement(uid) {
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(PLACEMENT_KEY(uid));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePlacement(uid, result) {
+  if (!uid) return;
+  localStorage.setItem(PLACEMENT_KEY(uid), JSON.stringify({ ...result, takenAt: new Date().toISOString() }));
 }

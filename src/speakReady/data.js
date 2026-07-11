@@ -110,12 +110,46 @@ export const STORY_STARTERS = [
   { id: "phonecall",  persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "Your best friend calls and says, \"You won't believe what just happened.\"",          promptJp: "親友から電話があり「信じられないことが起きた」と言われる。" },
 ];
 
+// Sound targets chosen for common Japanese-speaker pronunciation challenges.
+// sentenceJp is a meaning translation (for the reading toggle), not a phonetic guide.
+export const PRONUNCIATION_DRILLS = [
+  { id: "lion_zoo",     sentence: "The lion escaped from the local zoo.",                     sentenceJp: "そのライオンは地元の動物園から脱走した。",           focus: "L vs R sounds",                    focusJp: "LとRの音" },
+  { id: "three_things", sentence: "Think of three thick things.",                             sentenceJp: "3つの分厚いものを考えてください。",                 focus: "TH sounds",                        focusJp: "THの音" },
+  { id: "seashells",    sentence: "She sells seashells by the seashore.",                      sentenceJp: "彼女は浜辺で貝殻を売っている。",                     focus: "S vs SH sounds",                   focusJp: "SとSHの音" },
+  { id: "waterfall",    sentence: "I really want to visit the world's biggest waterfall.",     sentenceJp: "世界最大の滝を本当に訪れたい。",                     focus: "R sounds and W vs V",              focusJp: "Rの音、WとVの音" },
+  { id: "weather",      sentence: "The weather forecast says it will be sunny and warm.",      sentenceJp: "天気予報では晴れて暖かくなるそうだ。",               focus: "word stress and connected speech", focusJp: "単語の強勢とつながる発音" },
+  { id: "address",      sentence: "Can you please repeat the address again?",                  sentenceJp: "住所をもう一度言っていただけますか?",               focus: "question intonation and rhythm",   focusJp: "疑問文のイントネーションとリズム" },
+  { id: "comfortable",  sentence: "It's a comfortable, affordable, and reliable option.",       sentenceJp: "それは快適で、手頃で、信頼できる選択肢だ。",         focus: "stress in multi-syllable words",   focusJp: "多音節語の強勢" },
+  { id: "coffee_tea",   sentence: "Would you like coffee or tea?",                              sentenceJp: "コーヒーと紅茶、どちらがいいですか?",               focus: "rising and falling intonation",    focusJp: "上昇調と下降調のイントネーション" },
+];
+
+// Two accents to start (voices confidently available in ElevenLabs' default
+// library) — American and British. Extend ACCENTS/voice map once more voice
+// IDs are confirmed for Australian and Japanese-English.
+export const LISTENING_CLIPS = [
+  { id: "us_weekend",   accent: "american", script: "Last weekend, I drove up to the mountains with a few friends. We went hiking for about three hours, and then we grilled burgers by the lake. It was exhausting but really fun.", question: "What did the speaker do last weekend?", questionJp: "話者は先週末に何をしましたか?", keyInfo: "hiking in the mountains with friends, then grilled burgers by the lake" },
+  { id: "us_directions",accent: "american", script: "Okay, so you're gonna wanna go straight for two blocks, then take a left at the pharmacy. The coffee shop will be right there on your right, next to the bookstore.", question: "How do you get to the coffee shop?", questionJp: "コーヒーショップへはどう行きますか?", keyInfo: "go straight two blocks, turn left at the pharmacy, it's on the right next to the bookstore" },
+  { id: "us_job",       accent: "american", script: "I just started a new job at a marketing agency downtown. It's a bit stressful because it's my first week, but everyone's been really welcoming so far.", question: "How does the speaker feel about their new job?", questionJp: "話者は新しい仕事についてどう感じていますか?", keyInfo: "a bit stressed since it's the first week, but coworkers have been welcoming" },
+  { id: "us_weather",   accent: "american", script: "It's supposed to rain all weekend, so we probably won't be able to have the barbecue outside. We might just move it indoors instead.", question: "What is the speaker planning to do about the weather?", questionJp: "話者は天気についてどう対応する予定ですか?", keyInfo: "move the barbecue indoors because of rain all weekend" },
+  { id: "uk_holiday",   accent: "british",  script: "We're heading down to Cornwall for the holidays this year. My mum's already planned about six different day trips, so I imagine we won't get much rest.", question: "Where is the speaker going for the holidays, and what will it be like?", questionJp: "話者は休暇でどこに行き、どんな様子になりそうですか?", keyInfo: "going to Cornwall, mum planned six day trips, won't get much rest" },
+  { id: "uk_train",     accent: "british",  script: "Sorry, the train's been delayed by about twenty minutes due to a signalling fault further up the line. There's another one due in ten minutes on platform two.", question: "What's happening with the trains?", questionJp: "電車はどうなっていますか?", keyInfo: "delayed twenty minutes due to a signalling fault, another train in ten minutes on platform two" },
+  { id: "uk_flat",      accent: "british",  script: "I've just moved into a new flat in the city centre. It's quite small, but the location is brilliant — everything's within walking distance.", question: "What does the speaker think of their new flat?", questionJp: "話者は新しいフラットについてどう思っていますか?", keyInfo: "small but great location, everything is within walking distance" },
+  { id: "uk_football",  accent: "british",  script: "Did you catch the match last night? It was absolutely brilliant — we were down two-nil at half time and somehow came back to win three-two.", question: "What happened in the match?", questionJp: "試合では何が起きましたか?", keyInfo: "down two-nil at half time, came back to win three-two" },
+];
+
+export const ACCENTS = [
+  { id: "american", label: "American",  labelJp: "アメリカ英語" },
+  { id: "british",  label: "British",   labelJp: "イギリス英語" },
+];
+
 export const PRACTICE_BANKS = {
   missions:       MISSIONS_SCENARIOS,
   quick_thinking: QUICK_THINKING_ROUNDS,
   picture:        PICTURE_SCENES,
   debate:         DEBATE_TOPICS,
   story_builder:  STORY_STARTERS,
+  pronunciation:  PRONUNCIATION_DRILLS,
+  listening:      LISTENING_CLIPS,
 };
 
 export const CONFIDENCE_LEVELS = [
@@ -133,6 +167,8 @@ export const BADGES = [
   { id: "picture_perfect", name: "Picture Perfect",     nameJp: "ピクチャーパーフェクト", icon: "🖼️", desc: "Completed all Picture Speaking scenes",         descJp: "ピクチャースピーキングを全て完了" },
   { id: "great_debater",   name: "Great Debater",       nameJp: "グレートディベーター", icon: "💭", desc: "Completed all Debate & Discussion topics",       descJp: "ディベート・ディスカッションを全て完了" },
   { id: "storyteller",     name: "Storyteller",         nameJp: "ストーリーテラー",     icon: "📖", desc: "Completed all Story Builder stories",             descJp: "ストーリービルダーを全て完了" },
+  { id: "sound_explorer",  name: "Sound Explorer",      nameJp: "サウンドエクスプローラー", icon: "👂", desc: "Completed all Pronunciation Studio drills",     descJp: "発音スタジオのドリルを全て完了" },
+  { id: "sharp_ears",      name: "Sharp Ears",          nameJp: "シャープイヤーズ",     icon: "🎧", desc: "Completed all Listening Lab clips",              descJp: "リスニングラボのクリップを全て完了" },
   { id: "confidence_builder", name: "Confidence Builder", nameJp: "自信を積み上げる",  icon: "🔥", desc: "Practiced 10 times across any category",         descJp: "いずれかのカテゴリーで10回練習しました" },
 ];
 

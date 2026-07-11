@@ -63,6 +63,46 @@ export function parseConversationReply(raw) {
   return result;
 }
 
+// ── Pronunciation Studio ─────────────────────────────────────────────────
+// Honest framing: there is no real acoustic analysis here. We only have (1)
+// the target sentence and (2) what the browser's speech recognizer heard —
+// any mismatch is a fuzzy, imperfect clue, never a certain diagnosis or score.
+export function buildPronunciationSystemPrompt() {
+  return `You are Speak Ready's pronunciation coach. A student is practicing saying an English sentence out loud. You do NOT have access to real audio — you only see (1) the target sentence they were trying to say, and (2) what a speech recognizer heard them say. Treat any difference between these as a helpful but unreliable clue about a possible pronunciation issue — never claim certainty, and never invent a numeric accuracy score.
+
+Tone rules — these are strict:
+- Never say "wrong" or "incorrect." Say things like "Try this instead," "Great effort," "You're improving," "That sounded natural."
+- Always encouraging and energetic, never critical.
+- If the recognized text matches the target closely, celebrate that warmly — don't invent problems that aren't there.
+- If there's a mismatch, gently suggest ONE likely sound or word to focus on, framed as a guess ("it's possible the 'th' sound came out a little different — try...") not a diagnosis.
+
+Respond ONLY in this exact tagged format:
+FEEDBACK_EN: <2-3 warm, encouraging sentences reacting to their attempt>
+FEEDBACK_JP: <Japanese translation of FEEDBACK_EN>
+FOCUS: <one specific sound or word to practice next, or "Nothing to flag — that sounded great!" if it matched well>
+NEXT: <one short encouraging next step>`;
+}
+
+export function buildPronunciationUserMessage(targetSentence, recognizedText) {
+  return `Target sentence: "${targetSentence}"
+What the speech recognizer heard: "${recognizedText || "(nothing recognized — they may need to speak louder or closer to the microphone)"}"
+
+Give feedback now in the required tagged format.`;
+}
+
+const PRONUNCIATION_FIELDS = ["FEEDBACK_EN", "FEEDBACK_JP", "FOCUS", "NEXT"];
+
+export function parsePronunciationFeedback(raw) {
+  const result = {};
+  for (const field of PRONUNCIATION_FIELDS) {
+    const re = new RegExp(`^${field}:\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:\\s|$)`, "im");
+    const match = raw.match(re);
+    result[field.toLowerCase()] = match ? match[1].trim() : "";
+  }
+  if (!result.feedback_en) result.feedback_en = raw.trim();
+  return result;
+}
+
 async function getIdToken() {
   try {
     return await auth.currentUser?.getIdToken();
@@ -119,4 +159,66 @@ export async function playTTS(text, uid, onStart, onEnd) {
     onEnd?.();
     return null;
   }
+}
+
+// ── Listening Lab ────────────────────────────────────────────────────────
+// Own dedicated TTS endpoint (netlify/functions/speak-ready-tts.js) so accent
+// voice selection doesn't touch the shared tts.js function.
+export async function playAccentTTS(text, uid, accent, onStart, onEnd) {
+  try {
+    onStart?.();
+    const res = await fetch("/api/speak-ready-tts", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ text: text.slice(0, 1200), uid, accent }),
+    });
+    if (!res.ok) { onEnd?.(); return null; }
+    const buf   = await res.arrayBuffer();
+    const blob  = new Blob([buf], { type: "audio/mpeg" });
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    audio.onerror = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    await audio.play();
+    return audio;
+  } catch {
+    onEnd?.();
+    return null;
+  }
+}
+
+export function buildListeningSystemPrompt() {
+  return `You are Speak Ready's listening coach. A student listened to a short audio clip in English, then answered a comprehension question out loud. You'll see the key information the clip contained and the student's spoken answer (transcribed, may contain recognition errors).
+
+Tone rules — these are strict:
+- Never say "wrong" or "incorrect." Say things like "Try this instead," "Great effort," "You're improving," "That sounded natural."
+- Always encouraging, never critical, never exam-like.
+- If they caught the key information, celebrate it specifically. If they missed something, gently mention what to listen for, and encourage them to try again — never make them feel bad about it.
+
+Respond ONLY in this exact tagged format:
+FEEDBACK_EN: <2-3 warm, encouraging sentences reacting to how well they understood the clip>
+FEEDBACK_JP: <Japanese translation of FEEDBACK_EN>
+GOT_IT: <one of exactly: yes, partially, no>
+NEXT: <one short encouraging next step>`;
+}
+
+export function buildListeningUserMessage(question, keyInfo, transcript) {
+  return `Comprehension question: "${question}"
+Key information the clip contained: "${keyInfo}"
+Student's spoken answer (transcribed): "${transcript || "(nothing recognized — they may need to speak louder or closer to the microphone)"}"
+
+Give feedback now in the required tagged format.`;
+}
+
+const LISTENING_FIELDS = ["FEEDBACK_EN", "FEEDBACK_JP", "GOT_IT", "NEXT"];
+
+export function parseListeningFeedback(raw) {
+  const result = {};
+  for (const field of LISTENING_FIELDS) {
+    const re = new RegExp(`^${field}:\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:\\s|$)`, "im");
+    const match = raw.match(re);
+    result[field.toLowerCase()] = match ? match[1].trim() : "";
+  }
+  if (!result.feedback_en) result.feedback_en = raw.trim();
+  return result;
 }
