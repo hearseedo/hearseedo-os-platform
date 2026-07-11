@@ -30,7 +30,7 @@ export const APPS = [
     icon: "💬",
     image: "/assets/icon-speak.png",
     accent: "#e01010",
-    audience: "kids",
+    audience: "adult",
     price: 980,
     iframeUrl: import.meta.env.VITE_APP_URL_SPEAK || "",
   },
@@ -42,7 +42,7 @@ export const APPS = [
     image: "/assets/icon-wondercamp.png",
     accent: "#e01010",
     audience: "kids",
-    price: 1380,
+    price: 1680,
     iframeUrl: import.meta.env.VITE_APP_URL_WONDERCAMP || "",
   },
   {
@@ -79,6 +79,44 @@ export const APPS = [
     audience: "adult",
     price: 1480,
     iframeUrl: import.meta.env.VITE_APP_URL_INNERKEY || "",
+  },
+  {
+    id: "career-ready",
+    name: "Career Ready",
+    desc: "English confidence for university life and career",
+    icon: "🎓",
+    image: "/assets/icon-career-ready.png",
+    accent: "#2ec4b6",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /career-ready — see AppModal special-case
+  },
+  {
+    id: "global-ready",
+    name: "Global Ready",
+    desc: "English confidence for study abroad, travel, and international life",
+    icon: "🌍",
+    image: "/assets/icon-global-ready.png",
+    accent: "#e01010",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /global-ready — see AppModal special-case
+  },
+  {
+    id: "speak-ready",
+    name: "Speak Ready",
+    desc: "Confidence-first speaking practice for real life",
+    icon: "🗣️",
+    accent: "#f59e0b",
+    audience: "university",
+    price: 0,
+    free: true,
+    badge: "NEW",
+    iframeUrl: "", // native page at /speak-ready — see AppModal special-case
   },
 ];
 

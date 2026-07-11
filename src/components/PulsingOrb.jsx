@@ -63,7 +63,7 @@ export default function PulsingOrb() {
         ))}
       </div>
 
-      {/* Jarvis image — static centre */}
+      {/* Jona image — static centre */}
       <div style={{
         position: "absolute",
         inset: 58,
@@ -73,8 +73,8 @@ export default function PulsingOrb() {
         animation: "pulse 3s ease-in-out infinite",
       }}>
         <img
-          src="/assets/jarvis.png"
-          alt="Jarvis"
+          src="/assets/jona.png"
+          alt="Jona"
           style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
         />
       </div>

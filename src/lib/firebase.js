@@ -20,6 +20,7 @@ import {
   increment,
   serverTimestamp,
   enableIndexedDbPersistence,
+  runTransaction,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -96,13 +97,38 @@ export async function checkAndUpdateStreak(uid) {
   } catch (err) { console.error("checkAndUpdateStreak:", err); }
 }
 
-// Batched XP + streak + lesson update — 1 write instead of 3
+function currentWeekKey() {
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week  = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+// Batched XP + streak + lesson update — resets weeklyXp each new week
 export async function awardXP(uid, xp, lessonsCompleted = 0) {
-  await updateDoc(doc(db, "users", uid), {
-    xpEarned:        increment(xp),
-    lessonsCompleted: increment(lessonsCompleted),
-    lastActivityAt:  serverTimestamp(),
-  }).catch(console.error);
+  const weekKey  = currentWeekKey();
+  const userRef  = doc(db, "users", uid);
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap    = await tx.get(userRef);
+      const data    = snap.data() ?? {};
+      const sameWeek = data.weeklyXpKey === weekKey;
+      tx.update(userRef, {
+        xpEarned:         increment(xp),
+        weeklyXp:         sameWeek ? increment(xp) : xp,
+        weeklyXpKey:      weekKey,
+        lessonsCompleted: increment(lessonsCompleted),
+        lastActivityAt:   serverTimestamp(),
+      });
+    });
+  } catch {
+    // Fallback: plain update without weekly reset
+    await updateDoc(userRef, {
+      xpEarned:         increment(xp),
+      lessonsCompleted: increment(lessonsCompleted),
+      lastActivityAt:   serverTimestamp(),
+    }).catch(console.error);
+  }
 }
 
 export async function createUserProfile(uid, data) {

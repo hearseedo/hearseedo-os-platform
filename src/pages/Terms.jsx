@@ -39,7 +39,7 @@ export default function Terms() {
 
     <Section title="5. AI Features and Limitations">
       <ul>
-        <li>The HSD AI assistant ("Jarvis") is powered by a third-party large language model. Responses are generated automatically and may occasionally be inaccurate or incomplete.</li>
+        <li>The HSD AI assistant ("Jona") is powered by a third-party large language model. Responses are generated automatically and may occasionally be inaccurate or incomplete.</li>
         <li>AI-generated content is for educational support only and does not constitute professional advice.</li>
         <li>Daily message limits apply based on your subscription plan and reset at midnight Japan Standard Time (JST).</li>
         <li>We reserve the right to adjust AI usage limits to maintain service quality and manage operational costs.</li>
@@ -89,7 +89,7 @@ export default function Terms() {
       <strong style={{ color: COLORS.text }}>Tier structure:</strong> Commission rates are determined by your current active paying referral count: Member (0–24) — no commission; Founder (25–49) — 5% recurring; Ambassador (50–99) — 6% recurring; Pioneer (100–199) — 7% recurring; Visionary (200+) — custom partnership terms. Legacy Founder is a manually assigned recognition status.<br /><br />
       <strong style={{ color: COLORS.text }}>Dynamic status:</strong> Your badge and commission rate update automatically. If your active referral count falls below a tier threshold (e.g. due to cancellations or refunds), your status and commission rate are reduced accordingly. There is no grace period.<br /><br />
       <strong style={{ color: COLORS.text }}>Commission calculation:</strong> Recurring commissions are calculated as a percentage of the referred subscriber's monthly subscription payment (excluding taxes, fees, and chargebacks) at the rate corresponding to your tier at the time of each payment.<br /><br />
-      <strong style={{ color: COLORS.text }}>Payout:</strong> Commission payouts begin after public launch (August 15, 2026). Minimum payout threshold and payment method will be communicated prior to launch. {COMPANY} reserves the right to withhold commissions for accounts under review for fraud or policy violations.<br /><br />
+      <strong style={{ color: COLORS.text }}>Payout:</strong> Commission payouts begin after public launch (July 1, 2026). Minimum payout threshold and payment method will be communicated prior to launch. {COMPANY} reserves the right to withhold commissions for accounts under review for fraud or policy violations.<br /><br />
       <strong style={{ color: COLORS.text }}>Prohibited conduct:</strong> Self-referrals, incentivised sign-ups using misleading claims, purchasing fake subscribers, or any attempt to artificially inflate your referral count are prohibited and will result in immediate account suspension and commission forfeiture.<br /><br />
       <strong style={{ color: COLORS.text }}>No cash value:</strong> Referral badges and tier status have no cash value and are not transferable. Only the commission rate associated with your active tier at payout time is redeemable.<br /><br />
       <strong style={{ color: COLORS.text }}>Modifications:</strong> {COMPANY} reserves the right to modify or terminate the Referral Program at any time with 30 days' notice to active participants. Changes to tier thresholds or commission rates will apply prospectively from the notice date.<br /><br />

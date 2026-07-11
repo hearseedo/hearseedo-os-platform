@@ -26,7 +26,7 @@ const EVENTS = [
     date: "2026-07-11",
     time: "19:00 JST",
     duration: "90 min",
-    host: "Jarvis AI + Jonathan",
+    host: "Jona AI + Jonathan",
     desc: "Intensive Eiken exam preparation. We'll cover essay writing, interview techniques, and vocabulary for Grade 2 and Pre-1.",
     tags: ["eiken", "intermediate", "advanced"],
     color: COLORS.gold,
@@ -118,7 +118,7 @@ export default function Events({ user }) {
 
       {/* Banner */}
       <div style={{ background: "linear-gradient(135deg, #1a0000, #0d0000)", border: "1px solid rgba(224,16,16,0.25)", borderRadius: 14, padding: 20, marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
-        <img src="/assets/jarvis.png" alt="Jarvis" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 10px rgba(224,16,16,0.6))", flexShrink: 0 }} />
+        <img src="/assets/jona.png" alt="Jona" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 10px rgba(224,16,16,0.6))", flexShrink: 0 }} />
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>HSD Community Events</div>
           <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>

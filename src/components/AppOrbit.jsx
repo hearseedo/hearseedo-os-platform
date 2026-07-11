@@ -1,143 +1,272 @@
 import { COLORS } from "../constants/colors";
-import { APP_MAP, ORBIT_LAYOUTS } from "../constants/apps";
+import { APP_MAP } from "../constants/apps";
 import { useSubscription } from "../hooks/useSubscription";
 import PulsingOrb from "./PulsingOrb";
 
-const POSITION_STYLES = {
-  "top-left":    { top: "4%",    left: "1%"                                    },
-  "top-right":   { top: "4%",    right: "1%"                                   },
-  "mid-left":    { top: "42%",   left: "-2%"                                   },
-  "mid-right":   { top: "42%",   right: "-2%"                                  },
-  "bottom-left": { bottom: "2%", left: "8%"                                    },
-  "bottom-right":{ bottom: "2%", right: "8%"                                   },
-  "bottom":      { bottom: "2%", left: "50%", transform: "translateX(-50%)"    },
-};
+const PATHS = [
+  {
+    id:    "kids",
+    label: "Kids",
+    color: "#f97316",
+    apps:  ["phonics", "eiken", "wondercamp"],
+  },
+  {
+    id:    "family",
+    label: "Family",
+    color: "#3b82f6",
+    apps:  ["family"],
+  },
+  {
+    id:    "university",
+    label: "University",
+    color: "#2ec4b6",
+    apps:  ["career-ready", "global-ready", "speak-ready"],
+  },
+  {
+    id:    "adult",
+    label: "Adult",
+    color: "#e01010",
+    apps:  ["speak", "sipswitch", "innerkey"],
+  },
+];
 
-export default function AppOrbit({ view, onViewChange, onAppClick }) {
+// Column centres in a 800-unit viewBox (12.5%, 37.5%, 62.5%, 87.5%)
+const COL_CX = [100, 300, 500, 700];
+
+export default function AppOrbit({ onAppClick, activeMember }) {
   const { isUnlocked } = useSubscription();
-  const layout = ORBIT_LAYOUTS[view] ?? ORBIT_LAYOUTS.all;
 
   return (
-    <div>
-      {/* Kids / Adult / All toggle */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 16 }}>
-        {[
-          { id: "kids",  label: "Kids 👶"  },
-          { id: "adult", label: "Adult 🧠" },
-          { id: "all",   label: "All"      },
-        ].map((v) => (
-          <button
-            key={v.id}
-            onClick={() => onViewChange(v.id)}
-            style={{
-              padding: "6px 16px", borderRadius: 20,
-              background: view === v.id ? COLORS.red : "transparent",
-              border: `1px solid ${view === v.id ? COLORS.red : COLORS.border}`,
-              color: view === v.id ? "#fff" : COLORS.textMuted,
-              fontSize: 12, fontWeight: view === v.id ? 600 : 400,
-              cursor: "pointer", transition: "all 0.2s",
-            }}
-          >
-            {v.label}
-          </button>
-        ))}
+    <div style={{ width: "100%" }}>
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: COLORS.textMuted, letterSpacing: 3, textTransform: "uppercase" }}>
+          HSD AI CORE
+        </div>
+        <div style={{ fontSize: 10, color: "#4488ff", marginTop: 2 }}>✦ Gemini Powered</div>
       </div>
 
-      {/* Orbit */}
-      <div style={{ position: "relative", width: "100%", height: 440 }}>
-        {/* Orb centre */}
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -54%)", zIndex: 1 }}>
-          <PulsingOrb />
-        </div>
+      {/* Jona orb */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <PulsingOrb />
+      </div>
 
-        {/* Label above orb */}
-        <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", textAlign: "center", zIndex: 10 }}>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, letterSpacing: 3, textTransform: "uppercase" }}>HSD AI CORE</div>
-          <div style={{ fontSize: 10, color: "#4488ff", marginTop: 2 }}>✦ Gemini Powered</div>
-        </div>
-
-        {/* App cards */}
-        {layout.map(({ id, position }) => {
-          const app      = APP_MAP[id];
-          const unlocked = isUnlocked(id);
-          if (!app) return null;
-          return (
-            <AppCard
-              key={id}
-              app={app}
-              unlocked={unlocked}
-              posStyle={POSITION_STYLES[position]}
-              onClick={() => onAppClick(app)}
+      {/* Connector lines — overlap bottom of orb slightly */}
+      <svg
+        width="100%"
+        height="70"
+        viewBox="0 0 800 70"
+        preserveAspectRatio="none"
+        style={{ display: "block", marginTop: -24 }}
+      >
+        {PATHS.map((path, i) => (
+          <g key={path.id}>
+            <line
+              x1={400} y1={0}
+              x2={COL_CX[i]} y2={62}
+              stroke={path.color}
+              strokeWidth="1.5"
+              strokeDasharray="5 4"
+              strokeOpacity="0.65"
             />
-          );
-        })}
+            <circle cx={COL_CX[i]} cy={65} r="4" fill={path.color} opacity="0.85" />
+          </g>
+        ))}
+      </svg>
 
-        {/* Dashed connectors */}
-        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 5 }} viewBox="0 0 700 440" preserveAspectRatio="none">
-          {[
-            [165, 85, 290, 175], [535, 85, 410, 175],
-            [155, 230, 285, 210], [545, 230, 415, 210],
-            [350, 390, 350, 295],
-          ].map(([x1, y1, x2, y2], i) => (
-            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(224,16,16,0.25)" strokeWidth="1" strokeDasharray="4 4" />
-          ))}
-        </svg>
+      {/* Path columns */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 4 }}>
+        {PATHS.map((path) => (
+          <PathColumn
+            key={path.id}
+            path={path}
+            isUnlocked={isUnlocked}
+            onAppClick={onAppClick}
+            activeMember={activeMember}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function AppCard({ app, unlocked, posStyle, onClick }) {
-  const accent = unlocked ? app.accent : COLORS.border;
+function PathColumn({ path, isUnlocked, onAppClick, activeMember }) {
+  const apps = path.apps
+    .map((id) => APP_MAP[id])
+    .filter(Boolean)
+    .filter((app) => !activeMember || app.audience !== "adult");
+
+  return (
+    <div
+      style={{
+        border:       `1px solid ${path.color}44`,
+        borderRadius: 12,
+        overflow:     "hidden",
+        background:   COLORS.card,
+      }}
+    >
+      {/* Coloured header */}
+      <div
+        style={{
+          background:   `${path.color}18`,
+          borderBottom: `1px solid ${path.color}44`,
+          padding:      "10px 12px",
+          textAlign:    "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize:      11,
+            fontWeight:    700,
+            color:         path.color,
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+          }}
+        >
+          {path.label}
+        </div>
+      </div>
+
+      {/* App list */}
+      <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+        {path.comingSoon ? (
+          <div
+            style={{
+              padding:    "28px 8px",
+              textAlign:  "center",
+              fontSize:   10,
+              color:      path.color,
+              opacity:    0.5,
+              fontStyle:  "italic",
+            }}
+          >
+            Coming soon
+          </div>
+        ) : (
+          apps.map((app) => (
+            <PathAppCard
+              key={app.id}
+              app={app}
+              unlocked={isUnlocked(app.id)}
+              pathColor={path.color}
+              onClick={() => onAppClick(app)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PathAppCard({ app, unlocked, pathColor, onClick }) {
   return (
     <div
       onClick={onClick}
       style={{
-        position: "absolute", ...posStyle,
-        width: 162, zIndex: 10,
-        background: COLORS.card,
-        border: `1px solid ${unlocked ? `${app.accent}66` : COLORS.border}`,
-        borderRadius: 12, padding: "10px 12px",
-        cursor: "pointer", transition: "all 0.2s",
-        opacity: unlocked ? 1 : 0.55,
+        background:   COLORS.surface,
+        border:       `1px solid ${unlocked ? `${pathColor}44` : COLORS.border}`,
+        borderRadius: 8,
+        padding:      "8px 10px",
+        cursor:       "pointer",
+        display:      "flex",
+        alignItems:   "center",
+        gap:          8,
+        opacity:      unlocked ? 1 : 0.55,
+        transition:   "all 0.2s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = app.accent;
-        e.currentTarget.style.boxShadow  = `0 0 16px ${app.accent}44`;
-        e.currentTarget.style.opacity    = "1";
+        e.currentTarget.style.borderColor = pathColor;
+        e.currentTarget.style.boxShadow   = `0 0 12px ${pathColor}33`;
+        e.currentTarget.style.opacity     = "1";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = unlocked ? `${app.accent}66` : COLORS.border;
-        e.currentTarget.style.boxShadow  = "none";
-        e.currentTarget.style.opacity    = unlocked ? "1" : "0.55";
+        e.currentTarget.style.borderColor = unlocked ? `${pathColor}44` : COLORS.border;
+        e.currentTarget.style.boxShadow   = "none";
+        e.currentTarget.style.opacity     = unlocked ? "1" : "0.55";
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 10, fontSize: 18,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: unlocked ? `${app.accent}22` : "#1a1a1a",
-          border: `1px solid ${unlocked ? `${app.accent}44` : COLORS.border}`,
-          position: "relative", flexShrink: 0, overflow: "hidden",
-        }}>
-          {app.image
-            ? <img src={app.image} alt={app.name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10, filter: unlocked ? "none" : "grayscale(80%) brightness(0.5)" }} />
-            : app.icon
-          }
-          {!unlocked && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", borderRadius: 10, fontSize: 14 }}>🔒</div>
-          )}
-        </div>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: unlocked ? COLORS.text : COLORS.textDim, lineHeight: 1.2 }}>
-            {app.name.replace("™", "").trim()}
+      {/* Icon */}
+      <div
+        style={{
+          width:        34,
+          height:       34,
+          borderRadius: 8,
+          flexShrink:   0,
+          overflow:     "hidden",
+          position:     "relative",
+          background:   unlocked ? `${pathColor}1a` : "#1a1a1a",
+          border:       `1px solid ${unlocked ? `${pathColor}44` : COLORS.border}`,
+          display:      "flex",
+          alignItems:   "center",
+          justifyContent: "center",
+        }}
+      >
+        {app.image ? (
+          <img
+            src={app.image}
+            alt={app.name}
+            style={{
+              width:       "100%",
+              height:      "100%",
+              objectFit:   "cover",
+              filter:      unlocked ? "none" : "grayscale(80%) brightness(0.5)",
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 16 }}>{app.icon}</span>
+        )}
+        {!unlocked && (
+          <div
+            style={{
+              position:       "absolute",
+              inset:          0,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "center",
+              background:     "rgba(0,0,0,0.55)",
+              borderRadius:   8,
+              fontSize:       12,
+            }}
+          >
+            🔒
           </div>
-          <div style={{ fontSize: 9, color: COLORS.textMuted, marginTop: 2, lineHeight: 1.3 }}>{app.desc}</div>
-        </div>
+        )}
       </div>
-      {!unlocked && (
-        <div style={{ marginTop: 6, fontSize: 9, color: accent }}>¥{app.price.toLocaleString()}/mo</div>
-      )}
+
+      {/* Text */}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontSize:     10,
+            fontWeight:   700,
+            color:        unlocked ? COLORS.text : COLORS.textDim,
+            lineHeight:   1.2,
+            whiteSpace:   "nowrap",
+            overflow:     "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {app.name.replace("™", "").trim()}
+        </div>
+        <div
+          style={{
+            fontSize:     9,
+            color:        COLORS.textMuted,
+            marginTop:    1,
+            lineHeight:   1.3,
+            whiteSpace:   "nowrap",
+            overflow:     "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {app.desc}
+        </div>
+        {!unlocked && (
+          <div style={{ fontSize: 9, color: pathColor, marginTop: 2 }}>
+            ¥{app.price.toLocaleString()}/mo
+          </div>
+        )}
+      </div>
     </div>
   );
 }
