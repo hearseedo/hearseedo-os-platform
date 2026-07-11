@@ -8,8 +8,8 @@ const PHRASES_KEY  = (uid) => `speak_ready_phrases_${uid}`;
 
 const DEFAULT_PROGRESS = {
   xp: 0,
-  sessionsCompleted: { missions: 0, quick_thinking: 0, picture: 0, debate: 0 },
-  completedScenarioIds: { missions: [], quick_thinking: [], picture: [], debate: [] },
+  sessionsCompleted: { missions: 0, quick_thinking: 0, picture: 0, debate: 0, story_builder: 0 },
+  completedScenarioIds: { missions: [], quick_thinking: [], picture: [], debate: [], story_builder: [] },
   confidenceHistory: [], // [{ score, date }]
   badges: [],
 };
@@ -55,6 +55,7 @@ export function recordPracticeResult(uid, { category, scenarioId, confidenceScor
   if (category === "quick_thinking" && allDone("quick_thinking")) award("quick_thinker");
   if (category === "picture" && allDone("picture")) award("picture_perfect");
   if (category === "debate" && allDone("debate")) award("great_debater");
+  if (category === "story_builder" && allDone("story_builder")) award("storyteller");
   if (totalSessions >= 10) award("confidence_builder");
 
   saveProgress(uid, progress);

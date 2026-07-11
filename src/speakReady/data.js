@@ -41,6 +41,15 @@ export const CATEGORIES = [
     icon:  "💭",
     color: "#e01010",
   },
+  {
+    id:    "story_builder",
+    name:  "Story Builder",
+    nameJp: "ストーリービルダー",
+    desc:  "Build a story together, one turn at a time",
+    descJp: "一緒に一つずつ物語を作ろう",
+    icon:  "📖",
+    color: "#22c55e",
+  },
 ];
 
 export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
@@ -90,11 +99,23 @@ export const DEBATE_TOPICS = [
   { id: "homework",      persona: "a friendly debate partner who takes a light opposing view to keep the discussion going", prompt: "Should schools give students less homework?",                                                  promptJp: "学校は宿題を減らすべきだと思いますか?" },
 ];
 
+export const STORY_STARTERS = [
+  { id: "letter",     persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "A mysterious letter arrives at your door with no return address.",                 promptJp: "差出人不明の謎の手紙があなたの家に届く。" },
+  { id: "train",      persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "You wake up on a train and don't recognize anyone around you.",                    promptJp: "電車の中で目を覚ますと、周りに知っている人が誰もいない。" },
+  { id: "key",        persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "You find an old key that doesn't match any door you know.",                        promptJp: "見覚えのないドアの鍵らしき古い鍵を見つける。" },
+  { id: "message",    persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "Your phone shows a message from an unknown number: \"I know what you did.\"",         promptJp: "知らない番号からのメッセージ「私はあなたがしたことを知っている」が届く。" },
+  { id: "umbrella",   persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "You open your umbrella and a small folded note falls out.",                        promptJp: "傘を開くと、小さく折られたメモが落ちてくる。" },
+  { id: "stranger",   persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "A stranger sits next to you and says, \"I've been looking for you.\"",               promptJp: "見知らぬ人が隣に座り「あなたを探していました」と言う。" },
+  { id: "ability",    persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "You wake up with a strange new ability you didn't have yesterday.",                 promptJp: "昨日までなかった不思議な能力を持って目が覚める。" },
+  { id: "phonecall",  persona: "a creative, encouraging storytelling partner who builds a story together with you, one turn at a time", prompt: "Your best friend calls and says, \"You won't believe what just happened.\"",          promptJp: "親友から電話があり「信じられないことが起きた」と言われる。" },
+];
+
 export const PRACTICE_BANKS = {
   missions:       MISSIONS_SCENARIOS,
   quick_thinking: QUICK_THINKING_ROUNDS,
   picture:        PICTURE_SCENES,
   debate:         DEBATE_TOPICS,
+  story_builder:  STORY_STARTERS,
 };
 
 export const CONFIDENCE_LEVELS = [
@@ -111,6 +132,7 @@ export const BADGES = [
   { id: "quick_thinker",   name: "Quick Thinker",       nameJp: "クイックシンカー",     icon: "⚡", desc: "Completed all Quick Thinking rounds",             descJp: "クイックシンキングを全て完了" },
   { id: "picture_perfect", name: "Picture Perfect",     nameJp: "ピクチャーパーフェクト", icon: "🖼️", desc: "Completed all Picture Speaking scenes",         descJp: "ピクチャースピーキングを全て完了" },
   { id: "great_debater",   name: "Great Debater",       nameJp: "グレートディベーター", icon: "💭", desc: "Completed all Debate & Discussion topics",       descJp: "ディベート・ディスカッションを全て完了" },
+  { id: "storyteller",     name: "Storyteller",         nameJp: "ストーリーテラー",     icon: "📖", desc: "Completed all Story Builder stories",             descJp: "ストーリービルダーを全て完了" },
   { id: "confidence_builder", name: "Confidence Builder", nameJp: "自信を積み上げる",  icon: "🔥", desc: "Practiced 10 times across any category",         descJp: "いずれかのカテゴリーで10回練習しました" },
 ];
 
