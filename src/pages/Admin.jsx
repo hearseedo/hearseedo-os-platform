@@ -14,9 +14,12 @@ import FoundingBadge from "../components/FoundingBadge";
 const TABS = [
   { id: "overview",      label: "Overview",       icon: "📊" },
   { id: "warnings",      label: "Warnings",       icon: "⚠️" },
+  { id: "gemini",        label: "Gemini Activity",icon: "🤖" },
+  { id: "api_costs",     label: "API Costs",      icon: "💰" },
   { id: "support",       label: "Support",        icon: "💬" },
   { id: "feedback",      label: "Feedback",       icon: "📣" },
   { id: "intelligence",  label: "Intelligence",   icon: "🧠" },
+  { id: "eiken",         label: "EIKEN Monkey",   icon: "🐵" },
   { id: "users",         label: "Users",          icon: "👥" },
   { id: "founding",      label: "Founding",       icon: "🏅" },
   { id: "apps",          label: "App Registry",   icon: "📱" },
@@ -64,7 +67,7 @@ function computeWarnings({ users, platform, foundingCount, mrr }) {
   const missingIframeUrls = [
     "VITE_APP_URL_PHONICS","VITE_APP_URL_SPEAK","VITE_APP_URL_WONDERCAMP",
     "VITE_APP_URL_FAMILY","VITE_APP_URL_SIPSWITCH","VITE_APP_URL_INNERKEY",
-    "VITE_APP_URL_EIKEN",
+    // EIKEN is a native built-in component — no iframe URL needed
   ].filter(k => !import.meta.env[k]);
   if (missingIframeUrls.length > 0) {
     warnings.push({
@@ -207,6 +210,7 @@ function computeWarnings({ users, platform, foundingCount, mrr }) {
 
 const MRR_MAP = {
   individual: 2480, family: 3980,
+  "career-ready": 1980, "global-ready": 1980, "speak-ready": 1980, "university-bundle": 4980,
   phonics: 1280, eiken: 1258, wondercamp: 1680, sipswitch: 1088, speak: 1020, innerkey: 1258,
   kids_starter: 2780, english_boost: 2108, adult_growth: 1853,
   adult_complete: 2873, all_access: 4980,
@@ -270,15 +274,19 @@ export default function Admin() {
 
   if (!user || !isAdmin) return null;
 
-  const totalUsers     = users.length;
-  const paidUsers      = users.filter(u => u.plan && u.plan !== "free" && u.planStatus === "active").length;
-  const freeUsers      = users.filter(u => !u.plan || u.plan === "free").length;
-  const allAccessUsers = users.filter(u => u.plan === "all_access").length;
-  const mrr            = users.reduce((s, u) => s + (MRR_MAP[u.plan] ?? 0), 0);
-  const planCounts     = users.reduce((acc, u) => { acc[u.plan ?? "free"] = (acc[u.plan ?? "free"] || 0) + 1; return acc; }, {});
-  const avgConfidence  = users.length ? Math.round(users.reduce((s, u) => s + (u.confidenceScore ?? 50), 0) / users.length) : 0;
+  // Exclude owner/admin accounts from all stats so numbers reflect real users only
+  const OWNER_EMAILS = [import.meta.env.VITE_ADMIN_EMAIL, "waltho79@gmail.com"].filter(Boolean);
+  const realUsers    = users.filter(u => !OWNER_EMAILS.includes(u.email));
 
-  const warnings       = loading ? [] : computeWarnings({ users, platform, foundingCount, mrr });
+  const totalUsers     = realUsers.length;
+  const paidUsers      = realUsers.filter(u => u.plan && u.plan !== "free" && u.planStatus === "active").length;
+  const freeUsers      = realUsers.filter(u => !u.plan || u.plan === "free").length;
+  const allAccessUsers = realUsers.filter(u => u.plan === "all_access").length;
+  const mrr            = realUsers.reduce((s, u) => s + (MRR_MAP[u.plan] ?? 0), 0);
+  const planCounts     = realUsers.reduce((acc, u) => { acc[u.plan ?? "free"] = (acc[u.plan ?? "free"] || 0) + 1; return acc; }, {});
+  const avgConfidence  = realUsers.length ? Math.round(realUsers.reduce((s, u) => s + (u.confidenceScore ?? 50), 0) / realUsers.length) : 0;
+
+  const warnings       = loading ? [] : computeWarnings({ users: realUsers, platform, foundingCount, mrr });
   const criticalCount  = warnings.filter(w => w.level === "critical").length;
   const warningCount   = warnings.filter(w => w.level !== "info").length;
 
@@ -352,14 +360,17 @@ export default function Admin() {
         </aside>
 
         <main style={{ flex: 1, overflowY: "auto", padding: 28 }}>
-          {tab === "overview"     && <OverviewTab     users={users} planCounts={planCounts} platform={platform} pageViews={pageViews} loading={loading} mrr={mrr} paidUsers={paidUsers} avgConfidence={avgConfidence} foundingCount={foundingCount} warnings={warnings} onViewWarnings={() => setTab("warnings")} />}
+          {tab === "overview"     && <OverviewTab     users={realUsers} planCounts={planCounts} platform={platform} pageViews={pageViews} loading={loading} mrr={mrr} paidUsers={paidUsers} avgConfidence={avgConfidence} foundingCount={foundingCount} warnings={warnings} onViewWarnings={() => setTab("warnings")} />}
           {tab === "warnings"     && <WarningsTab     warnings={warnings} loading={loading} />}
+          {tab === "gemini"       && <GeminiActivityTab />}
+          {tab === "api_costs"    && <ApiCostsTab />}
           {tab === "support"      && <SupportTab />}
-          {tab === "intelligence" && <IntelligenceTab users={users} platform={platform} loading={loading} avgConfidence={avgConfidence} />}
+          {tab === "intelligence" && <IntelligenceTab users={realUsers} platform={platform} loading={loading} avgConfidence={avgConfidence} />}
+          {tab === "eiken"        && <EikenTeacherTab users={realUsers} loading={loading} />}
           {tab === "users"        && <UsersTab        users={users} loading={loading} setUsers={setUsers} />}
-          {tab === "founding"     && <FoundingTab     users={users} loading={loading} foundingCount={foundingCount} />}
-          {tab === "apps"         && <AppsTab         users={users} />}
-          {tab === "revenue"      && <RevenueTab      users={users} planCounts={planCounts} mrr={mrr} />}
+          {tab === "founding"     && <FoundingTab     users={realUsers} loading={loading} foundingCount={foundingCount} />}
+          {tab === "apps"         && <AppsTab         users={realUsers} />}
+          {tab === "revenue"      && <RevenueTab      users={realUsers} planCounts={planCounts} mrr={mrr} />}
           {tab === "audit"        && <AuditTab />}
           {tab === "feedback"     && <FeedbackTab />}
           {tab === "settings"     && <SettingsTab />}
@@ -502,12 +513,12 @@ function OverviewTab({ users, planCounts, platform, pageViews, loading, mrr, pai
             { label: "Firebase Auth",             done: true  },
             { label: "Firestore + Rules",          done: true  },
             { label: "Stripe Webhook",             done: true  },
-            { label: "Gemini AI (learning path)",  done: true  },
-            { label: "Claude AI (Jona chat)",      done: true  },
+            { label: "Gemini AI (Jona + learning path)", done: true },
             { label: "Customer Portal",            done: true  },
             { label: "Learner Intelligence",       done: true  },
             { label: "Placement Assessment",       done: true  },
             { label: "Assessment → Learning Path", done: true  },
+            { label: "Daily AI message cap",       done: true  },
             { label: "Admin Warnings Engine",      done: true  },
             { label: "Japanese (JP) translation",  done: true  },
             { label: "Daily Warm-Up",              done: true  },
@@ -761,6 +772,128 @@ function IntelligenceTab({ users, platform, loading, avgConfidence }) {
   );
 }
 
+// ── EIKEN MONKEY TEACHER DASHBOARD ──────────────────────────────────────────────
+// Reads the denormalized users/{uid}.eikenSummary field (written by
+// eiken-progress.js alongside each profile update) rather than a second
+// live query against learnerProfiles — cheaper for a table with many rows.
+// Individual accounts only; family children don't have their own users/{uid}
+// doc to denormalize onto (same limitation noted in ParentView.jsx).
+// eiken-progress.js writes timestamps as plain ISO strings (its REST-based
+// write path, not the client SDK), so this handles both that and a legacy
+// Firestore Timestamp object should one ever show up in older data.
+function formatServerDate(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  return date && !isNaN(date) ? date.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
+}
+
+function EikenTeacherTab({ users, loading }) {
+  const eikenUsers = users.filter(u => u.eikenSummary);
+  const avgReadiness = eikenUsers.length
+    ? Math.round(eikenUsers.reduce((s, u) => s + (u.eikenSummary.readinessScore ?? 0), 0) / eikenUsers.length)
+    : 0;
+  const byGrade = eikenUsers.reduce((acc, u) => {
+    const g = u.eikenSummary.grade ?? "Not set";
+    acc[g] = (acc[g] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const mpUsers = users.filter(u => u.monkeyPartySummary);
+  const mpByMode = mpUsers.reduce((acc, u) => {
+    const mode = u.monkeyPartySummary.lastGameMode ?? "unknown";
+    acc[mode] = (acc[mode] ?? 0) + 1;
+    return acc;
+  }, {});
+  const mpByTopic = mpUsers.reduce((acc, u) => {
+    const topic = u.monkeyPartySummary.lastTopic ?? "unknown";
+    acc[topic] = (acc[topic] ?? 0) + 1;
+    return acc;
+  }, {});
+  const mostPopularMode = Object.entries(mpByMode).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+  const mostPopularTopic = Object.entries(mpByTopic).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <PageTitle>🐵 EIKEN Monkey</PageTitle>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 28 }}>
+        <StatCard label="EIKEN Students" value={loading ? "—" : eikenUsers.length} color={COLORS.red} sub="with an EIKEN profile" />
+        <StatCard label="Avg Readiness"  value={loading ? "—" : `${avgReadiness}%`} color={COLORS.gold} sub="across all students" />
+        <StatCard label="Grades in Use"  value={loading ? "—" : Object.keys(byGrade).length} color="#4488ff" sub="distinct grades" />
+      </div>
+
+      <Card title="Students by Grade">
+        {loading ? <Skeleton /> : Object.keys(byGrade).length === 0 ? <Empty>No EIKEN activity yet.</Empty> : (
+          Object.entries(byGrade).map(([grade, count]) => (
+            <Stat key={grade} label={grade} value={count} />
+          ))
+        )}
+      </Card>
+
+      <div style={{ height: 16 }} />
+
+      <Card title="Student Leaderboard">
+        {loading ? <Skeleton /> : eikenUsers.length === 0 ? <Empty>No students have started EIKEN Monkey yet.</Empty> : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>{["Name", "Grade", "Readiness", "Last Active"].map(h => (
+                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {eikenUsers
+                .sort((a, b) => (b.eikenSummary.readinessScore ?? 0) - (a.eikenSummary.readinessScore ?? 0))
+                .map(u => (
+                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                    <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
+                    <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.eikenSummary.grade ?? "Not set"}</td>
+                    <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.gold }}>{u.eikenSummary.readinessScore ?? 0}%</td>
+                    <td style={{ padding: "9px 0", fontSize: 11, color: COLORS.textDim }}>
+                      {formatServerDate(u.eikenSummary.lastActive)}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      <div style={{ height: 16 }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
+        <StatCard label="Monkey Party Users" value={loading ? "—" : mpUsers.length} color="#FFD700" sub="have played at least once" />
+        <StatCard label="Most Popular Game" value={loading ? "—" : mostPopularMode.replace(/_/g, " ")} color="#4488ff" sub="by last-played mode" />
+        <StatCard label="Most Popular Topic" value={loading ? "—" : mostPopularTopic} color={COLORS.success} sub="by last-played topic" />
+      </div>
+
+      <Card title="🎉 Monkey Party — Recent Activity">
+        {loading ? <Skeleton /> : mpUsers.length === 0 ? <Empty>No students have played Monkey Party yet.</Empty> : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>{["Name", "Last Game", "Topic", "Last Score", "Last Played"].map(h => (
+                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {mpUsers
+                .sort((a, b) => new Date(b.monkeyPartySummary.lastPlayedAt || 0) - new Date(a.monkeyPartySummary.lastPlayedAt || 0))
+                .slice(0, 20)
+                .map(u => (
+                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                    <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
+                    <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted, textTransform: "capitalize" }}>{(u.monkeyPartySummary.lastGameMode ?? "—").replace(/_/g, " ")}</td>
+                    <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.monkeyPartySummary.lastTopic ?? "—"}</td>
+                    <td style={{ padding: "9px 0", fontSize: 12, color: "#FFD700" }}>{u.monkeyPartySummary.lastScore ?? 0}</td>
+                    <td style={{ padding: "9px 0", fontSize: 11, color: COLORS.textDim }}>{formatServerDate(u.monkeyPartySummary.lastPlayedAt)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 // ── USERS ──────────────────────────────────────────────────────────────────────
 
 function UsersTab({ users, loading, setUsers }) {
@@ -971,7 +1104,7 @@ function AppsTab({ users }) {
 
 function RevenueTab({ users, planCounts, mrr }) {
   const arr          = mrr * 12;
-  const paidUsers    = users.filter(u => MRR_MAP[u.plan]);
+  const paidUsers    = users.filter(u => u.plan && u.plan !== "free" && u.planStatus === "active");
   const arpu         = paidUsers.length ? Math.round(mrr / paidUsers.length) : 0;
   const churnedUsers = users.filter(u => u.planStatus === "cancelled").length;
   const churnRate    = users.length ? ((churnedUsers / users.length) * 100).toFixed(1) : "0.0";
@@ -989,7 +1122,8 @@ function RevenueTab({ users, planCounts, mrr }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <Card title="Revenue by Plan">
-          {[...PLANS, ...FAMILY_PLANS.filter(p => p.price_monthly > 0)].map(p => {
+          {/* Active plans — skip contact-only plans with no fixed price */}
+          {PLANS.filter(p => !p.legacy && p.price_monthly != null).map(p => {
             const count   = planCounts[p.id] ?? 0;
             const revenue = count * p.price_monthly;
             return (
@@ -1004,6 +1138,35 @@ function RevenueTab({ users, planCounts, mrr }) {
               </div>
             );
           })}
+          {/* Organization — contact-only, custom pricing */}
+          {(() => { const c = planCounts["organization"] ?? 0; return c > 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #1e1e1e" }}>
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.text }}>Organization</div>
+                <div style={{ fontSize: 10, color: COLORS.textMuted }}>Custom pricing × {c}</div>
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.textDim }}>Contact</div>
+            </div>
+          ) : null; })()}
+          {/* Legacy plans — only shown if at least 1 subscriber */}
+          {PLANS.filter(p => p.legacy && p.price_monthly > 0 && (planCounts[p.id] ?? 0) > 0).length > 0 && (
+            <>
+              <div style={{ fontSize: 9, fontWeight: 700, color: COLORS.textDim, letterSpacing: 2, textTransform: "uppercase", padding: "10px 0 4px" }}>Legacy subscribers</div>
+              {PLANS.filter(p => p.legacy && p.price_monthly > 0 && (planCounts[p.id] ?? 0) > 0).map(p => {
+                const count   = planCounts[p.id] ?? 0;
+                const revenue = count * p.price_monthly;
+                return (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #1a1a1a" }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: COLORS.textMuted }}>{p.name}</div>
+                      <div style={{ fontSize: 10, color: COLORS.textDim }}>¥{p.price_monthly.toLocaleString()}/mo × {count}</div>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.success }}>¥{revenue.toLocaleString()}</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </Card>
 
         <Card title="Plan Status Breakdown">
@@ -1022,6 +1185,95 @@ function RevenueTab({ users, planCounts, mrr }) {
             Connect Stripe Dashboard for live payment data.
           </div>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── GEMINI ACTIVITY ───────────────────────────────────────────────────────────
+
+function GeminiActivityTab() {
+  const [events, setEvents]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "geminiActivity"), orderBy("timestamp", "desc"));
+    const unsub = onSnapshot(q, snap => {
+      setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, []);
+
+  const FN_COLORS = { "jona-chat": "#e01010", "coaching-card": "#7B5EA7", "learning-path": "#22c55e", "assessment-score": "#f59e0b", "pronunciation-check": "#3b82f6" };
+  const FN_LABELS = { "jona-chat": "Jona Chat", "coaching-card": "Coaching Card", "learning-path": "Learning Path", "assessment-score": "Assessment", "pronunciation-check": "Pronunciation" };
+
+  const uniqueUids  = [...new Set(events.map(e => e.uid))];
+  const totalTokens = events.reduce((s, e) => s + (Number(e.inputTokens) || 0) + (Number(e.outputTokens) || 0), 0);
+  const byFn        = events.reduce((acc, e) => { acc[e.fn] = (acc[e.fn] || 0) + 1; return acc; }, {});
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>
+        Gemini Activity — Real User Evidence
+      </div>
+
+      {/* Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+        {[
+          { label: "Total Gemini Calls", value: events.length },
+          { label: "Unique Users", value: uniqueUids.length },
+          { label: "Total Tokens Used", value: totalTokens.toLocaleString() },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{value}</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* By function */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+        {Object.entries(byFn).map(([fn, count]) => (
+          <div key={fn} style={{ background: `${FN_COLORS[fn] ?? "#555"}22`, border: `1px solid ${FN_COLORS[fn] ?? "#555"}55`, borderRadius: 6, padding: "4px 10px", fontSize: 12, color: FN_COLORS[fn] ?? COLORS.textMuted, fontWeight: 600 }}>
+            {FN_LABELS[fn] ?? fn}: {count}
+          </div>
+        ))}
+      </div>
+
+      {/* Event list */}
+      {loading ? (
+        <div style={{ color: COLORS.textMuted, fontSize: 13 }}>Loading…</div>
+      ) : events.length === 0 ? (
+        <div style={{ color: COLORS.textMuted, fontSize: 13, padding: "24px 0", textAlign: "center" }}>
+          No Gemini events yet. Events appear here automatically when real users trigger AI features.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {events.slice(0, 100).map(e => {
+            const ts = e.timestamp ? new Date(Number(e.timestamp)).toLocaleString("en-US", { timeZone: "Asia/Tokyo", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+            const color = FN_COLORS[e.fn] ?? "#888";
+            return (
+              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8, fontSize: 12 }}>
+                <span style={{ background: `${color}22`, color, border: `1px solid ${color}44`, borderRadius: 4, padding: "2px 7px", fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
+                  {FN_LABELS[e.fn] ?? e.fn}
+                </span>
+                <span style={{ color: COLORS.textMuted, fontFamily: "monospace", fontSize: 10, flexShrink: 0 }}>{e.uid?.slice(0, 8)}…</span>
+                <span style={{ flex: 1, color: COLORS.textDim, fontSize: 10 }}>
+                  {e.fn === "coaching-card" && e.domain ? `${e.domain.slice(0, 50)}` : ""}
+                  {e.fn === "learning-path" && e.goal ? `${e.cefrAssigned ?? ""} · ${e.goal?.slice(0, 40)}` : ""}
+                  {e.fn === "jona-chat" && e.plan ? `plan:${e.plan}` : ""}
+                </span>
+                <span style={{ color: COLORS.textMuted, fontSize: 10, flexShrink: 0 }}>{Number(e.inputTokens || 0) + Number(e.outputTokens || 0)} tok</span>
+                <span style={{ color: COLORS.textDim, fontSize: 10, flexShrink: 0 }}>{ts} JST</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, fontSize: 10, color: COLORS.textDim }}>
+        Events stored permanently in Firestore · Firebase Console: console.firebase.google.com/project/hear-see-do-os-ai
       </div>
     </div>
   );
@@ -1085,7 +1337,7 @@ function SettingsTab() {
     { key: "VITE_FIREBASE_AUTH_DOMAIN",      status: "set",     note: "Firebase auth domain" },
     { key: "VITE_FIREBASE_PROJECT_ID",       status: "set",     note: "Firebase project ID" },
     { key: "VITE_ADMIN_EMAIL",               status: "set",     note: "Admin backdoor email" },
-    { key: "ANTHROPIC_API_KEY",              status: "set",     note: "Claude AI fallback" },
+    { key: "ANTHROPIC_API_KEY",              status: "set",     note: "Eiken AI Coach server-side proxy (server-side only — NO VITE_ prefix)" },
     { key: "GEMINI_API_KEY",                 status: "set",     note: "Primary AI — Gemini 2.5 Flash" },
     { key: "STRIPE_SECRET_KEY",              status: "set",     note: "Stripe server-side key" },
     { key: "STRIPE_WEBHOOK_SECRET",          status: "set",     note: "Webhook HMAC verification" },
@@ -1093,7 +1345,7 @@ function SettingsTab() {
     { key: "FIREBASE_API_KEY",               status: "set",     note: "Server-side Firestore key" },
     { key: "ELEVENLABS_API_KEY",              status: "set",     note: "Voice narration (server-side only — NO VITE_ prefix)" },
     { key: "VITE_APP_URL_PHONICS",           status: "set",     note: "monkeyphonics-jzkjzkbj.manus.space" },
-    { key: "VITE_APP_URL_EIKEN",             status: "set",     note: "eiken.hsdos.ai" },
+    { key: "VITE_APP_URL_EIKEN",             status: "set",     note: "Native built-in component — no iframe URL (intentionally blank)" },
     { key: "VITE_APP_URL_SPEAK",             status: "set",     note: "speak-sweat-core.replit.app" },
     { key: "VITE_APP_URL_WONDERCAMP",        status: "set",     note: "wondercamp.hsdos.ai" },
     { key: "VITE_APP_URL_FAMILY",            status: "set",     note: "family-english-hear.replit.app" },
@@ -1710,6 +1962,295 @@ function FeedbackTab() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── API COSTS + KILL SWITCH ───────────────────────────────────────────────────
+
+function ApiCostsTab() {
+  const [geminiEvents, setGeminiEvents]   = useState([]);
+  const [apiCosts, setApiCosts]           = useState({});
+  const [killSwitch, setKillSwitch]       = useState({ allEnabled: true, geminiEnabled: true, elevenLabsEnabled: true, lastAction: null });
+  const [loading, setLoading]             = useState(true);
+  const [budget, setBudget]               = useState(5000);
+  const [passcode, setPasscode]           = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMsg, setActionMsg]         = useState("");
+
+  const thisMonth = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }).slice(0, 7);
+
+  useEffect(() => {
+    const q = query(collection(db, "geminiActivity"), orderBy("timestamp", "desc"));
+    const unsub = onSnapshot(q, snap => {
+      setGeminiEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "apiCosts"), snap => {
+      const costs = {};
+      snap.docs.forEach(d => { costs[d.id] = d.data(); });
+      setApiCosts(costs);
+    }, () => {});
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "killSwitch"), snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setKillSwitch({
+          allEnabled:        d.allEnabled        ?? true,
+          geminiEnabled:     d.geminiEnabled     ?? true,
+          elevenLabsEnabled: d.elevenLabsEnabled ?? true,
+          lastAction:        d.action            ?? null,
+        });
+      }
+    }, () => {});
+    return () => unsub();
+  }, []);
+
+  // ── Cost calculations (this month) ───────────────────────────────────────
+  const monthEvents   = geminiEvents.filter(e => (e.date ?? "").startsWith(thisMonth));
+  const inputTokens   = monthEvents.reduce((s, e) => s + (Number(e.inputTokens)  || 0), 0);
+  const outputTokens  = monthEvents.reduce((s, e) => s + (Number(e.outputTokens) || 0), 0);
+  const geminiUSD     = (inputTokens / 1_000_000) * 0.075 + (outputTokens / 1_000_000) * 0.30;
+  const geminiJPY     = geminiUSD * 150;
+
+  const monthCostDocs  = Object.entries(apiCosts).filter(([d]) => d.startsWith(thisMonth));
+  const totalTtsCalls  = monthCostDocs.reduce((s, [, v]) => s + (Number(v.ttsCalls) || 0), 0);
+  const totalTtsChars  = monthCostDocs.reduce((s, [, v]) => s + (Number(v.ttsChars) || 0), 0);
+  const ttsOverage     = Math.max(0, totalTtsChars - 100_000);
+  const ttsOverageUSD  = (ttsOverage / 1000) * 0.30;
+  const ttsOverageJPY  = ttsOverageUSD * 150;
+  const ttsPlanJPY     = 3300; // $22/mo flat — already paid regardless of usage
+
+  // Budget tracks only variable costs (Gemini usage + TTS overage), not fixed plan fees
+  const totalJPY  = geminiJPY + ttsOverageJPY;
+  const budgetPct = Math.min(100, (totalJPY / budget) * 100);
+  const barColor  = budgetPct >= 90 ? COLORS.red : budgetPct >= 70 ? "#f59e0b" : "#22c55e";
+
+  // ── Last 7 days breakdown ────────────────────────────────────────────────
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+  }).reverse();
+
+  const byDay = last7.map(date => {
+    const events  = geminiEvents.filter(e => e.date === date);
+    const inTok   = events.reduce((s, e) => s + (Number(e.inputTokens)  || 0), 0);
+    const outTok  = events.reduce((s, e) => s + (Number(e.outputTokens) || 0), 0);
+    const dayUSD  = (inTok / 1_000_000) * 0.075 + (outTok / 1_000_000) * 0.30;
+    const tts     = apiCosts[date] ?? {};
+    const ttsDay  = (Number(tts.ttsChars) || 0);
+    return { date, calls: events.length, tokens: inTok + outTok, geminiJPY: dayUSD * 150, ttsChars: ttsDay };
+  });
+
+  async function doAction(action) {
+    if (!passcode.trim()) { setActionMsg("Enter passcode first"); return; }
+    setActionLoading(true);
+    setActionMsg("");
+    try {
+      const r    = await fetch("/api/kill-switch", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ action, passcode: passcode.trim() }),
+      });
+      const data = await r.json();
+      setActionMsg(r.ok ? `✓ ${action.replace(/_/g, " ")} applied` : (data.error ?? "Error"));
+    } catch { setActionMsg("Network error — check console"); }
+    setActionLoading(false);
+  }
+
+  if (loading) return <div style={{ color: COLORS.textMuted, fontSize: 13 }}>Loading…</div>;
+
+  const isAllStopped     = !killSwitch.allEnabled;
+  const isGeminiStopped  = !killSwitch.geminiEnabled;
+  const isTTSStopped     = !killSwitch.elevenLabsEnabled;
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>
+        API Cost Monitor
+      </div>
+
+      {/* Budget + progress bar */}
+      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>This Month — {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: COLORS.textMuted }}>Budget ¥</span>
+            <input
+              type="number"
+              value={budget}
+              onChange={e => setBudget(Number(e.target.value) || 5000)}
+              style={{ width: 80, background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, padding: "4px 8px", fontSize: 12 }}
+            />
+          </div>
+        </div>
+        <div style={{ height: 10, background: "#1e1e1e", borderRadius: 5, overflow: "hidden", marginBottom: 8 }}>
+          <div style={{ height: "100%", width: `${budgetPct}%`, background: barColor, borderRadius: 5, transition: "width 0.5s" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+          <span style={{ color: barColor, fontWeight: 700 }}>¥{Math.round(totalJPY).toLocaleString()} variable usage</span>
+          <span>{budgetPct.toFixed(1)}% of ¥{budget.toLocaleString()} alert threshold</span>
+        </div>
+        <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 6 }}>
+          Tracks Gemini usage + TTS overage only. ElevenLabs plan fee (¥{ttsPlanJPY.toLocaleString()}/mo) is fixed and shown separately.
+        </div>
+      </div>
+
+      {/* Cost cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        {/* Gemini */}
+        <div style={{ background: "#111", border: `1px solid ${isGeminiStopped ? COLORS.red + "44" : "#1e1e1e"}`, borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "#7B5EA7", fontWeight: 700, letterSpacing: 1 }}>GEMINI 2.5 FLASH</div>
+            {isGeminiStopped && <span style={{ fontSize: 9, background: "#e0101022", color: COLORS.red, border: `1px solid ${COLORS.red}44`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAUSED</span>}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text }}>¥{Math.round(geminiJPY).toLocaleString()}</div>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 4 }}>≈ ${geminiUSD.toFixed(3)} USD</div>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+              <span>Calls this month</span><span style={{ fontWeight: 600 }}>{monthEvents.length}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+              <span>Input tokens</span><span style={{ fontWeight: 600 }}>{inputTokens.toLocaleString()}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+              <span>Output tokens</span><span style={{ fontWeight: 600 }}>{outputTokens.toLocaleString()}</span>
+            </div>
+            <div style={{ marginTop: 4, fontSize: 10, color: COLORS.textDim }}>$0.075/1M in · $0.30/1M out · ¥150/$</div>
+          </div>
+        </div>
+
+        {/* ElevenLabs TTS */}
+        <div style={{ background: "#111", border: `1px solid ${isTTSStopped ? COLORS.red + "44" : "#1e1e1e"}`, borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "#3b82f6", fontWeight: 700, letterSpacing: 1 }}>ELEVENLABS TTS</div>
+            {isTTSStopped && <span style={{ fontSize: 9, background: "#e0101022", color: COLORS.red, border: `1px solid ${COLORS.red}44`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAUSED</span>}
+          </div>
+          {/* Fixed plan fee — always paid, not usage cost */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#0d0d0d", borderRadius: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: COLORS.textMuted }}>Creator plan (fixed/mo)</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>¥{ttsPlanJPY.toLocaleString()}</span>
+          </div>
+          {/* Variable usage cost */}
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 6 }}>THIS MONTH'S USAGE COST</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: ttsOverageJPY > 0 ? "#f59e0b" : COLORS.text }}>
+            ¥{Math.round(ttsOverageJPY).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 2, marginBottom: 10 }}>
+            {ttsOverageJPY === 0 ? "Within plan limit — no extra charge" : `≈ $${ttsOverageUSD.toFixed(2)} overage`}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+              <span>TTS calls</span><span style={{ fontWeight: 600 }}>{totalTtsCalls.toLocaleString()}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
+              <span>Chars used / 100k included</span>
+              <span style={{ fontWeight: 600 }}>{totalTtsChars.toLocaleString()}</span>
+            </div>
+            {ttsOverage > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#f59e0b" }}>
+                <span>Overage chars</span><span style={{ fontWeight: 600 }}>{ttsOverage.toLocaleString()}</span>
+              </div>
+            )}
+            <div style={{ marginTop: 4, fontSize: 10, color: COLORS.textDim }}>$0.30/1k chars over 100k · ¥150/$</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 7-day breakdown */}
+      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>LAST 7 DAYS</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {byDay.map(({ date, calls, tokens, geminiJPY: gJPY, ttsChars }) => {
+            const label = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+            return (
+              <div key={date} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", background: "#0d0d0d", borderRadius: 7, fontSize: 11 }}>
+                <span style={{ minWidth: 90, color: COLORS.textMuted, fontSize: 10 }}>{label}</span>
+                <span style={{ minWidth: 60, color: "#7B5EA7" }}>{calls} calls</span>
+                <span style={{ minWidth: 80, color: COLORS.textDim }}>{tokens.toLocaleString()} tok</span>
+                <span style={{ minWidth: 70, color: "#3b82f6" }}>{ttsChars.toLocaleString()} ch</span>
+                <span style={{ flex: 1, textAlign: "right", color: gJPY > 0 ? "#22c55e" : COLORS.textDim, fontWeight: 600 }}>¥{Math.round(gJPY)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Emergency Kill Switch */}
+      <div style={{ background: isAllStopped ? "#e0101010" : "#111", border: `1px solid ${isAllStopped ? COLORS.red : "#2a2a2a"}`, borderRadius: 10, padding: "18px 20px" }}>
+        <div style={{ fontSize: 11, color: COLORS.red, fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>EMERGENCY CONTROLS</div>
+        <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 14 }}>
+          Kill switch state:{" "}
+          <span style={{ fontWeight: 700, color: isAllStopped ? COLORS.red : "#22c55e" }}>
+            {isAllStopped ? "ALL PAUSED" : "RUNNING"}
+          </span>
+          {killSwitch.lastAction && <span style={{ color: COLORS.textDim }}> · last: {killSwitch.lastAction.replace(/_/g, " ")}</span>}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 4 }}>Passcode</div>
+          <input
+            type="password"
+            value={passcode}
+            onChange={e => setPasscode(e.target.value)}
+            placeholder="Enter shutdown passcode"
+            style={{ width: "100%", background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 7, color: COLORS.text, padding: "9px 12px", fontSize: 13, boxSizing: "border-box" }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <button
+            onClick={() => doAction("disable_gemini")}
+            disabled={actionLoading || isGeminiStopped}
+            style={{ padding: "10px", borderRadius: 8, border: "1px solid #f59e0b55", background: isGeminiStopped ? "#f59e0b11" : "#f59e0b22", color: "#f59e0b", fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: isGeminiStopped ? 0.5 : 1 }}
+          >
+            {isGeminiStopped ? "Gemini Paused" : "Pause Gemini"}
+          </button>
+          <button
+            onClick={() => doAction("disable_tts")}
+            disabled={actionLoading || isTTSStopped}
+            style={{ padding: "10px", borderRadius: 8, border: "1px solid #3b82f655", background: isTTSStopped ? "#3b82f611" : "#3b82f622", color: "#3b82f6", fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: isTTSStopped ? 0.5 : 1 }}
+          >
+            {isTTSStopped ? "TTS Paused" : "Pause TTS"}
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          <button
+            onClick={() => doAction("disable_all")}
+            disabled={actionLoading || isAllStopped}
+            style={{ padding: "12px", borderRadius: 8, border: `1px solid ${COLORS.red}`, background: isAllStopped ? `${COLORS.red}22` : `${COLORS.red}33`, color: COLORS.red, fontWeight: 800, fontSize: 13, cursor: "pointer", opacity: isAllStopped ? 0.5 : 1 }}
+          >
+            {isAllStopped ? "ALL PAUSED" : "PAUSE ALL"}
+          </button>
+          <button
+            onClick={() => doAction("enable_all")}
+            disabled={actionLoading}
+            style={{ padding: "12px", borderRadius: 8, border: "1px solid #22c55e", background: "#22c55e22", color: "#22c55e", fontWeight: 800, fontSize: 13, cursor: "pointer" }}
+          >
+            Resume All
+          </button>
+        </div>
+
+        {actionMsg && (
+          <div style={{ fontSize: 12, padding: "8px 12px", borderRadius: 7, background: actionMsg.startsWith("✓") ? "#22c55e18" : "#e0101018", color: actionMsg.startsWith("✓") ? "#22c55e" : COLORS.red, border: `1px solid ${actionMsg.startsWith("✓") ? "#22c55e44" : COLORS.red + "44"}` }}>
+            {actionMsg}
+          </div>
+        )}
+
+        <div style={{ marginTop: 10, fontSize: 10, color: COLORS.textDim, lineHeight: 1.6 }}>
+          Passcode is stored in Netlify env var SHUTDOWN_PASSCODE. Kill switch state persists in Firestore config/killSwitch.
+          All AI functions check this on every request. Fail-open: if Firestore is unreachable, requests continue normally.
+        </div>
+      </div>
     </div>
   );
 }

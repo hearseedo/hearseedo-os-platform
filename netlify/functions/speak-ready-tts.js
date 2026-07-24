@@ -45,7 +45,7 @@ exports.handler = async (event) => {
   const uid = body.uid;
   if (!uid) return { statusCode: 401, body: "Unauthorized" };
 
-  const text = (body.text || "").slice(0, MAX_CHARS).trim();
+  const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
 
   const requestedVoiceId = ACCENT_VOICES[body.accent] || DANIEL_VOICE_ID;

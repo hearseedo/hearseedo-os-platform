@@ -177,16 +177,15 @@ export default function LearningPath({ user, pathPrefix, member }) {
       if (user?.uid) {
         const savePath = pathPrefix ?? `users/${user.uid}`;
         await setDoc(doc(db, savePath, "learningPath", "current"), data);
-        // For family members: write CEFR + confidence score back to their doc
-        if (pathPrefix) {
-          const cefrScoreMap = { A1: 10, A2: 22, B1: 40, B2: 58, C1: 76, C2: 92 };
-          const memberCefr = parsed.cefr ?? "A2";
-          await updateDoc(doc(db, pathPrefix), {
-            cefr: memberCefr,
-            confidenceScore: cefrScoreMap[memberCefr] ?? 20,
-            assessmentDone: true,
-          }).catch(() => {});
-        }
+        // Write CEFR + confidence score back to the user or family member doc
+        const cefrScoreMap = { A1: 10, A2: 22, B1: 40, B2: 58, C1: 76, C2: 92 };
+        const memberCefr = parsed.cefr ?? "A2";
+        const profilePath = pathPrefix ?? `users/${user.uid}`;
+        await updateDoc(doc(db, profilePath), {
+          cefr: memberCefr,
+          confidenceScore: cefrScoreMap[memberCefr] ?? 20,
+          assessmentDone: true,
+        }).catch(() => {});
       }
     } catch {
       // Fallback if Gemini fails
@@ -210,9 +209,8 @@ export default function LearningPath({ user, pathPrefix, member }) {
       if (user?.uid) {
         const savePath = pathPrefix ?? `users/${user.uid}`;
         await setDoc(doc(db, savePath, "learningPath", "current"), fallback);
-        if (pathPrefix) {
-          await updateDoc(doc(db, pathPrefix), { cefr: "A2", confidenceScore: 22, assessmentDone: true }).catch(() => {});
-        }
+        const profilePath = pathPrefix ?? `users/${user.uid}`;
+        await updateDoc(doc(db, profilePath), { cefr: "A2", confidenceScore: 22, assessmentDone: true }).catch(() => {});
       }
     }
     setGenerating(false);

@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { COLORS } from "../constants/colors";
+
+const EIKEN_SKILL_LABELS = {
+  vocabulary: "Vocabulary", grammar: "Grammar", pronunciation: "Pronunciation",
+  speaking: "Speaking", listening: "Listening", reading: "Reading",
+  writing: "Writing", interview: "Interview",
+};
 
 const CEFR_COLOR = { A1:"#64748b", A2:"#3b82f6", B1:"#8b5cf6", B2:"#f59e0b", C1:"#e01010", C2:"#C9A84C" };
 const CEFR_LABEL = { A1:"Starter", A2:"Elementary", B1:"Intermediate", B2:"Upper-Inter.", C1:"Advanced", C2:"Mastery" };
@@ -24,6 +30,8 @@ function StatCard({ icon, label, value, sub }) {
 export default function ParentView() {
   const { uid } = useParams();
   const [profile, setProfile] = useState(null);
+  const [mockAttempts, setMockAttempts] = useState([]);
+  const [monkeyPartySessions, setMonkeyPartySessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -31,8 +39,16 @@ export default function ParentView() {
     if (!uid) { setNotFound(true); setLoading(false); return; }
     getDoc(doc(db, "learnerProfiles", uid))
       .then(snap => {
-        if (!snap.exists()) { setNotFound(true); }
-        else { setProfile(snap.data()); }
+        if (!snap.exists()) { setNotFound(true); return; }
+        setProfile(snap.data());
+        // EIKEN mock test history — additive, only fetched when the profile has EIKEN data
+        if (snap.data().eiken) {
+          const q = query(collection(db, "learnerProfiles", uid, "eikenMockAttempts"), orderBy("timestamp", "desc"), limit(3));
+          getDocs(q).then(s => setMockAttempts(s.docs.map(d => d.data()))).catch(() => {});
+        }
+        // Monkey Party session history — same additive pattern
+        const mpq = query(collection(db, "learnerProfiles", uid, "monkeyPartySessions"), orderBy("timestamp", "desc"), limit(3));
+        getDocs(mpq).then(s => setMonkeyPartySessions(s.docs.map(d => d.data()))).catch(() => {});
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -180,6 +196,75 @@ export default function ParentView() {
                   {l.date ? new Date(l.date).toLocaleDateString("en-GB", { day:"numeric", month:"short" }) : ""}
                 </div>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* EIKEN Monkey — additive, only shown once the student has an eiken profile */}
+      {profile.eiken && (
+        <div style={{
+          background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 12,
+          padding: "16px 18px", marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
+            🐵 EIKEN Monkey
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile.eiken.grade ?? "Not set"}</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+              {profile.eiken.missionsCompleted ?? 0} missions completed · readiness {profile.eiken.readinessScore ?? 0}%
+            </div>
+          </div>
+          {profile.skills && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: mockAttempts.length ? 14 : 0 }}>
+              {Object.entries(EIKEN_SKILL_LABELS).map(([key, label]) => {
+                const value = profile.skills[key] ?? 0;
+                return (
+                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMuted, width: 76, flexShrink: 0 }}>{label}</div>
+                    <div style={{ flex: 1, height: 6, background: "#1a1a1a", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${value}%`, height: "100%", background: COLORS.red, borderRadius: 4 }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textDim, width: 24, textAlign: "right" }}>{value}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {mockAttempts.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: 700, marginBottom: 8 }}>RECENT MOCK TESTS</div>
+              {mockAttempts.map((a, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12 }}>
+                  <div style={{ color: COLORS.text }}>{a.level ?? ""}</div>
+                  <div style={{ color: "#22c55e" }}>{a.mcqCorrect}/{a.mcqTotal} correct</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Monkey Party — additive, only shown once the student has played */}
+      {monkeyPartySessions.length > 0 && (
+        <div style={{
+          background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 12,
+          padding: "16px 18px", marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
+            🎉 Monkey Party
+          </div>
+          {monkeyPartySessions.map((s, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "6px 0", borderBottom: i < monkeyPartySessions.length - 1 ? "1px solid #1a1a1a" : "none",
+            }}>
+              <div>
+                <div style={{ fontSize: 12, color: COLORS.text, textTransform: "capitalize" }}>{(s.gameMode ?? "").replace(/_/g, " ")}</div>
+                <div style={{ fontSize: 10, color: COLORS.textDim }}>{s.topic ?? ""}</div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFD700" }}>{s.totalScore ?? 0} pts</div>
             </div>
           ))}
         </div>

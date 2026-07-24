@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
+import { useSubscription } from "../hooks/useSubscription";
 import { CATEGORIES } from "../careerReady/data";
 import { crt } from "../careerReady/i18n";
 import { getProgress, getLevelInfo } from "../careerReady/storage";
@@ -11,12 +12,42 @@ import ResumeTool from "../careerReady/ResumeTool";
 import SavedAnswers from "../careerReady/SavedAnswers";
 import Progress from "../careerReady/Progress";
 
+async function fetchUsage(uid) {
+  try {
+    const [iv, wr] = await Promise.all([
+      fetch("/api/career-ready-gate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, type: "interview", action: "check" }) }).then(r => r.json()),
+      fetch("/api/career-ready-gate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, type: "writing",   action: "check" }) }).then(r => r.json()),
+    ]);
+    return { interview: iv, writing: wr };
+  } catch {
+    return null;
+  }
+}
+
 export default function CareerReady() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { lang } = useLang();
+  const { hasCareerReady } = useSubscription();
   const [view, setView] = useState("home"); // home | practice:<id> | resume | saved | progress
   const [badgeToast, setBadgeToast] = useState(null);
+  const [usage, setUsage] = useState(null);
+
+  const subscribed = hasCareerReady();
+
+  useEffect(() => {
+    if (subscribed && user?.uid) {
+      fetchUsage(user.uid).then(setUsage);
+    }
+  }, [subscribed, user?.uid]);
+
+  const refreshUsage = () => {
+    if (user?.uid) fetchUsage(user.uid).then(setUsage);
+  };
+
+  if (!subscribed) {
+    return <Paywall navigate={navigate} lang={lang} />;
+  }
 
   const goHome = () => setView("home");
 
@@ -29,53 +60,118 @@ export default function CareerReady() {
   if (view.startsWith("practice:")) {
     const categoryId = view.split(":")[1];
     return (
-      <Shell>
-        <PracticeSession categoryId={categoryId} user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
+      <Shell usage={usage}>
+        <PracticeSession categoryId={categoryId} user={user} onExit={() => { goHome(); refreshUsage(); }} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
     );
   }
   if (view === "resume") {
     return (
-      <Shell>
-        <ResumeTool user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
+      <Shell usage={usage}>
+        <ResumeTool user={user} onExit={() => { goHome(); refreshUsage(); }} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
     );
   }
   if (view === "saved") {
-    return <Shell><SavedAnswers user={user} onExit={goHome} /></Shell>;
+    return <Shell usage={usage}><SavedAnswers user={user} onExit={goHome} /></Shell>;
   }
   if (view === "progress") {
-    return <Shell><Progress user={user} onExit={goHome} /></Shell>;
+    return <Shell usage={usage}><Progress user={user} onExit={goHome} /></Shell>;
   }
 
   return (
-    <Shell>
-      <Home user={user} navigate={navigate} setView={setView} lang={lang} />
+    <Shell usage={usage}>
+      <Home user={user} navigate={navigate} setView={setView} lang={lang} usage={usage} />
     </Shell>
   );
 }
 
-function Shell({ children }) {
+function Paywall({ navigate, lang }) {
+  const jp = lang === "jp";
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🎓</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#2ec4b6", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
+          {jp ? "大学生パス — Career Ready" : "University Path — Career Ready"}
+        </div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 12px" }}>
+          {jp ? "就活英語を今日から" : "Job-ready English starts here"}
+        </h1>
+        <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.8, marginBottom: 28 }}>
+          {jp
+            ? "AI面接練習・履歴書・ビジネスメール・プレゼン指導が月¥1,980で使い放題（面接30回・ライティング50回/月）。"
+            : "30 AI interview sessions + 50 resume & email writes per month. Presentation coaching, TOEIC/IELTS bridge, and more — all for ¥1,980/month."}
+        </p>
+        <div style={{ background: "#0d0d0d", border: "1px solid rgba(46,196,182,0.3)", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          {[
+            jp ? "30回 AI面接練習/月" : "30 AI interview sessions/month",
+            jp ? "50回 履歴書・メール作成/月" : "50 resume & email writes/month",
+            jp ? "プレゼン指導" : "Presentation coaching",
+            jp ? "TOEIC / IELTS 橋渡し練習" : "TOEIC / IELTS bridge practice",
+            jp ? "創設メンバー価格 — 一生保証" : "Founding rate — locked for life",
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 4 ? "1px solid #1a1a1a" : "none" }}>
+              <span style={{ color: "#2ec4b6", fontSize: 14 }}>✓</span>
+              <span style={{ fontSize: 13 }}>{f}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => navigate("/plans")}
+          style={{ width: "100%", padding: "16px", background: "#2ec4b6", border: "none", borderRadius: 12, color: "#00201d", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 12 }}
+        >
+          {jp ? "¥1,980/月 — 今すぐ始める" : "¥1,980/month — Get Started"}
+        </button>
+        <button
+          onClick={() => navigate("/dashboard")}
+          style={{ width: "100%", padding: 12, background: "transparent", border: "1px solid #2a2a2a", borderRadius: 12, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}
+        >
+          {jp ? "← ダッシュボードに戻る" : "← Back to dashboard"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Shell({ children, usage }) {
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <TopBar />
+      <TopBar usage={usage} />
       {children}
       <Footer />
     </div>
   );
 }
 
-function TopBar() {
+function UsagePill({ used, limit, label, color = "#2ec4b6" }) {
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const warn = pct >= 80;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 80 }}>
+      <div style={{ fontSize: 10, color: warn ? "#f59e0b" : color, fontWeight: 700, letterSpacing: 0.5 }}>
+        {used}/{limit} {label}
+      </div>
+      <div style={{ width: "100%", height: 3, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: warn ? "#f59e0b" : color, borderRadius: 2, transition: "width 0.4s" }} />
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ usage }) {
   const navigate = useNavigate();
   const { lang, setLang } = useLang();
   const tr = (k) => crt(lang, k);
+  const jp = lang === "jp";
   return (
     <div style={{
       background: "linear-gradient(135deg, #0a1a1a 0%, #0a0a0a 100%)",
       borderBottom: "1px solid #1e1e1e", padding: "16px 20px",
       display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, zIndex: 50,
+      flexWrap: "wrap",
     }}>
       <button
         onClick={() => navigate("/dashboard")}
@@ -87,7 +183,16 @@ function TopBar() {
       <img src="/assets/icon-career-ready.png" alt="Career Ready" style={{ width: 26, height: 26, borderRadius: 7 }} />
       <span style={{ fontSize: 13, fontWeight: 800, color: "#2ec4b6" }}>Career Ready</span>
       <span style={{ marginLeft: 8, fontSize: 10, color: COLORS.textDim, letterSpacing: 1 }}>{tr("university_path")}</span>
-      <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+
+      {usage && (
+        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center", flexShrink: 0 }}>
+          <UsagePill used={usage.interview?.used ?? 0} limit={30} label={jp ? "面接" : "interviews"} />
+          <UsagePill used={usage.writing?.used ?? 0}   limit={50} label={jp ? "ライティング" : "writes"} />
+          <div style={{ width: 1, height: 18, background: "#2a2a2a" }} />
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 4, ...(usage ? {} : { marginLeft: "auto" }) }}>
         {[{ id: "en", label: "EN" }, { id: "jp", label: "日本語" }].map((l) => (
           <button
             key={l.id}
@@ -137,7 +242,7 @@ function BadgeToast({ badge, lang }) {
   );
 }
 
-function Home({ user, navigate, setView, lang }) {
+function Home({ user, navigate, setView, lang, usage }) {
   const progress = getProgress(user?.uid);
   const level    = getLevelInfo(user?.uid);
   const firstName = user?.name?.split(" ")[0] ?? "there";

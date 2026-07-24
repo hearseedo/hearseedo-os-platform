@@ -42,11 +42,8 @@ export default function Welcome() {
 
   const [bootLines, setBootLines] = useState([]);
   const [bootDone, setBootDone]   = useState(false);
-  const [speaking, setSpeaking]   = useState(false);
-  const [done, setDone]           = useState(false);
-  const [activated, setActivated] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const audioRef = useRef(null);
-  const didSpeak = useRef(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -69,35 +66,17 @@ export default function Welcome() {
     return () => clearInterval(iv);
   }, [lang]);
 
-  // Activate — called directly from button click (guarantees browser allows audio)
-  const activate = async () => {
-    if (didSpeak.current) return;
-    didSpeak.current = true;
-    setActivated(true);
-    const greeting = buildGreeting(user?.name, lang);
-    setSpeaking(true);
-    try {
-      const audio = await speakText(greeting, user?.uid);
-      audioRef.current = audio;
-      await audio.play();
-      audio.onended = () => {
-        setSpeaking(false);
-        audioRef.current = null;
-        setDone(true);
-      };
-    } catch {
-      setSpeaking(false);
-      setDone(true);
-    }
-  };
+  // Auto-advance countdown after boot completes
+  useEffect(() => {
+    if (!bootDone) return;
+    if (countdown <= 0) { enterDashboard(); return; }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [bootDone, countdown]);
 
   const enterDashboard = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     navigate("/dashboard", { replace: true });
-  };
-
-  const activateAndEnter = async () => {
-    await activate();
   };
 
   if (loading) return null;
@@ -106,7 +85,10 @@ export default function Welcome() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: COLORS.bg,
+      minHeight: "100vh",
+      background: COLORS.bg,
+      backgroundImage: "url('/assets/bg/midnight-nebula.png')",
+      backgroundSize: "cover", backgroundPosition: "center",
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       padding: 24, position: "relative", overflow: "hidden",
     }}>
@@ -127,78 +109,27 @@ export default function Welcome() {
 
       <div style={{ position: "relative", zIndex: 1, textAlign: "center", maxWidth: 480, width: "100%" }}>
 
-        {/* Avatar */}
-        <div style={{ position: "relative", display: "inline-block", marginBottom: 28 }}>
-          {/* Outer orbit rings */}
-          {[{ size: 160, dur: "5s", dir: "normal" }, { size: 190, dur: "9s", dir: "reverse" }].map((r, i) => (
-            <div key={i} style={{
-              position: "absolute",
-              top: `calc(50% - ${r.size / 2}px)`,
-              left: `calc(50% - ${r.size / 2}px)`,
-              width: r.size, height: r.size,
-              borderRadius: "50%",
-              border: "1px solid rgba(224,16,16,0.12)",
-              animation: `spin ${r.dur} linear infinite ${r.dir}`,
-            }} />
-          ))}
-
-          {/* Avatar circle */}
+        {/* Adult Jona — waving, cropped to a circular bust frame */}
+        <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
+          <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 200, height: 48, background: "radial-gradient(ellipse, rgba(201,168,76,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
           <div style={{
-            width: 140, height: 140, borderRadius: "50%",
-            border: `2px solid ${speaking ? "rgba(224,16,16,0.9)" : "rgba(224,16,16,0.4)"}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            position: "relative", overflow: "hidden",
-            boxShadow: speaking
-              ? "0 0 50px rgba(224,16,16,0.5), inset 0 0 30px rgba(224,16,16,0.08)"
-              : "0 0 24px rgba(224,16,16,0.2), inset 0 0 20px rgba(224,16,16,0.04)",
-            animation: speaking ? "avatarSpeak 0.8s ease-in-out infinite alternate" : "avatarIdle 3s ease-in-out infinite",
-            transition: "border-color 0.4s, box-shadow 0.4s",
+            width: 170, height: 170, borderRadius: "50%", overflow: "hidden",
+            position: "relative", margin: "0 auto",
+            border: "2px solid rgba(201,168,76,0.45)",
+            boxShadow: "0 0 24px rgba(201,168,76,0.25)",
+            background: "radial-gradient(circle, rgba(224,16,16,0.1) 0%, rgba(0,0,0,0.5) 100%)",
           }}>
-            <img src="/assets/jona.png" alt="HSD AI" style={{ width: 128, height: 128, borderRadius: "50%", objectFit: "cover" }} />
-
-            {/* Scanning line — shows while booting */}
-            {!bootDone && (
-              <div style={{
-                position: "absolute", left: 0, right: 0, height: 2,
-                background: "linear-gradient(90deg, transparent, rgba(224,16,16,0.9), transparent)",
-                animation: "scanLine 1s ease-in-out infinite",
-                pointerEvents: "none",
-              }} />
-            )}
-
-            {/* Speaking waveform overlay */}
-            {speaking && (
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, height: 28,
-                background: "rgba(0,0,0,0.5)",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
-              }}>
-                {[...Array(9)].map((_, i) => (
-                  <span key={i} style={{
-                    display: "inline-block", width: 3, borderRadius: 2,
-                    background: "#e01010",
-                    animation: `wave 0.6s ${i * 0.07}s ease-in-out infinite alternate`,
-                    height: `${5 + Math.sin(i) * 6 + 4}px`,
-                  }} />
-                ))}
-              </div>
-            )}
-
-            {/* Corner brackets */}
-            {[
-              { top: 6, left: 6, borderTop: "2px solid #e01010", borderLeft: "2px solid #e01010" },
-              { top: 6, right: 6, borderTop: "2px solid #e01010", borderRight: "2px solid #e01010" },
-              { bottom: 6, left: 6, borderBottom: "2px solid #e01010", borderLeft: "2px solid #e01010" },
-              { bottom: 6, right: 6, borderBottom: "2px solid #e01010", borderRight: "2px solid #e01010" },
-            ].map((s, i) => (
-              <div key={i} style={{ position: "absolute", width: 14, height: 14, ...s }} />
-            ))}
+            <img
+              src="/assets/jona/pose-waving.png"
+              alt="Jona"
+              style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 230, height: "auto", display: "block" }}
+            />
           </div>
         </div>
 
         {/* Brand label */}
-        <div style={{ fontSize: 10, color: COLORS.red, letterSpacing: 5, textTransform: "uppercase", marginBottom: 2 }}>HEAR SEE DO™</div>
-        <div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: 3, marginBottom: 24 }}>OS AI</div>
+        <div style={{ fontSize: 10, color: "#C9A84C", letterSpacing: 5, textTransform: "uppercase", marginBottom: 2 }}>HEAR SEE DO™</div>
+        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 3, marginBottom: 24 }}>OS AI</div>
 
         {/* Boot terminal */}
         <div style={{
@@ -232,62 +163,25 @@ export default function Welcome() {
           </div>
         )}
 
-        {/* Buttons — appear after boot */}
+        {/* Buttons — appear after boot completes */}
         {bootDone && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, animation: "fadeSlideIn 0.6s ease" }}>
-            {/* Primary: Hear Jona — plays voice on click */}
-            {!activated && !speaking && !done && (
-              <button
-                onClick={activate}
-                style={{
-                  padding: "15px 52px",
-                  background: COLORS.red,
-                  border: "none", borderRadius: 40,
-                  color: "#fff", fontSize: 13, fontWeight: 700,
-                  letterSpacing: 2, textTransform: "uppercase", cursor: "pointer",
-                  boxShadow: "0 0 30px rgba(224,16,16,0.5)",
-                  animation: "enterPulse 2s ease-in-out infinite",
-                }}
-              >
-                {lang === "jp" ? "▶ ウェルカムを聞く" : "▶ Hear Your Welcome"}
-              </button>
-            )}
-
-            {/* Speaking indicator */}
-            {speaking && (
-              <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 3, animation: "cursorBlink 1s ease-in-out infinite" }}>
-                {lang === "jp" ? "話しています..." : "SPEAKING..."}
-              </div>
-            )}
-
-            {/* Enter button — appears after voice finishes */}
-            {done && (
-              <button
-                onClick={enterDashboard}
-                style={{
-                  padding: "15px 52px",
-                  background: "transparent",
-                  border: "1px solid rgba(224,16,16,0.6)",
-                  borderRadius: 40, color: COLORS.red,
-                  fontSize: 13, fontWeight: 600, letterSpacing: 2,
-                  textTransform: "uppercase", cursor: "pointer",
-                  animation: "fadeSlideIn 0.4s ease",
-                  transition: "background 0.2s, border-color 0.2s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(224,16,16,0.12)"; e.currentTarget.style.borderColor = "#e01010"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(224,16,16,0.6)"; }}
-              >
-                {lang === "jp" ? "ダッシュボードへ →" : "Go to Dashboard →"}
-              </button>
-            )}
-
-            {/* Skip — always visible after boot */}
             <button
               onClick={enterDashboard}
-              style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", letterSpacing: 1 }}
+              style={{
+                padding: "15px 52px",
+                background: COLORS.red,
+                border: "none", borderRadius: 40,
+                color: "#fff", fontSize: 13, fontWeight: 700,
+                letterSpacing: 2, textTransform: "uppercase", cursor: "pointer",
+                boxShadow: "0 0 30px rgba(224,16,16,0.5)",
+              }}
             >
-              {lang === "jp" ? "スキップ →" : "skip →"}
+              {lang === "jp" ? "ダッシュボードへ →" : "Enter Dashboard →"}
             </button>
+            <div style={{ fontSize: 11, color: COLORS.textDim, letterSpacing: 1 }}>
+              {lang === "jp" ? `${countdown}秒後に自動で進みます` : `Auto-entering in ${countdown}s…`}
+            </div>
           </div>
         )}
       </div>

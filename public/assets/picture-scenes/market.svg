@@ -1,0 +1,77 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe3b0"/>
+      <stop offset="100%" stop-color="#fff6e6"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#sky5)"/>
+  <rect y="380" width="800" height="120" fill="#c9a876"/>
+
+  <!-- market stalls -->
+  <g>
+    <path d="M40 220 L200 220 L180 260 L60 260 Z" fill="#e01010"/>
+    <rect x="55" y="260" width="130" height="110" fill="#fff8ef" stroke="#e0d3ba" stroke-width="2"/>
+    <rect x="55" y="255" width="10" height="120" fill="#8a6f4c"/>
+    <rect x="175" y="255" width="10" height="120" fill="#8a6f4c"/>
+  </g>
+  <g>
+    <path d="M280 210 L440 210 L420 250 L300 250 Z" fill="#2ec4b6"/>
+    <rect x="295" y="250" width="130" height="120" fill="#fff8ef" stroke="#e0d3ba" stroke-width="2"/>
+    <rect x="295" y="245" width="10" height="130" fill="#8a6f4c"/>
+    <rect x="415" y="245" width="10" height="130" fill="#8a6f4c"/>
+  </g>
+  <g>
+    <path d="M520 220 L680 220 L660 260 L540 260 Z" fill="#f2a154"/>
+    <rect x="535" y="260" width="130" height="110" fill="#fff8ef" stroke="#e0d3ba" stroke-width="2"/>
+    <rect x="535" y="255" width="10" height="120" fill="#8a6f4c"/>
+    <rect x="655" y="255" width="10" height="120" fill="#8a6f4c"/>
+  </g>
+
+  <!-- fruit & veg piles -->
+  <g fill="#e01010">
+    <circle cx="80" cy="300" r="14"/><circle cx="105" cy="300" r="14"/><circle cx="130" cy="300" r="14"/>
+    <circle cx="92" cy="284" r="14"/><circle cx="118" cy="284" r="14"/>
+  </g>
+  <g fill="#ffd166">
+    <circle cx="330" cy="300" r="13"/><circle cx="355" cy="300" r="13"/><circle cx="380" cy="300" r="13"/>
+    <circle cx="342" cy="285" r="13"/><circle cx="368" cy="285" r="13"/>
+  </g>
+  <g fill="#3f9142">
+    <ellipse cx="575" cy="300" rx="16" ry="10"/>
+    <ellipse cx="605" cy="300" rx="16" ry="10"/>
+    <ellipse cx="590" cy="284" rx="16" ry="10"/>
+  </g>
+  <g fill="#8b3fa0">
+    <circle cx="150" cy="330" r="9"/><circle cx="165" cy="330" r="9"/><circle cx="180" cy="330" r="9"/>
+    <circle cx="157" cy="317" r="9"/><circle cx="172" cy="317" r="9"/>
+  </g>
+
+  <!-- vendors calling out -->
+  <g>
+    <circle cx="110" cy="270" r="16" fill="#e8b48c"/>
+    <rect x="94" y="284" width="34" height="46" rx="10" fill="#3a7d6b"/>
+    <path d="M128 268 q10 -2 14 4" stroke="#333" stroke-width="2" fill="none"/>
+  </g>
+  <g>
+    <circle cx="360" cy="262" r="16" fill="#caa06a"/>
+    <rect x="344" y="276" width="34" height="46" rx="10" fill="#f2a154"/>
+    <path d="M378 260 q10 -2 14 4" stroke="#333" stroke-width="2" fill="none"/>
+  </g>
+  <g>
+    <circle cx="600" cy="270" r="16" fill="#8a5a3c"/>
+    <rect x="584" y="284" width="34" height="46" rx="10" fill="#2b3a67"/>
+  </g>
+
+  <!-- shoppers with baskets -->
+  <g>
+    <circle cx="230" cy="335" r="14" fill="#e8b48c"/>
+    <rect x="216" y="348" width="28" height="42" rx="9" fill="#e01010"/>
+    <rect x="205" y="375" width="18" height="14" rx="3" fill="#8a6f4c"/>
+  </g>
+  <g>
+    <circle cx="480" cy="330" r="14" fill="#f0c49a"/>
+    <rect x="466" y="343" width="28" height="44" rx="9" fill="#8b5cf6"/>
+    <rect x="452" y="370" width="18" height="14" rx="3" fill="#8a6f4c"/>
+  </g>
+</svg>

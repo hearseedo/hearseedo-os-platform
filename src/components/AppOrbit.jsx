@@ -14,7 +14,7 @@ const PATHS = [
     id:    "family",
     label: "Family",
     color: "#3b82f6",
-    apps:  ["family"],
+    apps:  ["family", "monkeys-unlock"],
   },
   {
     id:    "university",
@@ -33,7 +33,7 @@ const PATHS = [
 // Column centres in a 800-unit viewBox (12.5%, 37.5%, 62.5%, 87.5%)
 const COL_CX = [100, 300, 500, 700];
 
-export default function AppOrbit({ onAppClick, activeMember }) {
+export default function AppOrbit({ onAppClick, activeMember, onJonaClick }) {
   const { isUnlocked } = useSubscription();
 
   return (
@@ -48,7 +48,7 @@ export default function AppOrbit({ onAppClick, activeMember }) {
 
       {/* Jona orb */}
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <PulsingOrb />
+        <PulsingOrb onClick={onJonaClick} />
       </div>
 
       {/* Connector lines — overlap bottom of orb slightly */}
@@ -93,8 +93,7 @@ export default function AppOrbit({ onAppClick, activeMember }) {
 function PathColumn({ path, isUnlocked, onAppClick, activeMember }) {
   const apps = path.apps
     .map((id) => APP_MAP[id])
-    .filter(Boolean)
-    .filter((app) => !activeMember || app.audience !== "adult");
+    .filter(Boolean);
 
   return (
     <div
@@ -128,7 +127,7 @@ function PathColumn({ path, isUnlocked, onAppClick, activeMember }) {
       </div>
 
       {/* App list */}
-      <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
         {path.comingSoon ? (
           <div
             style={{
@@ -159,45 +158,60 @@ function PathColumn({ path, isUnlocked, onAppClick, activeMember }) {
 }
 
 function PathAppCard({ app, unlocked, pathColor, onClick }) {
+  const isComingSoon = app.comingSoon;
   return (
     <div
-      onClick={onClick}
+      onClick={isComingSoon ? undefined : onClick}
       style={{
-        background:   COLORS.surface,
-        border:       `1px solid ${unlocked ? `${pathColor}44` : COLORS.border}`,
-        borderRadius: 8,
-        padding:      "8px 10px",
-        cursor:       "pointer",
+        background:   unlocked
+          ? `linear-gradient(135deg, ${pathColor}0d 0%, ${COLORS.surface} 100%)`
+          : COLORS.surface,
+        border:       `1px solid ${isComingSoon ? COLORS.border : unlocked ? `${pathColor}55` : COLORS.border}`,
+        borderRadius: 10,
+        padding:      "12px 14px",
+        cursor:       isComingSoon ? "default" : "pointer",
         display:      "flex",
         alignItems:   "center",
-        gap:          8,
-        opacity:      unlocked ? 1 : 0.55,
+        gap:          12,
+        opacity:      isComingSoon ? 0.5 : unlocked ? 1 : 0.65,
         transition:   "all 0.2s",
+        position:     "relative",
+        overflow:     "hidden",
       }}
       onMouseEnter={(e) => {
+        if (isComingSoon) return;
         e.currentTarget.style.borderColor = pathColor;
-        e.currentTarget.style.boxShadow   = `0 0 12px ${pathColor}33`;
+        e.currentTarget.style.boxShadow   = `0 0 16px ${pathColor}33`;
         e.currentTarget.style.opacity     = "1";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = unlocked ? `${pathColor}44` : COLORS.border;
+        if (isComingSoon) return;
+        e.currentTarget.style.borderColor = unlocked ? `${pathColor}55` : COLORS.border;
         e.currentTarget.style.boxShadow   = "none";
-        e.currentTarget.style.opacity     = unlocked ? "1" : "0.55";
+        e.currentTarget.style.opacity     = unlocked ? "1" : "0.65";
       }}
     >
+      {/* Left accent bar for unlocked apps */}
+      {unlocked && !isComingSoon && (
+        <div style={{
+          position: "absolute", left: 0, top: 8, bottom: 8,
+          width: 3, borderRadius: "0 2px 2px 0", background: pathColor,
+        }} />
+      )}
+
       {/* Icon */}
       <div
         style={{
-          width:        34,
-          height:       34,
-          borderRadius: 8,
-          flexShrink:   0,
-          overflow:     "hidden",
-          position:     "relative",
-          background:   unlocked ? `${pathColor}1a` : "#1a1a1a",
-          border:       `1px solid ${unlocked ? `${pathColor}44` : COLORS.border}`,
-          display:      "flex",
-          alignItems:   "center",
+          width:          48,
+          height:         48,
+          borderRadius:   10,
+          flexShrink:     0,
+          overflow:       "hidden",
+          position:       "relative",
+          background:     unlocked ? `${pathColor}1a` : "#1a1a1a",
+          border:         `1px solid ${unlocked ? `${pathColor}44` : COLORS.border}`,
+          display:        "flex",
+          alignItems:     "center",
           justifyContent: "center",
         }}
       >
@@ -206,16 +220,16 @@ function PathAppCard({ app, unlocked, pathColor, onClick }) {
             src={app.image}
             alt={app.name}
             style={{
-              width:       "100%",
-              height:      "100%",
-              objectFit:   "cover",
-              filter:      unlocked ? "none" : "grayscale(80%) brightness(0.5)",
+              width:     "100%",
+              height:    "100%",
+              objectFit: "cover",
+              filter:    unlocked ? "none" : "grayscale(80%) brightness(0.5)",
             }}
           />
         ) : (
-          <span style={{ fontSize: 16 }}>{app.icon}</span>
+          <span style={{ fontSize: 22 }}>{app.icon}</span>
         )}
-        {!unlocked && (
+        {!unlocked && !isComingSoon && (
           <div
             style={{
               position:       "absolute",
@@ -224,8 +238,8 @@ function PathAppCard({ app, unlocked, pathColor, onClick }) {
               alignItems:     "center",
               justifyContent: "center",
               background:     "rgba(0,0,0,0.55)",
-              borderRadius:   8,
-              fontSize:       12,
+              borderRadius:   10,
+              fontSize:       14,
             }}
           >
             🔒
@@ -237,23 +251,23 @@ function PathAppCard({ app, unlocked, pathColor, onClick }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{
-            fontSize:     10,
+            fontSize:     13,
             fontWeight:   700,
             color:        unlocked ? COLORS.text : COLORS.textDim,
             lineHeight:   1.2,
             whiteSpace:   "nowrap",
             overflow:     "hidden",
             textOverflow: "ellipsis",
+            marginBottom: 3,
           }}
         >
           {app.name.replace("™", "").trim()}
         </div>
         <div
           style={{
-            fontSize:     9,
+            fontSize:     11,
             color:        COLORS.textMuted,
-            marginTop:    1,
-            lineHeight:   1.3,
+            lineHeight:   1.4,
             whiteSpace:   "nowrap",
             overflow:     "hidden",
             textOverflow: "ellipsis",
@@ -261,9 +275,17 @@ function PathAppCard({ app, unlocked, pathColor, onClick }) {
         >
           {app.desc}
         </div>
-        {!unlocked && (
-          <div style={{ fontSize: 9, color: pathColor, marginTop: 2 }}>
-            ¥{app.price.toLocaleString()}/mo
+        {isComingSoon ? (
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 4, fontStyle: "italic" }}>
+            Coming Soon
+          </div>
+        ) : unlocked ? (
+          <div style={{ fontSize: 11, color: pathColor, fontWeight: 700, marginTop: 4 }}>
+            Open →
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: pathColor, marginTop: 4 }}>
+            ¥{app.price?.toLocaleString()}/mo
           </div>
         )}
       </div>

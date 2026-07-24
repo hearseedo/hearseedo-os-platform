@@ -14,7 +14,7 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return new Response("Bad request", { status: 400 }); }
 
-  const text = (body.text || "").slice(0, MAX_CHARS).trim();
+  const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return new Response("No text", { status: 400 });
 
   const res = await fetch(

@@ -252,6 +252,36 @@ export const STRINGS = {
     go_to_dashboard:     "Go to Dashboard →",
     skip:                "skip →",
 
+    // ── Sign In page ──────────────────────────────────────────────────────────
+    welcome_headline:     "Welcome to HSDOS",
+    welcome_sub:          "Discover your Inner Key.\nUnlock your potential.",
+    begin_journey:        "Begin Your Journey →",
+    how_joining:          "How are you joining HSDOS?",
+    choose_path:          "Choose your path.",
+    already_member:       "Already have an account?",
+    sign_in_link:         "Sign in →",
+    join_membership_title: "Continue with Membership",
+    join_membership_sub:   "Unlock every World with a plan",
+    join_code_title:       "I Have an HSDOS Access Code",
+    join_code_sub:         "Workbook, school, or event code",
+    join_explore_title:    "Explore HSDOS Free",
+    join_explore_sub:      "Start with 5 Jona AI sessions",
+
+    // ── Worlds tab ────────────────────────────────────────────────────────────
+    worlds_title:         "Your Worlds",
+    worlds_sub:           "Each World unlocks a new dimension of learning.",
+    active_worlds:        "Active Worlds",
+    locked_worlds:        "Locked Worlds",
+    enter_world:          "Enter →",
+    see_all:              "See all →",
+
+    // ── Jona tab ─────────────────────────────────────────────────────────────
+    jona_companion_sub:   "Your AI Companion · Always on",
+
+    // ── Blueprint prompt ──────────────────────────────────────────────────────
+    personalise_title:    "Build your Blueprint",
+    personalise_desc:     "Tell Jona your goals — takes 2 minutes and unlocks tailored recommendations.",
+
     // ── General ───────────────────────────────────────────────────────────────
     back:              "← Back",
     save:              "Save",
@@ -513,6 +543,36 @@ export const STRINGS = {
     speaking:            "話しています...",
     go_to_dashboard:     "ダッシュボードへ →",
     skip:                "スキップ →",
+
+    // ── Sign In page ──────────────────────────────────────────────────────────
+    welcome_headline:     "HSDOSへようこそ",
+    welcome_sub:          "あなたのインナーキーを見つけよう。\n可能性を解放しよう。",
+    begin_journey:        "ジャーニーを始める →",
+    how_joining:          "どのように参加しますか？",
+    choose_path:          "あなたのパスを選んでください。",
+    already_member:       "すでにアカウントをお持ちですか？",
+    sign_in_link:         "サインイン →",
+    join_membership_title: "メンバーシップで続ける",
+    join_membership_sub:   "プランですべてのワールドを解放",
+    join_code_title:       "HSDOSアクセスコードを持っています",
+    join_code_sub:         "ワークブック・学校・イベントのコード",
+    join_explore_title:    "HSDOSを無料で体験",
+    join_explore_sub:      "5回のJona AIセッションから始める",
+
+    // ── Worlds tab ────────────────────────────────────────────────────────────
+    worlds_title:         "あなたのワールド",
+    worlds_sub:           "各ワールドが学習の新次元を開きます。",
+    active_worlds:        "アクティブワールド",
+    locked_worlds:        "ロック中のワールド",
+    enter_world:          "入る →",
+    see_all:              "すべて見る →",
+
+    // ── Jona tab ─────────────────────────────────────────────────────────────
+    jona_companion_sub:   "あなたのAIコンパニオン · 常時接続",
+
+    // ── Blueprint prompt ──────────────────────────────────────────────────────
+    personalise_title:    "ブループリントを作成",
+    personalise_desc:     "Jonaにあなたの目標を伝えましょう — 2分でパーソナライズされたおすすめが解放されます。",
 
     // ── General ───────────────────────────────────────────────────────────────
     back:              "← 戻る",

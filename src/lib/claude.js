@@ -43,6 +43,10 @@ You always:
 You are HSD AI. That is all you are.`;
 
 function buildSystemWithContext(user) {
+  const family = Array.isArray(user.familyMembers) && user.familyMembers.length > 0
+    ? `\nFamily members: ${user.familyMembers.map(m => `${m.name}${m.age ? ` (age ${m.age})` : ""}${m.confidenceScore != null ? `, confidence ${m.confidenceScore}%` : ""}`).join(" · ")}`
+    : "";
+
   return `${HSD_AI_SYSTEM}
 
 Current user context:
@@ -53,7 +57,7 @@ Current Streak: ${user.streak} days
 Hours Learned: ${user.hoursLearned}
 Lessons Completed: ${user.lessonsCompleted}
 Unlocked Apps: ${(user.subscriptions ?? []).join(", ") || "none yet"}
-Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toLocaleDateString() : "first session"}`;
+Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toLocaleDateString() : "first session"}${family}`;
 }
 
 export async function sendMessage(messages, user) {
@@ -76,7 +80,9 @@ export async function sendMessage(messages, user) {
 
   if (res.status === 429) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message ?? "Daily message limit reached.");
+    const e = new Error(err.message ?? "Monthly AI sessions used up.");
+    e.isLimitError = true;
+    throw e;
   }
 
   if (!res.ok) {

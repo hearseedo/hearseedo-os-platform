@@ -143,6 +143,20 @@ export const APP_REGISTRY = [
     version:                 "1.0",
     vendor:                  "Hear See Do Empire",
   },
+  {
+    appId:                   "monkeys-unlock",
+    appName:                 "Monkeys Unlock™: Monkey Escape",
+    category:                "family",
+    audience:                ["children", "families"],
+    description:             "Adventure puzzle game where kids hear, see, and speak English to unlock each room",
+    status:                  "active",
+    analyticsEnabled:        true,
+    confidenceTracked:       true,
+    skillsTargeted:          ["speaking", "listening", "vocabulary"],
+    subscriptionRequirements: ["individual", "family", "kids_starter", "all_access"],
+    version:                 "1.0",
+    vendor:                  "Hear See Do Empire",
+  },
 ];
 
 export const APP_REGISTRY_MAP = Object.fromEntries(APP_REGISTRY.map(a => [a.appId, a]));

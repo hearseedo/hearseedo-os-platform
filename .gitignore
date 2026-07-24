@@ -7,3 +7,6 @@ dist/
 
 # Local Netlify folder
 .netlify
+
+# Build/deploy artifacts
+deploy-site.zip

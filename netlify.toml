@@ -87,6 +87,21 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/career-ready-gate"
+  to     = "/.netlify/functions/career-ready-gate"
+  status = 200
+
+[[redirects]]
+  from   = "/api/monkeys-evaluate"
+  to     = "/.netlify/functions/monkeys-evaluate"
+  status = 200
+
+[[redirects]]
+  from   = "/api/monkeys-save"
+  to     = "/.netlify/functions/monkeys-save"
+  status = 200
+
+[[redirects]]
   from   = "/api/*"
   to     = "/.netlify/functions/:splat"
   status = 200

@@ -1,6 +1,15 @@
 // Cloudflare Pages Function — Stripe webhook with HMAC-SHA256 verification
 
 const PLAN_APPS = {
+  // Bundle plans — subscriptions[] used by university gate functions; standard app access
+  // via BUNDLE_PLANS fallback in useSubscription.js
+  individual:          [],
+  family:              [],
+  "university-bundle": ["career-ready", "global-ready", "speak-ready"],
+  "career-ready":      ["career-ready"],
+  "global-ready":      ["global-ready"],
+  "speak-ready":       ["speak-ready"],
+  // Legacy individual-app plans
   phonics:        ["phonics"],
   eiken:          ["eiken"],
   sipswitch:      ["sipswitch"],
@@ -15,6 +24,8 @@ const PLAN_APPS = {
 };
 
 const AI_LIMITS = {
+  individual: 50, family: 100, "university-bundle": 150,
+  "career-ready": 30, "global-ready": 30, "speak-ready": 30,
   phonics: 15, eiken: 15, sipswitch: 15, speak: 15, innerkey: 15,
   kids_starter: 30, english_boost: 30, adult_growth: 30,
   family_full: 30, adult_complete: 30, all_access: 100,

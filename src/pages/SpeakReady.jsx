@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
+import { useSubscription } from "../hooks/useSubscription";
 import { CATEGORIES } from "../speakReady/data";
 import { srt } from "../speakReady/i18n";
 import { getProgress, getLevelInfo, getPlacement } from "../speakReady/storage";
@@ -17,8 +18,13 @@ export default function SpeakReady() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { lang } = useLang();
+  const { hasSpeakReady } = useSubscription();
   const [view, setView] = useState("home"); // home | practice:<id> | saved | progress | assessment | pronunciation | listening
   const [badgeToast, setBadgeToast] = useState(null);
+
+  if (!hasSpeakReady()) {
+    return <Paywall navigate={navigate} lang={lang} />;
+  }
 
   const goHome = () => setView("home");
 
@@ -70,6 +76,40 @@ export default function SpeakReady() {
   );
 }
 
+function Paywall({ navigate, lang }) {
+  const jp = lang === "jp";
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🗣️</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
+          {jp ? "University+ — Speak Ready" : "University+ — Speak Ready"}
+        </div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 12px" }}>
+          {jp ? "スピーキング力を今日から" : "Speaking confidence starts here"}
+        </h1>
+        <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.8, marginBottom: 28 }}>
+          {jp
+            ? "AI会話練習・発音スタジオ・リスニングラボが含まれる University+ で、スピーキング力を伸ばしましょう。"
+            : "AI conversation practice, pronunciation studio, and listening lab — all included in University+."}
+        </p>
+        <button
+          onClick={() => navigate("/plans")}
+          style={{ width: "100%", padding: "16px", background: COLORS.red, border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 12 }}
+        >
+          {jp ? "University+ を見る →" : "See University+ →"}
+        </button>
+        <button
+          onClick={() => navigate("/dashboard")}
+          style={{ width: "100%", padding: 12, background: "transparent", border: "1px solid #2a2a2a", borderRadius: 12, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}
+        >
+          {jp ? "← ダッシュボードに戻る" : "← Back to dashboard"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Shell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -97,7 +137,7 @@ function TopBar() {
         ← HSDOS.AI
       </button>
       <div style={{ width: 1, height: 18, background: "#2a2a2a" }} />
-      <span style={{ fontSize: 18 }}>🗣️</span>
+      <img src="/assets/icon-speak-ready.png" alt="Speak Ready" style={{ width: 26, height: 26, borderRadius: 7 }} />
       <span style={{ fontSize: 13, fontWeight: 800, color: "#f59e0b" }}>Speak Ready</span>
       <span style={{ marginLeft: 8, fontSize: 10, color: COLORS.textDim, letterSpacing: 1 }}>{tr("university_path")}</span>
       <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>

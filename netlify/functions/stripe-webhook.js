@@ -13,6 +13,10 @@ const PLAN_APPS = {
   // ── Active plans ──────────────────────────────────────────────────────────────
   individual:     ALL_APPS,
   family:         [...ALL_APPS, "family"],
+  "university-bundle": ["career-ready", "global-ready", "speak-ready"],
+  "career-ready": ["career-ready"],
+  "global-ready": ["global-ready"],
+  "speak-ready":  ["speak-ready"],
   // ── Legacy (kept for existing subscribers) ────────────────────────────────────
   phonics:        ["phonics"],
   eiken:          ["eiken"],
@@ -34,8 +38,12 @@ const PLAN_APPS = {
 
 const AI_LIMITS = {
   // ── Active plans ──────────────────────────────────────────────────────────────
-  individual: 50,
-  family:     100,
+  individual:     50,
+  family:         100,
+  "university-bundle": 90,
+  "career-ready": 30,
+  "global-ready": 30,
+  "speak-ready":  30,
   // ── Legacy ───────────────────────────────────────────────────────────────────
   phonics: 15, eiken: 15, sipswitch: 15, speak: 15, innerkey: 15, wondercamp: 15,
   kids_starter: 30, english_boost: 30, adult_growth: 30,

@@ -4,7 +4,7 @@ import { COLORS } from "../constants/colors";
 const COMPANY = "Hear See Do™";
 const EMAIL   = "hearseedo.english@gmail.com";
 const ADDRESS = "Meieki 3-4-10 Ultimate Meieki 1st 2F, Nakamura-ku, Nagoya-shi, Aichi 450-0002, Japan";
-const UPDATED = "15 June 2026";
+const UPDATED = "22 July 2026";
 
 export default function Terms() {
   const navigate = useNavigate();
@@ -96,15 +96,84 @@ export default function Terms() {
       <strong style={{ color: COLORS.text }}>B2B exclusion:</strong> Students or organisations onboarded under a B2B institutional contract are not eligible referrals for the purposes of this program.
     </Section>
 
-    <Section title="15. Changes to Terms">
+    <Section title="14. Educational Use, User Responsibility, and Disclaimer">
+      <p style={{ marginBottom: 12 }}>HSDOS.AI is intended solely for educational and informational purposes. All lessons, courses, activities, exercises, AI-generated responses, feedback, suggestions, instructions, recommendations, assessments, and other content made available through the Platform are designed to support learning, communication, confidence, self-reflection, and personal development.</p>
+
+      <p style={{ marginBottom: 12 }}>The Platform does not provide medical, psychological, mental-health, therapeutic, legal, financial, safety, or other professional advice. Platform content must not be treated as a substitute for advice from a qualified professional or used to make emergency, medical, legal, financial, mental-health, or other safety-critical decisions.</p>
+
+      <p style={{ marginBottom: 12 }}>Users are responsible for evaluating, interpreting, and applying information provided through the Platform. Any decision, action, omission, or consequence resulting from a user's personal interpretation, modification, misuse, or real-world application of Platform content is undertaken at the user's own discretion and risk.</p>
+
+      <p style={{ marginBottom: 12 }}>Actions taken by users based on their personal interpretation of Platform content do not constitute instructions, actions, representations, guarantees, or endorsements by {COMPANY}, its owners, employees, contractors, affiliates, partners, or subsidiaries.</p>
+
+      <p style={{ marginBottom: 12 }}>AI-generated content may occasionally be incomplete, inaccurate, outdated, misleading, or inappropriate for a user's particular circumstances. Users should use reasonable judgement and independently verify important information before relying on or acting upon it.</p>
+
+      <p style={{ marginBottom: 12 }}>{COMPANY} does not guarantee any specific educational, personal, professional, emotional, academic, examination, language-learning, confidence-building, or self-development result.</p>
+
+      <p style={{ marginBottom: 12 }}>To the maximum extent permitted by applicable law, {COMPANY} and its related entities are not responsible for losses, injuries, damages, decisions, or other consequences caused by a user's independent decisions, personal interpretations, misuse, or real-world application of Platform content.</p>
+
+      <p>Nothing in these Terms excludes or limits any responsibility, liability, or consumer right that cannot legally be excluded or limited under applicable law.</p>
+    </Section>
+
+    <Section title="15. Parents, Guardians, and Minors">
+      <ul>
+        <li>Parents and legal guardians are responsible for supervising minors' use of HSDOS.AI and its applications.</li>
+        <li>Parents and guardians must determine whether lessons, AI interactions, self-reflection questions, physical activities, movement exercises, games, and other Platform content are appropriate for the child's age, maturity, abilities, circumstances, and environment.</li>
+        <li>HSDOS.AI should not be treated as a replacement for appropriate adult supervision, professional teaching, medical care, psychological support, or other services provided by qualified professionals.</li>
+        <li>Parents and guardians remain responsible for decisions or actions taken by a minor as a result of using or personally interpreting Platform content.</li>
+      </ul>
+    </Section>
+
+    <Section title="16. Physical and Movement-Based Activities">
+      <p style={{ marginBottom: 12 }}>Some HSDOS.AI applications, including Monkey Yoga Phonics and other movement-based learning experiences, may invite users to perform yoga-inspired poses, gestures, exercises, or physical movements.</p>
+
+      <p style={{ marginBottom: 12 }}>These activities are provided for educational and recreational purposes and are not medical treatment, physical therapy, professional fitness instruction, or medical advice.</p>
+
+      <p style={{ marginBottom: 12 }}>Users should consider their individual health, mobility, physical abilities, surroundings, and limitations before participating. Children should perform physical activities with appropriate adult supervision and in a safe, suitable space.</p>
+
+      <p>Users should stop an activity immediately if they experience pain, dizziness, discomfort, breathing difficulty, or any other concerning symptom. Anyone with a medical condition, injury, disability, or health concern should consult an appropriately qualified healthcare professional before participating.</p>
+    </Section>
+
+    <Section title="17. The Inner Key Blueprint — Self-Reflection Disclaimer">
+      <p style={{ marginBottom: 12 }}>The Inner Key Blueprint™ is an educational and personal-development application designed to encourage self-reflection and help users explore their values, confidence, goals, direction, and sense of purpose. Its purpose is to support users who may feel uncertain about their direction or who may struggle with understanding what gives their lives meaning or purpose.</p>
+
+      <p style={{ marginBottom: 12 }}>The Inner Key Blueprint™ provides questions, exercises, prompts, educational content, and AI-supported reflection tools to help users think more deeply about themselves and their goals. It does not promise that a user will discover their purpose, resolve personal difficulties, improve their mental health, or achieve any particular result.</p>
+
+      <p style={{ marginBottom: 12 }}>The content is informed by selected research, educational concepts, and the creator's own experiences, opinions, and personal interpretations. References to research do not mean that The Inner Key Blueprint™ is a clinically tested, medically approved, or scientifically validated treatment programme.</p>
+
+      <p style={{ marginBottom: 12 }}>The creator of The Inner Key Blueprint™ is not a doctor, psychologist, psychiatrist, therapist, counsellor, or licensed mental-health professional. Neither the creator nor the application provides medical, psychological, psychiatric, diagnostic, therapeutic, or other professional healthcare advice.</p>
+
+      <p style={{ marginBottom: 8 }}>Nothing within The Inner Key Blueprint™ should be interpreted as:</p>
+      <ul style={{ marginBottom: 12 }}>
+        <li>A medical or mental-health diagnosis</li>
+        <li>Psychological or psychiatric treatment</li>
+        <li>Therapy or professional counselling</li>
+        <li>Medical advice</li>
+        <li>Crisis intervention</li>
+        <li>A substitute for a qualified healthcare or mental-health professional</li>
+      </ul>
+
+      <p style={{ marginBottom: 12 }}>The Inner Key Blueprint™ is not intended to diagnose, treat, cure, manage, or prevent any medical or mental-health condition.</p>
+
+      <p style={{ marginBottom: 12 }}>Users are responsible for determining how they interpret and apply the application's questions, exercises, suggestions, AI-generated responses, and other content. Any decisions, conclusions, lifestyle changes, or actions resulting from a user's personal interpretation of the content are undertaken at the user's own discretion and risk. Such decisions or actions do not represent medical advice, professional instructions, guaranteed conclusions, or direct actions of {COMPANY}, The Inner Key Blueprint™, their creator, owners, employees, contractors, affiliates, partners, or subsidiaries.</p>
+
+      <p style={{ marginBottom: 12 }}>AI-generated responses within The Inner Key Blueprint™ may not fully understand a user's personal circumstances, history, emotional condition, cultural background, or immediate needs. Users should not rely on these responses for medical, psychological, emergency, or safety-critical decisions.</p>
+
+      <p style={{ marginBottom: 12, fontWeight: 600, color: "#e01010" }}>Users experiencing serious emotional distress, a mental-health crisis, thoughts of self-harm, thoughts of harming another person, or an immediate danger should not rely on The Inner Key Blueprint™ or its AI features for assistance. They should immediately contact local emergency services, an appropriate crisis-support service, or a qualified healthcare or mental-health professional.</p>
+
+      <p style={{ marginBottom: 12 }}>Parents and legal guardians are responsible for supervising minors who use The Inner Key Blueprint™ and for determining whether its self-reflection activities, questions, and AI interactions are appropriate for the minor.</p>
+
+      <p>Nothing in this section excludes or limits any responsibility, liability, or legal right that cannot be excluded or limited under applicable law.</p>
+    </Section>
+
+    <Section title="18. Changes to Terms">
       We may update these Terms from time to time. We will notify registered users by email at least 14 days before material changes take effect. Continued use of the Platform after that date constitutes acceptance.
     </Section>
 
-    <Section title="16. Governing Law">
+    <Section title="19. Governing Law">
       These Terms are governed by the laws of Japan. Any disputes shall be resolved in the courts of Nagoya, Aichi Prefecture, Japan.
     </Section>
 
-    <Section title="17. Contact">
+    <Section title="20. Contact">
       For any questions regarding these Terms, contact us at: <a href={`mailto:${EMAIL}`} style={{ color: COLORS.red }}>{EMAIL}</a>
     </Section>
 

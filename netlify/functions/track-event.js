@@ -19,6 +19,7 @@ const SKILL_MAP = {
   wondercamp: ["vocabulary", "reading", "grammar"],
   family:     ["speaking", "listening", "vocabulary"],
   innerkey:   ["mindset", "speaking"],
+  "monkeys-unlock": ["speaking", "listening", "vocabulary"],
 };
 
 async function fsGet(path) {

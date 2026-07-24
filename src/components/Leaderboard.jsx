@@ -16,19 +16,34 @@ export default function Leaderboard({ currentUid }) {
     const q = query(
       collection(db, "users"),
       orderBy(field, "desc"),
-      limit(10)
+      limit(15)
     );
     getDocs(q)
       .then(snap => {
         setEntries(
-          snap.docs.map(d => ({
-            uid:            d.id,
-            name:           d.data().name?.split(" ")[0] ?? "—",
-            xp:             d.data()[field] ?? 0,
-            isFounder:      d.data().isFoundingMember ?? false,
-            founderNum:     d.data().foundingMemberNumber ?? null,
-            confidenceScore: d.data().confidenceScore ?? 0,
-          }))
+          snap.docs
+            .filter(d => !d.data().isAdmin)
+            .slice(0, 10)
+            .map(d => {
+              const data = d.data();
+              const rawName  = data.name ?? "";
+              const nickname = data.nickname?.trim();
+              const isEmail  = rawName.includes("@");
+              const isHandle = !rawName.includes(" ") && /^[a-z0-9_.-]{5,}$/.test(rawName) && /\d/.test(rawName);
+              const displayName = nickname
+                ? nickname
+                : (isEmail || isHandle)
+                  ? (rawName.split("@")[0][0]?.toUpperCase() ?? "?") + "•••"
+                  : (rawName.split(/\s+/)[0] || "—");
+              return {
+                uid:             d.id,
+                name:            displayName,
+                xp:              data[field] ?? 0,
+                isFounder:       data.isFoundingMember ?? false,
+                founderNum:      data.foundingMemberNumber ?? null,
+                confidenceScore: data.confidenceScore ?? 0,
+              };
+            })
         );
       })
       .catch(() => setEntries([]));

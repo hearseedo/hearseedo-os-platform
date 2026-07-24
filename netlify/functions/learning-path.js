@@ -1,6 +1,8 @@
 // Gemini-powered personalised learning path generator
-// Uses: gemini-2.0-flash via Google AI Studio API
-const MODEL = "gemini-2.5-flash";
+const MODEL      = "gemini-2.5-flash";
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+const FIREBASE_KEY = process.env.FIREBASE_API_KEY  || "";
+const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -8,9 +10,25 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+async function isKilled(service) {
+  try {
+    const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
+    if (!r.ok) return false;
+    const doc = await r.json();
+    const f   = doc.fields ?? {};
+    if (f.allEnabled?.booleanValue === false)                      return true;
+    if (service && f[`${service}Enabled`]?.booleanValue === false) return true;
+    return false;
+  } catch { return false; }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
   if (event.httpMethod !== "POST")    return { statusCode: 405, body: "Method not allowed" };
+
+  if (await isKilled("gemini")) {
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "AI features are temporarily paused." }) };
+  }
 
   const API_KEY = process.env.GEMINI_API_KEY;
   if (!API_KEY) return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Gemini not configured" }) };
@@ -118,7 +136,8 @@ Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
     }
 
     const data     = await res.json();
-    const text     = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const parts    = data.candidates?.[0]?.content?.parts ?? [];
+    const text     = (parts.find(p => !p.thought) ?? parts[0])?.text ?? "";
     // Strip markdown code fences if model wraps JSON in them
     const cleaned  = text.trim()
       .replace(/^```(?:json)?\s*/i, "")
@@ -127,7 +146,7 @@ Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
     const parsed   = JSON.parse(cleaned);
 
     // Log for hackathon evidence — agent execution record
-    console.log("GEMINI_LEARNING_PATH_GENERATED", JSON.stringify({
+    const logEntry = {
       timestamp:       new Date().toISOString(),
       model:           MODEL,
       inputTokens:     data.usageMetadata?.promptTokenCount ?? 0,
@@ -135,7 +154,30 @@ Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
       level, goal, time, style,
       cefrAssigned:    parsed.cefr,
       primaryApp:      parsed.primaryApp,
-    }));
+    };
+    console.log("GEMINI_LEARNING_PATH_GENERATED", JSON.stringify({ uid, ...logEntry }));
+
+    // Persist to Firestore for permanent judge-verifiable evidence
+    if (FIREBASE_KEY) {
+      fetch(`${FS_BASE}/geminiActivity?key=${FIREBASE_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fields: {
+            fn:          { stringValue: "learning-path" },
+            uid:         { stringValue: uid },
+            model:       { stringValue: MODEL },
+            level:       { stringValue: level },
+            goal:        { stringValue: goal },
+            cefrAssigned:{ stringValue: parsed.cefr ?? "" },
+            inputTokens: { integerValue: String(data.usageMetadata?.promptTokenCount ?? 0) },
+            outputTokens:{ integerValue: String(data.usageMetadata?.candidatesTokenCount ?? 0) },
+            timestamp:   { integerValue: String(Date.now()) },
+            date:        { stringValue: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }) },
+          },
+        }),
+      }).catch(() => {});
+    }
 
     return {
       statusCode: 200,

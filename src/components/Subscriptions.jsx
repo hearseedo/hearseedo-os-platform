@@ -1,29 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { PLANS } from "../constants/plans";
-import { APPS } from "../constants/apps";
+import { db } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+
+const PLAN_LIMITS = {
+  free: 5, individual: 50, family: 100,
+  "university-bundle": 150, organization: 999,
+  phonics: 15, eiken: 15, sipswitch: 15, speak: 15, innerkey: 15, wondercamp: 15,
+  kids_starter: 30, english_boost: 30, adult_growth: 30, adult_complete: 30,
+  family_full: 30, family_core: 30, family_plus: 60, family_premium: 100, all_access: 100,
+  "career-ready": 30, "global-ready": 30, "speak-ready": 30,
+};
 
 export default function Subscriptions({ user }) {
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
   const [portalLoading, setPortalLoading] = useState(false);
-  const planId     = user?.plan || "free";
-  const plan       = PLANS.find(p => p.id === planId);
-  const subs       = user?.subscriptions || [];
-  const aiLimit    = user?.aiMsgLimit ?? 5;
-  const subId      = user?.stripeSubId;
-  const updatedAt  = user?.planUpdatedAt ? new Date(user.planUpdatedAt).toLocaleDateString("en-GB") : null;
+  const [usedCount, setUsedCount] = useState(null);
 
-  const unlockedApps = APPS.filter(a => subs.includes(a.id));
-  const lockedApps   = APPS.filter(a => !subs.includes(a.id));
+  const planId        = user?.plan || "free";
+  const plan          = PLANS.find(p => p.id === planId);
+  const monthlyLimit  = plan?.aiAllowance ?? PLAN_LIMITS[planId] ?? 5;
+  const isUnlimited   = planId === "organization" || planId === "all_access";
+  const isFamily      = planId === "family" || planId.startsWith("family_");
+  const canUpgrade    = planId === "free" || planId === "individual";
+  const isPaid        = planId !== "free";
+  const planColor     = plan?.color ?? COLORS.red;
+  const familyMembers = user?.familyMembers ?? [];
+  const maxMembers    = plan?.members ?? 5;
+
+  useEffect(() => {
+    if (!user?.uid || isUnlimited) { setUsedCount(0); return; }
+    const monthJST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }).slice(0, 7);
+    getDoc(doc(db, "users", user.uid, "chatUsage", monthJST))
+      .then(snap => setUsedCount(snap.exists() ? (snap.data().count ?? 0) : 0))
+      .catch(() => setUsedCount(0));
+  }, [user?.uid, isUnlimited]);
+
+  const remaining  = isUnlimited ? Infinity : Math.max(0, monthlyLimit - (usedCount ?? 0));
+  const fillRatio  = isUnlimited ? 1 : usedCount === null ? 1 : remaining / monthlyLimit;
+  const barColor   = fillRatio > 0.5 ? COLORS.success : fillRatio > 0.2 ? COLORS.gold : COLORS.red;
 
   async function openPortal() {
     setPortalLoading(true);
     try {
-      const res = await fetch("/api/customer-portal", {
+      const res  = await fetch("/api/customer-portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user?.email }),
+        body: JSON.stringify({ uid: user?.uid, email: user?.email }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -34,156 +59,250 @@ export default function Subscriptions({ user }) {
     setPortalLoading(false);
   }
 
+  const planDisplayName = plan?.name ?? "Explorer";
+  const planNameJp      = plan?.nameJp ?? "エクスプローラー";
+
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
-      {/* Current plan banner */}
+      {/* ── Membership badge ──────────────────────────────────────────── */}
       <div style={{
-        background: planId === "free"
-          ? "#0d0d0d"
-          : "linear-gradient(135deg, #1a0000, #0d0000)",
-        border: `1px solid ${planId === "free" ? "#2a2a2a" : "rgba(224,16,16,0.3)"}`,
-        borderRadius: 16, padding: 24, marginBottom: 24,
-        display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
+        background: COLORS.card,
+        border: "1px solid #1e1e1e",
+        borderTop: `3px solid ${planColor}`,
+        borderRadius: 16,
+        padding: 24,
+        marginBottom: 20,
       }}>
-        <img src="/assets/jona.png" alt="Jona" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 10px rgba(224,16,16,0.5))", flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 11, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>
-            {planId === "free" ? "Free Plan" : "Active Subscription"}
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-            {plan?.name ?? "Free"}
-          </div>
-          <div style={{ fontSize: 12, color: COLORS.textMuted }}>
-            {planId === "free"
-              ? "Upgrade to unlock apps and increase your AI chat limit."
-              : `${aiLimit === 100 ? "∞ Unlimited" : aiLimit} AI messages/day · ${unlockedApps.length} app${unlockedApps.length !== 1 ? "s" : ""} unlocked`}
-          </div>
-          {updatedAt && <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>Last updated {updatedAt}</div>}
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {planId !== "free" && (
-            <button
-              onClick={openPortal}
-              disabled={portalLoading}
-              style={{
-                padding: "9px 18px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                background: "transparent", border: "1px solid #2a2a2a",
-                color: COLORS.textMuted, cursor: "pointer",
-              }}
-            >
-              {portalLoading ? "Opening…" : "Manage / Cancel"}
-            </button>
-          )}
-          <button
-            onClick={() => navigate("/plans")}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+          <img
+            src="/assets/jona1.png"
+            alt="Jona"
             style={{
-              padding: "9px 18px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-              background: COLORS.red, border: "none", color: "#fff", cursor: "pointer",
+              width: 52, height: 52, borderRadius: "50%",
+              objectFit: "cover", objectPosition: "center 18%",
+              flexShrink: 0,
+              boxShadow: `0 0 16px ${planColor}44`,
             }}
-          >
-            {planId === "free" ? "Choose a Plan →" : "Change Plan →"}
-          </button>
+          />
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, lineHeight: 1.1 }}>
+                {planDisplayName}
+              </div>
+              {plan?.badge && (
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  textTransform: "uppercase", color: planColor,
+                  background: `${planColor}1a`,
+                  border: `1px solid ${planColor}44`,
+                  borderRadius: 20, padding: "3px 10px",
+                }}>
+                  {plan.badge}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>
+              {planNameJp}
+            </div>
+            <div style={{ fontSize: 13, color: "#aaa", lineHeight: 1.5, marginBottom: 16, maxWidth: 420 }}>
+              {plan?.desc ?? "Start your English journey. No credit card needed."}
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {canUpgrade && (
+                <button
+                  onClick={() => navigate("/plans")}
+                  style={{
+                    padding: "9px 20px", borderRadius: 8,
+                    background: COLORS.red, border: "none",
+                    color: "#fff", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: `0 0 16px ${COLORS.redGlow}`,
+                  }}
+                >
+                  Upgrade →
+                </button>
+              )}
+              {isPaid && (
+                <button
+                  onClick={openPortal}
+                  disabled={portalLoading}
+                  style={{
+                    padding: "9px 18px", borderRadius: 8,
+                    background: "transparent", border: "1px solid #2a2a2a",
+                    color: COLORS.textMuted, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {portalLoading ? "Opening…" : "Manage billing"}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* AI Chat usage */}
-      <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>
-          Jona AI Chat
+      {/* ── AI Coaching Allowance ─────────────────────────────────────── */}
+      <div style={{
+        background: COLORS.card,
+        border: "1px solid #1e1e1e",
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 20,
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: COLORS.red,
+          letterSpacing: 2, textTransform: "uppercase", marginBottom: 16,
+        }}>
+          Jona AI Coaching
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: aiLimit === 100 ? COLORS.red : COLORS.text }}>
-              {aiLimit === 100 ? "∞" : aiLimit}
+
+        {isUnlimited ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: COLORS.red, lineHeight: 1 }}>∞</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Unlimited sessions</div>
+              <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 3 }}>No monthly cap on your plan</div>
             </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted }}>messages per day</div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ height: 6, background: "#1e1e1e", borderRadius: 3, overflow: "hidden" }}>
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <img
+                src="/assets/jona1.png"
+                alt="Jona"
+                style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  objectFit: "cover", objectPosition: "center 18%", flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>
+                  {usedCount === null
+                    ? "Loading…"
+                    : remaining === 0
+                      ? "All sessions used this month"
+                      : `${remaining} session${remaining !== 1 ? "s" : ""} remaining this month`}
+                </div>
+                {usedCount !== null && (
+                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
+                    {usedCount} of {monthlyLimit} used · Resets on the 1st
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ height: 7, background: "#1e1e1e", borderRadius: 4, overflow: "hidden" }}>
               <div style={{
                 height: "100%",
-                width: aiLimit === 100 ? "100%" : `${(aiLimit / 100) * 100}%`,
-                background: aiLimit === 100
-                  ? `linear-gradient(90deg, ${COLORS.red}, #ff6b35)`
-                  : `linear-gradient(90deg, #2a2a2a, ${COLORS.red})`,
-                borderRadius: 3, transition: "width 1s ease",
+                width: `${Math.round(fillRatio * 100)}%`,
+                background: `linear-gradient(90deg, ${barColor}bb, ${barColor})`,
+                borderRadius: 4,
+                transition: "width 0.8s ease",
               }} />
             </div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6 }}>
-              {aiLimit === 100
-                ? "Unlimited — All Access plan"
-                : aiLimit <= 5
-                  ? "Upgrade to unlock more AI conversations"
-                  : `${aiLimit} daily messages included with your plan`}
-            </div>
-          </div>
-        </div>
+
+            {remaining === 0 && (
+              <div style={{
+                marginTop: 14, padding: "12px 16px",
+                background: "rgba(224,16,16,0.06)",
+                border: "1px solid rgba(224,16,16,0.15)",
+                borderRadius: 10,
+                fontSize: 12, color: COLORS.textMuted, lineHeight: 1.6,
+              }}>
+                Your allowance renews on the 1st.{" "}
+                {canUpgrade && (
+                  <a
+                    href="/plans"
+                    style={{ color: COLORS.red, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Add a coaching pack →
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Unlocked apps */}
-      {unlockedApps.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.success, letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>
-            ✓ Unlocked Apps ({unlockedApps.length})
+      {/* ── Family members ───────────────────────────────────────────── */}
+      {isFamily && (
+        <div style={{
+          background: COLORS.card,
+          border: "1px solid #1e1e1e",
+          borderRadius: 12,
+          padding: 20,
+          marginBottom: 20,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: COLORS.red,
+              letterSpacing: 2, textTransform: "uppercase",
+            }}>
+              Family Members
+            </div>
+            <div style={{
+              fontSize: 12, fontWeight: 600,
+              color: familyMembers.length >= maxMembers ? COLORS.textMuted : COLORS.success,
+            }}>
+              {familyMembers.length}/{maxMembers} members
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 12 }}>
-            {unlockedApps.map(app => <AppTile key={app.id} app={app} unlocked />)}
-          </div>
-        </div>
-      )}
 
-      {/* Locked apps */}
-      {lockedApps.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, letterSpacing: 2, textTransform: "uppercase", marginBottom: 14 }}>
-            Locked Apps ({lockedApps.length})
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 12 }}>
-            {lockedApps.map(app => <AppTile key={app.id} app={app} unlocked={false} />)}
-          </div>
-        </div>
-      )}
+          {familyMembers.length === 0 ? (
+            <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 14 }}>
+              No family members added yet.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+              {familyMembers.map((m, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 14px",
+                  background: "#0d0d0d", borderRadius: 10,
+                  border: "1px solid #222",
+                }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: "50%",
+                    background: `${planColor}22`,
+                    border: `1px solid ${planColor}44`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 700, color: planColor, flexShrink: 0,
+                  }}>
+                    {(m.name ?? m.email ?? "?")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
+                      {m.name ?? m.email ?? `Member ${i + 1}`}
+                    </div>
+                    {m.email && m.name && (
+                      <div style={{ fontSize: 11, color: COLORS.textMuted }}>{m.email}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-      {planId === "free" && (
-        <div style={{ textAlign: "center", marginTop: 32, padding: 24, background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Ready to unlock the full HSD experience?</div>
-          <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>
-            Individual apps from ¥833/mo · Bundles from ¥1,853/mo · All Access ¥4,680/mo
-          </div>
-          <button
-            onClick={() => navigate("/plans")}
-            style={{ padding: "12px 32px", background: COLORS.red, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 0 20px rgba(224,16,16,0.3)" }}
-          >
-            View All Plans →
-          </button>
+          {familyMembers.length < maxMembers && (
+            <button
+              onClick={() => navigate("/family")}
+              style={{
+                padding: "9px 18px", borderRadius: 8,
+                background: "transparent",
+                border: `1px solid ${planColor}44`,
+                color: planColor, fontSize: 12, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Add family member →
+            </button>
+          )}
         </div>
       )}
 
       <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
-    </div>
-  );
-}
-
-function AppTile({ app, unlocked }) {
-  return (
-    <div style={{
-      background: COLORS.card, border: `1px solid ${unlocked ? "#2a2a2a" : "#1a1a1a"}`,
-      borderRadius: 12, padding: 16, textAlign: "center",
-      opacity: unlocked ? 1 : 0.45,
-    }}>
-      <div style={{ width: 48, height: 48, borderRadius: 10, overflow: "hidden", margin: "0 auto 10px", position: "relative" }}>
-        <img src={app.image} alt={app.name} style={{ width: "100%", height: "100%", objectFit: "cover", filter: unlocked ? "none" : "grayscale(1)" }} />
-        {!unlocked && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔒</div>
-        )}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: unlocked ? COLORS.text : COLORS.textMuted, marginBottom: 4 }}>{app.name}</div>
-      {unlocked
-        ? <div style={{ fontSize: 10, color: COLORS.success }}>✓ Active</div>
-        : <div style={{ fontSize: 10, color: "#555" }}>Locked</div>
-      }
     </div>
   );
 }

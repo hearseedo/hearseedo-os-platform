@@ -9,14 +9,22 @@ import Dashboard   from "./pages/Dashboard";
 import Admin       from "./pages/Admin";
 import Terms       from "./pages/Terms";
 import Privacy     from "./pages/Privacy";
+import Disclaimer  from "./pages/Disclaimer";
 import Plans       from "./pages/Plans";
 import Assessment  from "./pages/Assessment";
-import FamilySetup from "./pages/FamilySetup";
+import FamilySetup  from "./pages/FamilySetup";
+import OnboardingV2  from "./pages/OnboardingV2";
 import ParentView  from "./pages/ParentView";
 import WonderCamp  from "./pages/WonderCamp";
-import CareerReady from "./pages/CareerReady";
-import GlobalReady from "./pages/GlobalReady";
-import SpeakReady  from "./pages/SpeakReady";
+import CareerReady        from "./pages/CareerReady";
+import GlobalReady        from "./pages/GlobalReady";
+import SpeakReady         from "./pages/SpeakReady";
+import AccessCode         from "./pages/AccessCode";
+import AdminAccessCodes   from "./pages/AdminAccessCodes";
+import SipSpeakLearn      from "./pages/SipSpeakLearn";
+import JoinFlow           from "./pages/JoinFlow";
+import Blueprint          from "./pages/Blueprint";
+import { isSSLEnabled }   from "./sipSpeakLearn/config";
 
 function AppShell({ children }) {
   const { user } = useAuth();
@@ -26,6 +34,14 @@ function AppShell({ children }) {
       <SupportChat user={user} />
     </>
   );
+}
+
+// Sip Speak Learn gate: renders the app only when the feature flag is on
+// (dev build, admin, or localStorage ssl_preview). Otherwise sends the user
+// back to the hub — so the route is invisible in production until Phase 8.
+function SSLGate() {
+  const { user } = useAuth();
+  return isSSLEnabled(user) ? <SipSpeakLearn /> : <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -40,14 +56,26 @@ export default function App() {
         <Route path="/plans"     element={<ProtectedRoute><AppShell><Plans /></AppShell></ProtectedRoute>} />
         <Route path="/assessment" element={<ProtectedRoute><AppShell><Assessment /></AppShell></ProtectedRoute>} />
         <Route path="/setup"      element={<ProtectedRoute><AppShell><FamilySetup /></AppShell></ProtectedRoute>} />
+        <Route path="/onboard"    element={<ProtectedRoute><AppShell><OnboardingV2 /></AppShell></ProtectedRoute>} />
+        <Route path="/join"       element={<ProtectedRoute><AppShell><JoinFlow /></AppShell></ProtectedRoute>} />
+        <Route path="/blueprint"  element={<ProtectedRoute><AppShell><Blueprint /></AppShell></ProtectedRoute>} />
         <Route path="/parent/:uid"   element={<ParentView />} />
         <Route path="/wondercamp"    element={<ProtectedRoute><WonderCamp /></ProtectedRoute>} />
-        <Route path="/career-ready"  element={<ProtectedRoute><CareerReady /></ProtectedRoute>} />
-        <Route path="/global-ready"  element={<ProtectedRoute><GlobalReady /></ProtectedRoute>} />
-        <Route path="/speak-ready"   element={<ProtectedRoute><SpeakReady /></ProtectedRoute>} />
-        <Route path="/terms"     element={<Terms />} />
-        <Route path="/privacy"   element={<Privacy />} />
-        <Route path="*"          element={<Navigate to="/" replace />} />
+        <Route path="/career-ready"        element={<ProtectedRoute><CareerReady /></ProtectedRoute>} />
+        <Route path="/global-ready"        element={<ProtectedRoute><GlobalReady /></ProtectedRoute>} />
+        <Route path="/speak-ready"         element={<ProtectedRoute><SpeakReady /></ProtectedRoute>} />
+        <Route path="/access-code"         element={<ProtectedRoute><AppShell><AccessCode /></AppShell></ProtectedRoute>} />
+        {/* Sip Speak Learn — feature-flagged dev route, NOT linked from production nav (Phase 1). */}
+        <Route path="/sip-speak-learn"      element={<ProtectedRoute><SSLGate /></ProtectedRoute>} />
+        {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
+        {import.meta.env.DEV && (
+          <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
+        )}
+        <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
+        <Route path="/terms"      element={<Terms />} />
+        <Route path="/privacy"    element={<Privacy />} />
+        <Route path="/disclaimer" element={<Disclaimer />} />
+        <Route path="*"           element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

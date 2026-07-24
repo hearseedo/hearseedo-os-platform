@@ -5,6 +5,13 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { COLORS } from "../constants/colors";
 
+const ADULT_APPS = [
+  { id: "speak",    label: "Speak & Sweat",       labelJp: "スピーク＆スウェット",  icon: "💬", desc: "Daily English speaking practice",            descJp: "毎日の英語スピーキング練習",         badge: "Most Popular" },
+  { id: "sipswitch", label: "Sip & Switch™",      labelJp: "シップ＆スイッチ",      icon: "☕", desc: "English conversation over coffee",           descJp: "コーヒーを飲みながら英会話" },
+  { id: "innerkey",  label: "The Inner Key™",     labelJp: "インナーキー",          icon: "🔑", desc: "Mindset × English transformation",           descJp: "マインドセットと英語の変革" },
+  { id: "eiken",     label: "Eiken AI Monkey",    labelJp: "英検AIモンキー",        icon: "🐒", desc: "AI-powered EIKEN exam prep",                descJp: "英検のAI対策" },
+];
+
 const KIDS_APPS = [
   { id: "wondercamp", label: "Wondercamp",         labelJp: "ワンダーキャンプ",       icon: "🏕️", desc: "Songs, games & stories for early learners",   descJp: "歌・ゲーム・物語で英語を楽しむ",       ageHint: "Ages 3–7"  },
   { id: "phonics",    label: "Monkey Yoga Phonics", labelJp: "モンキーヨガフォニックス", icon: "🎵", desc: "Phonics through movement and music",           descJp: "体を動かしながらフォニックスを学ぶ",     ageHint: "Ages 4–10" },
@@ -20,10 +27,11 @@ export default function FamilySetup() {
   const { user } = useAuth();
   const navigate  = useNavigate();
 
-  const [phase, setPhase]           = useState("choice");   // "choice" | "child_name" | "child_app"
+  const [phase, setPhase]           = useState("choice");   // "choice" | "adult_app" | "child_name" | "child_app"
   const [childName, setChildName]   = useState("");
   const [childAge, setChildAge]     = useState("");
   const [selectedApp, setSelectedApp] = useState(null);
+  const [selectedAdultApp, setSelectedAdultApp] = useState("speak");
   const [saving, setSaving]         = useState(false);
   const [setupError, setSetupError] = useState("");
   const [consented, setConsented]   = useState(false);
@@ -42,12 +50,20 @@ export default function FamilySetup() {
     }
   }
 
-  async function chooseJustMe() {
-    await setDoc(doc(db, "users", user.uid), {
-      setupDone: true,
-      accountType: "individual",
-    }, { merge: true }).catch(() => {});
-    navigate("/assessment");
+  function chooseJustMe() {
+    setPhase("adult_app");
+  }
+
+  async function finishAdultSetup() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await setDoc(doc(db, "users", user.uid), { setupDone: true, accountType: "individual" }, { merge: true });
+      await setDoc(doc(db, "users", user.uid, "learningPath", "current"), { primaryApp: selectedAdultApp, seededAt: new Date().toISOString() });
+      navigate("/assessment");
+    } catch {
+      setSaving(false);
+    }
   }
 
   function chooseFamily() {
@@ -164,6 +180,63 @@ export default function FamilySetup() {
 
             <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: COLORS.textDim }}>
               {jp ? "後で変更できます" : "You can change this later"}
+            </div>
+          </>
+        )}
+
+        {/* ── PHASE: ADULT APP PICK ────────────────────────────────────── */}
+        {phase === "adult_app" && (
+          <>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+                {jp ? "どの英語スキルを伸ばしたいですか？" : "What do you want to focus on?"}
+              </div>
+              <div style={{ fontSize: 13, color: COLORS.textMuted }}>
+                {jp ? "後でいつでも変更できます" : "You can change this any time"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+              {ADULT_APPS.map(app => {
+                const isSelected = selectedAdultApp === app.id;
+                return (
+                  <button
+                    key={app.id}
+                    onClick={() => setSelectedAdultApp(app.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 16, padding: 18, background: isSelected ? "rgba(224,16,16,0.1)" : COLORS.card, border: `1px solid ${isSelected ? COLORS.red : "#2a2a2a"}`, borderRadius: 14, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+                  >
+                    <div style={{ fontSize: 30, flexShrink: 0 }}>{app.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: isSelected ? COLORS.red : COLORS.text }}>{jp ? app.labelJp : app.label}</span>
+                        {app.badge && (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#22c55e", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5 }}>{app.badge}</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: COLORS.textMuted }}>{jp ? app.descJp : app.desc}</div>
+                    </div>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSelected ? COLORS.red : "#333"}`, background: isSelected ? COLORS.red : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {isSelected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                onClick={() => setPhase("choice")}
+                style={{ padding: "13px 20px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 10, color: COLORS.textMuted, fontSize: 14, cursor: "pointer" }}
+              >
+                ← {jp ? "戻る" : "Back"}
+              </button>
+              <button
+                onClick={finishAdultSetup}
+                disabled={saving}
+                style={{ flex: 1, padding: "13px 20px", background: saving ? "#333" : COLORS.red, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", transition: "background 0.15s", boxShadow: "0 4px 20px rgba(224,16,16,0.35)" }}
+              >
+                {saving ? (jp ? "設定中…" : "Setting up…") : (jp ? "始めましょう →" : "Let's go →")}
+              </button>
             </div>
           </>
         )}

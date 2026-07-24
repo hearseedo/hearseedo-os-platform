@@ -36,6 +36,8 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
   const [speechLang, setSpeechLang] = useState("ja-JP");
   const [showTextFallback, setShowTextFallback] = useState(false);
   const [textInput, setTextInput] = useState("");
+  const [limitReached, setLimitReached] = useState(false);
+  const [limitInfo, setLimitInfo]       = useState(null);
   const memoryRef  = useRef({ summary: "", sessionsCount: 0 });
   const audioRef   = useRef(null);
   const bottomRef  = useRef(null);
@@ -48,11 +50,49 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
 
   useEffect(() => {
     (async () => {
+      try {
+        const res = await fetch("/api/career-ready-gate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user?.uid, type: "interview", action: "use" }),
+        });
+        const data = await res.json();
+        if (!data.allowed) {
+          setLimitInfo(data);
+          setLimitReached(true);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // If gate call fails, allow — don't block on network errors
+      }
       memoryRef.current = await getMemorySummary(user?.uid);
       openTopic(0);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (limitReached) {
+    return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
+        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>
+          {jp ? "今月の面接練習上限に達しました" : "Monthly interview limit reached"}
+        </div>
+        <div style={{ fontSize: 13, color: "#888", lineHeight: 1.7, marginBottom: 24 }}>
+          {jp
+            ? `今月の面接セッションは${limitInfo?.limit ?? 30}回です。来月1日にリセットされます。`
+            : `You've used all ${limitInfo?.limit ?? 30} interview sessions this month. Your limit resets on the 1st.`}
+        </div>
+        <button
+          onClick={onExit}
+          style={{ padding: "12px 28px", background: "#2ec4b6", border: "none", borderRadius: 10, color: "#00201d", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+        >
+          {jp ? "← 戻る" : "← Back"}
+        </button>
+      </div>
+    );
+  }
 
   function stopSpeaking() {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }

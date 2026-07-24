@@ -188,6 +188,15 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
         ))}
       </div>
 
+      {scenario.image && (
+        <div style={{
+          borderRadius: 14, overflow: "hidden", border: `1px solid ${category.color}55`,
+          marginBottom: 16, background: "#0a0a0a",
+        }}>
+          <img src={scenario.image} alt={jp && scenario.promptJp ? scenario.promptJp : scenario.prompt} style={{ width: "100%", display: "block" }} />
+        </div>
+      )}
+
       {/* Chat */}
       <div style={{
         background: "#0a0a0a", border: "1px solid #1e1e1e", borderRadius: 14, padding: 16,

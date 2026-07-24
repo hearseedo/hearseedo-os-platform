@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getWelcomeLine } from "../constants/bundles";
+import Particles from "./Particles";
 
 // ── Web Audio beep (no fetch, no autoplay issues after user gesture) ────────
 let _ctx = null;
@@ -83,40 +84,6 @@ function useCountUp(target, duration = 1200, active = false) {
   return val;
 }
 
-// ── Particles ──────────────────────────────────────────────────────────────
-function Particles({ active }) {
-  const particles = Array.from({ length: 18 }, (_, i) => ({
-    angle: (i / 18) * 360,
-    dist:  60 + Math.random() * 80,
-    size:  2 + Math.random() * 3,
-    dur:   0.6 + Math.random() * 0.4,
-  }));
-  if (!active) return null;
-  return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      {particles.map((p, i) => (
-        <div key={i} style={{
-          position: "absolute",
-          top: "50%", left: "50%",
-          width: p.size, height: p.size,
-          borderRadius: "50%",
-          background: "#e01010",
-          boxShadow: "0 0 6px #e01010",
-          animation: `particle${i} ${p.dur}s ease-out forwards`,
-        }} />
-      ))}
-      <style>{particles.map((p, i) => {
-        const rad = (p.angle * Math.PI) / 180;
-        const tx  = Math.cos(rad) * p.dist;
-        const ty  = Math.sin(rad) * p.dist;
-        return `@keyframes particle${i} {
-          0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-          100% { transform: translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0); opacity: 0; }
-        }`;
-      }).join("")}</style>
-    </div>
-  );
-}
 
 const STEPS = {
   FADE_IN:   0,
@@ -281,7 +248,7 @@ export default function WelcomeSequence({ user, onComplete }) {
       {/* Orb + particles */}
       {step >= STEPS.ORB && (
         <div style={{ position: "relative", marginBottom: 48, animation: "wsqOrbIn 0.8s cubic-bezier(0.16,1,0.3,1) forwards" }}>
-          <Particles active={particles} />
+          <Particles active={particles} count={18} spread={120} prefix="wsp" />
           <OrbMini pulse={step >= STEPS.LINE1} speaking={step >= STEPS.LINE2} />
         </div>
       )}

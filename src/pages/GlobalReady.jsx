@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
+import { useSubscription } from "../hooks/useSubscription";
 import { CATEGORIES } from "../globalReady/data";
 import { grt } from "../globalReady/i18n";
 import { getProgress, getLevelInfo } from "../globalReady/storage";
@@ -14,6 +15,11 @@ export default function GlobalReady() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { lang } = useLang();
+  const { hasGlobalReady } = useSubscription();
+
+  if (!hasGlobalReady()) {
+    return <Paywall navigate={navigate} lang={lang} />;
+  }
   const [view, setView] = useState("home"); // home | practice:<id> | saved | progress
   const [badgeToast, setBadgeToast] = useState(null);
 
@@ -75,8 +81,8 @@ function TopBar() {
         ← HSDOS.AI
       </button>
       <div style={{ width: 1, height: 18, background: "#2a2a2a" }} />
-      <span style={{ fontSize: 18 }}>🌍</span>
-      <span style={{ fontSize: 13, fontWeight: 800, color: "#e01010" }}>Global Ready</span>
+      <img src="/assets/icon-global-ready.png" alt="Global Ready" style={{ width: 26, height: 26, borderRadius: 7 }} />
+      <span style={{ fontSize: 13, fontWeight: 800, color: "#f59e0b" }}>Global Ready</span>
       <span style={{ marginLeft: 8, fontSize: 10, color: COLORS.textDim, letterSpacing: 1 }}>{tr("university_path")}</span>
       <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
         {[{ id: "en", label: "EN" }, { id: "jp", label: "日本語" }].map((l) => (
@@ -94,6 +100,54 @@ function TopBar() {
             {l.label}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function Paywall({ navigate, lang }) {
+  const jp = lang === "jp";
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+        <img src="/assets/icon-global-ready.png" alt="Global Ready" style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 20 }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#f59e0b", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>
+          {jp ? "大学生パス — Global Ready" : "University Path — Global Ready"}
+        </div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 12px" }}>
+          {jp ? "グローバルな英語力を今日から" : "Global English starts here"}
+        </h1>
+        <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.8, marginBottom: 28 }}>
+          {jp
+            ? "留学準備・TOEFL/IELTS対策・異文化コミュニケーション・学術英語が月¥1,980で使い放題。"
+            : "Study abroad prep, TOEFL/IELTS practice, cross-cultural communication, and academic English — all for ¥1,980/month."}
+        </p>
+        <div style={{ background: "#0d0d0d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          {[
+            jp ? "TOEFL / IELTS 対策" : "TOEFL / IELTS practice",
+            jp ? "留学準備プログラム" : "Study abroad preparation",
+            jp ? "異文化コミュニケーション" : "Cross-cultural communication",
+            jp ? "学術英語ライティング指導" : "Academic writing coaching",
+            jp ? "創設メンバー価格 — 一生保証" : "Founding rate — locked for life",
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 4 ? "1px solid #1a1a1a" : "none" }}>
+              <span style={{ color: "#f59e0b", fontSize: 14 }}>✓</span>
+              <span style={{ fontSize: 13 }}>{f}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => navigate("/plans")}
+          style={{ width: "100%", padding: 16, background: "#f59e0b", border: "none", borderRadius: 12, color: "#1a0800", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 12 }}
+        >
+          {jp ? "¥1,980/月 — 今すぐ始める" : "¥1,980/month — Get Started"}
+        </button>
+        <button
+          onClick={() => navigate("/dashboard")}
+          style={{ width: "100%", padding: 12, background: "transparent", border: "1px solid #2a2a2a", borderRadius: 12, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}
+        >
+          {jp ? "← ダッシュボードに戻る" : "← Back to dashboard"}
+        </button>
       </div>
     </div>
   );

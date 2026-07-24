@@ -39,6 +39,20 @@ export default function ResumeTool({ user, onExit, onBadgesEarned }) {
     setLoading(true);
     setError("");
     try {
+      const gateRes = await fetch("/api/career-ready-gate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user?.uid, type: "writing", action: "use" }),
+      });
+      const gate = await gateRes.json();
+      if (!gate.allowed) {
+        setError(jp
+          ? `今月のライティング上限（${gate.limit ?? 50}回）に達しました。来月1日にリセットされます。`
+          : `You've used all ${gate.limit ?? 50} writing sessions this month. Your limit resets on the 1st.`
+        );
+        setLoading(false);
+        return;
+      }
       const raw = await askCoach(
         buildResumeSystemPrompt(),
         [{ role: "user", content: buildResumeUserMessage(tool.label, trimmed) }],

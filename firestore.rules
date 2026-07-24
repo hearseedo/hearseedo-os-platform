@@ -45,7 +45,12 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
 
       match /chatUsage/{day} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        // Lambda reads/writes without a Firebase auth token (server-side rate-limit counter).
+        // read: if true allows the Lambda to check the count.
+        // Only create/update (no delete) prevents count resets via deletion.
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if false;
       }
 
       match /weeklyCheckin/{week} {
@@ -86,8 +91,12 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
-      match /speakReady/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Monkeys Unlock save state — server write only, via monkeys-save.js
+      // (service-account auth, same pattern as learnerProfiles below). The
+      // sub-app has no client-side Firebase Auth session, so it can't be
+      // owner-write like careerReady/globalReady above.
+      match /monkeysUnlock/{doc} {
+        allow read, write: if false;
       }
     }
 
@@ -110,10 +119,9 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // EIKEN placement/mock-test/achievement/Monkey-Party records — owner
-      // read only, written server-side via eiken-progress.js (its
-      // service-account REST token bypasses this write:false, same pattern
-      // as the profile doc itself).
+      // EIKEN placement/mock-test/achievement records — owner read only,
+      // written server-side via eiken-progress.js (firebase-admin bypasses
+      // this write:false, same pattern as the profile doc itself).
       match /eikenPlacementResults/{attemptId} {
         allow read: if request.auth != null && request.auth.uid == uid;
         allow write: if false;
@@ -165,6 +173,70 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
       allow create: if request.auth != null;
       allow update, delete: if false;
+    }
+
+    // ── Gemini activity log — server writes (no auth), admin read only ────
+    // Netlify functions write using the client API key (no Firebase auth token).
+    // allow create: if true is intentional — this is an append-only audit log.
+    match /geminiActivity/{eventId} {
+      allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // ── API cost tracking — Netlify TTS writes (no auth), admin read ────────
+    match /apiCosts/{date} {
+      allow read:          if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow create, update: if true;   // Netlify functions write via REST without auth token
+      allow delete:         if false;
+    }
+
+    // ── Kill switch config — Netlify function writes, admin read ─────────────
+    match /config/{docId} {
+      allow read:          if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow create, update: if true;   // kill-switch.js writes via REST without auth token
+      allow delete:         if false;
+    }
+
+    // ── Sip Speak Learn: Table Mode + Host Mode events (Phases 5-6) ─────────
+    // Event codes — public read for code lookup (mirrors referralLinks), host-only write.
+    match /sslEventCodes/{code} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /sslEvents/{eventId} {
+      allow read: if request.auth != null;
+      // Only the host can create/modify their event, with one carve-out:
+      // joining participants self-assign a table via a transaction that
+      // increments nextAssignIndex on this doc, so that single field is
+      // writable by any auth'd participant.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.hostUid;
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.hostUid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["nextAssignIndex"])
+      );
+      allow delete: if false;
+
+      // Table docs: host controls these broadly, but participants also write
+      // their own table's live question/status as part of Table Mode actions
+      // (e.g. "We're Finished") and the seat-assignment transaction bumps
+      // participantCount. Tightening this to per-field/per-table ownership is
+      // a fast-follow once the app is closer to production navigation.
+      match /tables/{tableId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+      match /participants/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // ── Sip Speak Learn: saved host event templates (Phase 6) ──────────────
+    match /sslEventTemplates/{templateId} {
+      allow read:   if request.auth != null && request.auth.uid == resource.data.hostUid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.hostUid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.hostUid;
     }
 
     // ── Deny everything else ──────────────────────────────────────────────

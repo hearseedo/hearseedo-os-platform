@@ -38,7 +38,21 @@ export function AuthProvider({ children }) {
             const patch = {};
             if (!data.email) patch.email = u.email;
             if (!data.name)  patch.name  = u.displayName || u.email.split("@")[0];
-            if (Object.keys(patch).length) {
+            const OWNER_EMAILS = [import.meta.env.VITE_ADMIN_EMAIL, "waltho79@gmail.com"];
+          if (OWNER_EMAILS.includes(u.email)) {
+            if (!data.isAdmin) patch.isAdmin = true;
+            // Ensure owner accounts have full subscriptions so sub-apps grant access
+            const ALL_SUBS = ["phonics", "eiken", "speak", "sipswitch", "wondercamp",
+                              "innerkey", "family", "monkeys-unlock",
+                              "career-ready", "global-ready", "speak-ready"];
+            const currentSubs = data.subscriptions ?? [];
+            if (ALL_SUBS.some(s => !currentSubs.includes(s))) {
+              patch.subscriptions = ALL_SUBS;
+              patch.plan          = "individual";
+              patch.planStatus    = "active";
+            }
+          }
+          if (Object.keys(patch).length) {
               setDoc(doc(db, "users", u.uid), patch, { merge: true })
                 .catch(err => console.error("Email backfill failed:", err));
             }
@@ -67,7 +81,8 @@ export function AuthProvider({ children }) {
 
   const loading = firebaseUser === undefined;
   const role    = profile?.role ?? "user";
-  const isAdmin = firebaseUser?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  const OWNER_EMAILS = [import.meta.env.VITE_ADMIN_EMAIL, "waltho79@gmail.com"].filter(Boolean);
+  const isAdmin = OWNER_EMAILS.includes(firebaseUser?.email);
 
   const user = firebaseUser
     ? {
@@ -97,6 +112,7 @@ export function AuthProvider({ children }) {
         // Who referred this user
         referredBy:           profile?.referredBy ?? null,
         // Setup / onboarding
+        nickname:             profile?.nickname ?? "",
         setupDone:            profile?.setupDone ?? false,
         accountType:          profile?.accountType ?? null,
         // Assessment / learning path
@@ -112,6 +128,8 @@ export function AuthProvider({ children }) {
         workbookBonusStartDate: profile?.workbookBonusStartDate ?? null,
         workbookBonusEndDate:   profile?.workbookBonusEndDate ?? null,
         workbookAccessStatus:   profile?.workbookAccessStatus ?? null,
+        // HSDOS.AI Access Code pass
+        accessPass:             profile?.accessPass ?? null,
       }
     : null;
 

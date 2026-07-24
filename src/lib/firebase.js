@@ -129,6 +129,11 @@ export async function awardXP(uid, xp, lessonsCompleted = 0) {
       lastActivityAt:   serverTimestamp(),
     }).catch(console.error);
   }
+
+  if (lessonsCompleted > 0) {
+    const todayJST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    setDoc(doc(db, "users", uid, "missions", todayJST), { lessonCount: increment(lessonsCompleted) }, { merge: true }).catch(() => {});
+  }
 }
 
 export async function createUserProfile(uid, data) {

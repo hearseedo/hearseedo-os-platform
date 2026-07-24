@@ -63,7 +63,10 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST")    return { statusCode: 405, headers: CORS, body: "Method not allowed" };
 
   const SERVICE_ACCOUNT_EMAIL = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL;
-  const SERVICE_ACCOUNT_KEY   = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const rawKey = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
+  const SERVICE_ACCOUNT_KEY = rawKey
+    ? Buffer.from(rawKey, "base64").toString("utf8")
+    : process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   const FIREBASE_API_KEY      = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
 
   if (!SERVICE_ACCOUNT_EMAIL || !SERVICE_ACCOUNT_KEY || !FIREBASE_API_KEY) {

@@ -1,0 +1,74 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky6" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fd4f0"/>
+      <stop offset="100%" stop-color="#cdeef7"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2f9bc9"/>
+      <stop offset="100%" stop-color="#5cc3e0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#sky6)"/>
+  <circle cx="700" cy="80" r="45" fill="#ffe08a"/>
+
+  <rect y="220" width="800" height="140" fill="url(#sea)"/>
+  <g stroke="#eaf7fb" stroke-width="4" fill="none" opacity="0.7">
+    <path d="M0 260 q40 10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0"/>
+    <path d="M0 300 q40 10 80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0 t80 0"/>
+  </g>
+
+  <rect y="360" width="800" height="140" fill="#f4dfa7"/>
+  <path d="M0 360 q200 -30 400 0 t400 0 v10 h-800 Z" fill="#e8cf8f"/>
+
+  <!-- beach umbrella -->
+  <g>
+    <line x1="150" y1="330" x2="150" y2="420" stroke="#8a6f4c" stroke-width="6"/>
+    <path d="M90 330 A60 40 0 0 1 210 330 Z" fill="#e01010"/>
+    <path d="M90 330 A60 40 0 0 1 150 330 Z" fill="#fff"/>
+  </g>
+  <rect x="110" y="420" width="80" height="10" fill="#c9a876"/>
+
+  <!-- swimmer -->
+  <g>
+    <circle cx="380" cy="290" r="12" fill="#e8b48c"/>
+    <ellipse cx="405" cy="298" rx="22" ry="10" fill="#f2a154"/>
+  </g>
+  <g>
+    <circle cx="470" cy="300" r="11" fill="#caa06a"/>
+    <ellipse cx="492" cy="307" rx="18" ry="8" fill="#2ec4b6"/>
+  </g>
+
+  <!-- reader on beach chair -->
+  <g>
+    <rect x="260" y="400" width="70" height="10" rx="4" fill="#3a7d6b" transform="rotate(-8 260 400)"/>
+    <circle cx="280" cy="392" r="13" fill="#f0c49a"/>
+    <rect x="268" y="404" width="50" height="10" fill="#fff"/>
+  </g>
+
+  <!-- volleyball players -->
+  <g>
+    <circle cx="560" cy="405" r="14" fill="#e8b48c"/>
+    <rect x="546" y="418" width="28" height="40" rx="9" fill="#8b5cf6"/>
+    <rect x="533" y="450" width="12" height="24" fill="#e8b48c"/>
+    <rect x="577" y="450" width="12" height="24" fill="#e8b48c"/>
+  </g>
+  <g>
+    <circle cx="650" cy="400" r="14" fill="#caa06a"/>
+    <rect x="636" y="413" width="28" height="40" rx="9" fill="#ffd166"/>
+    <rect x="623" y="445" width="12" height="24" fill="#caa06a"/>
+    <rect x="653" y="445" width="12" height="24" fill="#caa06a"/>
+  </g>
+  <circle cx="605" cy="380" r="12" fill="#fff" stroke="#333" stroke-width="2"/>
+
+  <!-- palm tree -->
+  <g>
+    <path d="M700 420 Q690 340 715 300" stroke="#8a6f4c" stroke-width="10" fill="none"/>
+    <g fill="#3f9142">
+      <path d="M715 300 q-40 -10 -55 10 q30 5 55 -10"/>
+      <path d="M715 300 q40 -14 60 4 q-32 8 -60 -4"/>
+      <path d="M715 300 q-10 -35 10 -55 q12 28 -10 55"/>
+      <path d="M715 300 q18 -30 42 -30 q-8 30 -42 30"/>
+    </g>
+  </g>
+</svg>

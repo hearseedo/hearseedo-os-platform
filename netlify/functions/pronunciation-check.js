@@ -1,16 +1,35 @@
 // HSD OS — Pronunciation Feedback via Gemini
 // Analyses a spoken English transcript for common Japanese-speaker errors.
 
-const MODEL = "gemini-2.5-flash";
+const MODEL        = "gemini-2.5-flash";
+const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
+const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 const CORS  = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+async function isKilled(service) {
+  try {
+    const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
+    if (!r.ok) return false;
+    const doc = await r.json();
+    const f   = doc.fields ?? {};
+    if (f.allEnabled?.booleanValue === false)                      return true;
+    if (service && f[`${service}Enabled`]?.booleanValue === false) return true;
+    return false;
+  } catch { return false; }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
   if (event.httpMethod !== "POST")    return { statusCode: 405, headers: CORS, body: "Method not allowed" };
+
+  if (await isKilled("gemini")) {
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "AI features are temporarily paused." }) };
+  }
 
   const API_KEY = process.env.GEMINI_API_KEY;
   if (!API_KEY) return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Gemini not configured" }) };
