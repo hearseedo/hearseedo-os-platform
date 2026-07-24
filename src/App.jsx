@@ -25,6 +25,8 @@ import SipSpeakLearn      from "./pages/SipSpeakLearn";
 import JoinFlow           from "./pages/JoinFlow";
 import Blueprint          from "./pages/Blueprint";
 import { isSSLEnabled }   from "./sipSpeakLearn/config";
+import PreviewShell        from "./livingBlueprint/PreviewShell";
+import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
 function AppShell({ children }) {
   const { user } = useAuth();
@@ -42,6 +44,13 @@ function AppShell({ children }) {
 function SSLGate() {
   const { user } = useAuth();
   return isSSLEnabled(user) ? <SipSpeakLearn /> : <Navigate to="/dashboard" replace />;
+}
+
+// Living Blueprint rebuild — Phase 1 foundation preview gate. Same pattern as
+// SSLGate: invisible outside dev/admin/localStorage flag until Phase 7 cutover.
+function LivingBlueprintPreviewGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewShell /> : <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -67,9 +76,15 @@ export default function App() {
         <Route path="/access-code"         element={<ProtectedRoute><AppShell><AccessCode /></AppShell></ProtectedRoute>} />
         {/* Sip Speak Learn — feature-flagged dev route, NOT linked from production nav (Phase 1). */}
         <Route path="/sip-speak-learn"      element={<ProtectedRoute><SSLGate /></ProtectedRoute>} />
+        {/* Living Blueprint rebuild — Phase 1 foundation preview, flagged (see lib/livingBlueprintFlag.js). */}
+        <Route path="/preview/shell"        element={<ProtectedRoute><LivingBlueprintPreviewGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
+        )}
+        {/* DEV-ONLY preview (unauthenticated), for visual QA of the Living Blueprint foundation. */}
+        {import.meta.env.DEV && (
+          <Route path="/preview/shell-dev"  element={<PreviewShell />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         <Route path="/terms"      element={<Terms />} />
