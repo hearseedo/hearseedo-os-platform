@@ -26,6 +26,7 @@ import JoinFlow           from "./pages/JoinFlow";
 import Blueprint          from "./pages/Blueprint";
 import { isSSLEnabled }   from "./sipSpeakLearn/config";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
+import PreviewHome         from "./livingBlueprint/PreviewHome";
 import OnboardingFlow      from "./livingBlueprint/onboarding/OnboardingFlow";
 import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
@@ -59,6 +60,11 @@ function LivingBlueprintOnboardingGate() {
   return isLivingBlueprintEnabled(user) ? <OnboardingFlow /> : <Navigate to="/dashboard" replace />;
 }
 
+function LivingBlueprintHomeGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   return (
     <>
@@ -86,6 +92,8 @@ export default function App() {
         <Route path="/preview/shell"        element={<ProtectedRoute><LivingBlueprintPreviewGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 2 six-step onboarding preview, flagged. */}
         <Route path="/preview/onboarding"   element={<ProtectedRoute><LivingBlueprintOnboardingGate /></ProtectedRoute>} />
+        {/* Living Blueprint rebuild — Phase 3 Individual/Family Home preview, flagged. */}
+        <Route path="/preview/home"         element={<ProtectedRoute><LivingBlueprintHomeGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
@@ -96,6 +104,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/onboarding-dev" element={<OnboardingFlow />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/home-dev"   element={<PreviewHome />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         <Route path="/terms"      element={<Terms />} />
