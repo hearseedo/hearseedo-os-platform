@@ -27,6 +27,7 @@ import Blueprint          from "./pages/Blueprint";
 import { isSSLEnabled }   from "./sipSpeakLearn/config";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
 import PreviewHome         from "./livingBlueprint/PreviewHome";
+import WorldPage           from "./livingBlueprint/WorldPage";
 import OnboardingFlow      from "./livingBlueprint/onboarding/OnboardingFlow";
 import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
@@ -65,6 +66,11 @@ function LivingBlueprintHomeGate() {
   return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <Navigate to="/dashboard" replace />;
 }
 
+function LivingBlueprintWorldGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <WorldPage /> : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   return (
     <>
@@ -94,6 +100,8 @@ export default function App() {
         <Route path="/preview/onboarding"   element={<ProtectedRoute><LivingBlueprintOnboardingGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 3 Individual/Family Home preview, flagged. */}
         <Route path="/preview/home"         element={<ProtectedRoute><LivingBlueprintHomeGate /></ProtectedRoute>} />
+        {/* Living Blueprint rebuild — Phase 4 World landing/launch preview, flagged. */}
+        <Route path="/preview/world/:worldId" element={<ProtectedRoute><LivingBlueprintWorldGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
@@ -107,6 +115,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/home-dev"   element={<PreviewHome />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/world-dev/:worldId" element={<WorldPage />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         <Route path="/terms"      element={<Terms />} />

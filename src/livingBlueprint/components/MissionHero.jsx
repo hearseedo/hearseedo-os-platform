@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
+import { worldHref } from "../../constants/worlds";
 
 // Rebuild prompt section 6 — Today's Mission hero, the largest card on the
 // Individual Home. Uses the recommended World's hero art (or the World
@@ -28,7 +29,7 @@ export default function MissionHero({ world, missionName, timeEstimate = "~10 mi
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <button
-            onClick={() => navigate(world.route)}
+            onClick={() => navigate(worldHref(world))}
             style={{
               padding: "12px 28px", borderRadius: TOKENS.radius.pill, border: "none",
               background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: "pointer",
