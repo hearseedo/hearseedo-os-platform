@@ -1,12 +1,16 @@
 // Living Blueprint rebuild — feature flag
-// Mirrors the sipSpeakLearn/config.js pattern: the rebuilt shell only mounts
-// when this returns true, and stays off production nav until Phase 7
-// cutover approval (rebuild prompt section 20, Phase 7).
+// Phase 7 cutover (2026-07-25): flipped to enabled-for-everyone. This does
+// NOT replace any live route — /dashboard, /welcome etc. are untouched.
+// It only makes /preview/* reachable for every signed-in user instead of
+// just admins/dev. Full authenticated-flow testing (real subscriptions,
+// real family data, real AI credits) was NOT completed before this flip —
+// acceptable here because there are no paying users yet, but revisit before
+// ever doing a real route-replacement cutover.
 //
-// Enable via any of:
-//   • dev build (import.meta.env.DEV)
-//   • owner/admin email
-//   • localStorage flag: localStorage.setItem('living_blueprint_preview','1')
+// To roll back instantly: change ENABLED_FOR_ALL to false below — every
+// /preview/* route immediately falls back to /dashboard for non-admins.
+
+const ENABLED_FOR_ALL = true;
 
 const OWNER_PREVIEW_EMAILS = [
   import.meta.env?.VITE_ADMIN_EMAIL,
@@ -17,6 +21,7 @@ const OWNER_PREVIEW_EMAILS = [
 export const LIVING_BLUEPRINT_PREVIEW_ROUTE = "/preview/shell";
 
 export function isLivingBlueprintEnabled(user) {
+  if (ENABLED_FOR_ALL) return true;
   try {
     if (import.meta.env?.DEV) return true;
     if (typeof localStorage !== "undefined" && localStorage.getItem("living_blueprint_preview") === "1") return true;
