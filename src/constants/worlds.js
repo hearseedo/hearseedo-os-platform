@@ -32,7 +32,9 @@ export const WORLDS = [
       hero:   "/assets/worlds/speak-ready-hero.jpg",
       mobile: "/assets/worlds/speak-ready-mobile.jpg",
     },
-    artStatus: "missing", // not present in public/assets/worlds/ or source visuals folder — flagged, needs production
+    artStatus: "ok", // hero is the found "Rooftop Conversation Under City Lights" master (matches spec's "empty rooftop
+                      // conversation lounge" brief exactly); card/mobile are sips-cropped from that same master since no
+                      // dedicated crops exist yet — swap for real production crops when the design team delivers them
     analyticsName: "world_speak_ready",
   },
   {
