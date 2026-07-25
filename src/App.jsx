@@ -28,6 +28,8 @@ import { isSSLEnabled }   from "./sipSpeakLearn/config";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
 import PreviewHome         from "./livingBlueprint/PreviewHome";
 import WorldPage           from "./livingBlueprint/WorldPage";
+import PreviewProgress     from "./livingBlueprint/PreviewProgress";
+import PreviewCoach        from "./livingBlueprint/PreviewCoach";
 import OnboardingFlow      from "./livingBlueprint/onboarding/OnboardingFlow";
 import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
@@ -71,6 +73,16 @@ function LivingBlueprintWorldGate() {
   return isLivingBlueprintEnabled(user) ? <WorldPage /> : <Navigate to="/dashboard" replace />;
 }
 
+function LivingBlueprintProgressGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewProgress /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintCoachGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewCoach /> : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   return (
     <>
@@ -102,6 +114,9 @@ export default function App() {
         <Route path="/preview/home"         element={<ProtectedRoute><LivingBlueprintHomeGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 4 World landing/launch preview, flagged. */}
         <Route path="/preview/world/:worldId" element={<ProtectedRoute><LivingBlueprintWorldGate /></ProtectedRoute>} />
+        {/* Living Blueprint rebuild — Phase 5 Progress + Jona Coach preview, flagged. */}
+        <Route path="/preview/progress"     element={<ProtectedRoute><LivingBlueprintProgressGate /></ProtectedRoute>} />
+        <Route path="/preview/coach"        element={<ProtectedRoute><LivingBlueprintCoachGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
@@ -118,6 +133,12 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/world-dev/:worldId" element={<WorldPage />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/progress-dev" element={<PreviewProgress />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/coach-dev"    element={<PreviewCoach />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         <Route path="/terms"      element={<Terms />} />

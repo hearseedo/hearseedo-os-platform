@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { COLORS } from "../constants/colors";
 
-const ACHIEVEMENTS = [
+export const ACHIEVEMENTS = [
   { id: "streak_3",   category: "streak",     title: "On a Roll",          desc: "3-day streak",           icon: "🔥", xp: 50,   check: (u) => (u.streak ?? 0) >= 3   },
   { id: "streak_7",   category: "streak",     title: "Week Warrior",       desc: "7-day streak",           icon: "🔥", xp: 150,  check: (u) => (u.streak ?? 0) >= 7   },
   { id: "streak_30",  category: "streak",     title: "Monthly Master",     desc: "30-day streak",          icon: "🔥", xp: 500,  check: (u) => (u.streak ?? 0) >= 30  },
