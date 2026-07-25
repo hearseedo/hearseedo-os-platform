@@ -30,6 +30,12 @@ import PreviewHome         from "./livingBlueprint/PreviewHome";
 import WorldPage           from "./livingBlueprint/WorldPage";
 import PreviewProgress     from "./livingBlueprint/PreviewProgress";
 import PreviewCoach        from "./livingBlueprint/PreviewCoach";
+import PreviewMessages     from "./livingBlueprint/PreviewMessages";
+import PreviewMembership   from "./livingBlueprint/PreviewMembership";
+import PreviewRewards      from "./livingBlueprint/PreviewRewards";
+import PreviewCalendar     from "./livingBlueprint/PreviewCalendar";
+import PreviewReferrals    from "./livingBlueprint/PreviewReferrals";
+import PreviewMore         from "./livingBlueprint/PreviewMore";
 import OnboardingFlow      from "./livingBlueprint/onboarding/OnboardingFlow";
 import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
@@ -83,6 +89,36 @@ function LivingBlueprintCoachGate() {
   return isLivingBlueprintEnabled(user) ? <PreviewCoach /> : <Navigate to="/dashboard" replace />;
 }
 
+function LivingBlueprintMessagesGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewMessages /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintMembershipGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewMembership /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintRewardsGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewRewards /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintCalendarGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewCalendar /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintReferralsGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewReferrals /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintMoreGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewMore /> : <Navigate to="/dashboard" replace />;
+}
+
 export default function App() {
   return (
     <>
@@ -117,6 +153,13 @@ export default function App() {
         {/* Living Blueprint rebuild — Phase 5 Progress + Jona Coach preview, flagged. */}
         <Route path="/preview/progress"     element={<ProtectedRoute><LivingBlueprintProgressGate /></ProtectedRoute>} />
         <Route path="/preview/coach"        element={<ProtectedRoute><LivingBlueprintCoachGate /></ProtectedRoute>} />
+        {/* Living Blueprint rebuild — Phase 6 supporting areas preview, flagged. */}
+        <Route path="/preview/messages"     element={<ProtectedRoute><LivingBlueprintMessagesGate /></ProtectedRoute>} />
+        <Route path="/preview/membership"   element={<ProtectedRoute><LivingBlueprintMembershipGate /></ProtectedRoute>} />
+        <Route path="/preview/rewards"      element={<ProtectedRoute><LivingBlueprintRewardsGate /></ProtectedRoute>} />
+        <Route path="/preview/calendar"     element={<ProtectedRoute><LivingBlueprintCalendarGate /></ProtectedRoute>} />
+        <Route path="/preview/referrals"    element={<ProtectedRoute><LivingBlueprintReferralsGate /></ProtectedRoute>} />
+        <Route path="/preview/more"         element={<ProtectedRoute><LivingBlueprintMoreGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<SipSpeakLearn />} />
@@ -139,6 +182,24 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/coach-dev"    element={<PreviewCoach />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/messages-dev"   element={<PreviewMessages />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/membership-dev" element={<PreviewMembership />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/rewards-dev"    element={<PreviewRewards />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/calendar-dev"   element={<PreviewCalendar />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/referrals-dev"  element={<PreviewReferrals />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/more-dev"       element={<PreviewMore />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         <Route path="/terms"      element={<Terms />} />
