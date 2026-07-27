@@ -35,12 +35,15 @@ export default function LivingBlueprint({ user }) {
       <div style={{
         position: "relative", borderRadius: TOKENS.radius.xl, overflow: "hidden",
         border: `1px solid ${TOKENS.color.border}`, marginBottom: TOKENS.space[5],
-        background: `url('/assets/constellation/ambient-field.svg') center/cover, ${TOKENS.color.bg}`,
+        background: TOKENS.color.bg,
       }}>
+        {/* Static image, not the animated SVG — its CSS keyframes (elements
+            start at opacity:0, animate in via "forwards") don't reliably run
+            when loaded through an <img> tag, leaving the illustration blank. */}
         <img
-          src="/assets/constellation/growing-constellation-animated.svg"
-          alt="Your growing constellation — an illustrative visualization of Family, Learning, Goal, and Achievement growth"
-          style={{ width: "100%", display: "block", maxHeight: 420, objectFit: "contain" }}
+          src="/assets/progress/growing-constellation.jpg"
+          alt="Your growing constellation — an illustrative visualization of growth, not a literal data plot"
+          style={{ width: "100%", display: "block", maxHeight: 420, objectFit: "cover" }}
         />
       </div>
 

@@ -1,10 +1,32 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense, Component } from "react";
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import { APPS } from "../../constants/apps";
 import { auth } from "../../lib/firebase";
 import { useSubscription } from "../../hooks/useSubscription";
 import { getWorldAccess } from "../home/worldAccess";
+
+const EikenApp = lazy(() => import("../../pages/EikenApp"));
+
+// Mirrors components/AppModal.jsx's EikenBoundary (module-private there) —
+// EIKEN is a native React component, not an iframe, so it needs its own
+// error boundary rather than the generic iframe timeout/unavailable states.
+class EikenBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <StateCard
+          title="EIKEN AI Coach had a hiccup"
+          detail="Please try again. If the problem persists, refresh the page."
+          action={{ label: "Try Again", onClick: () => this.setState({ error: null }) }}
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Rebuild prompt section 9 — "Launch behavior" for external/iframe Worlds:
 // preserve signed-in identity, pass only short-lived access data, retain
@@ -80,14 +102,35 @@ export default function WorldLaunch({ world, user }) {
     );
   }
 
-  // Launch-behavior gap for "modal" Worlds (e.g. EIKEN) — honest, not faked.
+  // "modal" Worlds — EIKEN is embedded directly (the real component, same
+  // one AppModal.jsx renders live), not an iframe. Any future modal World
+  // without a known embed falls back to an honest gap message instead of a
+  // blank screen.
   if (world.launch === "modal") {
+    if (world.id === "eiken") {
+      return (
+        <div>
+          {BackLink}
+          <div style={{ position: "relative", borderRadius: TOKENS.radius.lg, overflow: "hidden", border: `1px solid ${TOKENS.color.border}`, height: "75vh", minHeight: 560 }}>
+            <EikenBoundary>
+              <Suspense fallback={
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: TOKENS.color.surfaceRaised, color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
+                  Loading EIKEN AI Coach…
+                </div>
+              }>
+                <EikenApp user={user} activeMember={null} />
+              </Suspense>
+            </EikenBoundary>
+          </div>
+        </div>
+      );
+    }
     return (
       <div>
         {BackLink}
         <StateCard
           title={`${world.name} opens from the Dashboard`}
-          detail="This World is a native in-app experience that doesn't have a standalone Living Blueprint route yet. It's reachable from the current Dashboard's app grid."
+          detail="This World is a native in-app experience that doesn't have a standalone Living Blueprint embed yet. It's reachable from the current Dashboard's app grid."
           action={{ label: "Go to Dashboard", onClick: () => navigate("/dashboard") }}
         />
       </div>

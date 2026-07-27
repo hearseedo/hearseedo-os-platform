@@ -90,7 +90,7 @@ export const WORLDS = [
     name:    "EIKEN",
     promise: "EIKEN Grade 5 through Grade 1 — placement, missions, and confidence-first coaching.",
     audience: ["students", "test_prep"],
-    launch:  "modal", // native EikenApp component, currently only opens via Dashboard's AppModal — no standalone route yet
+    launch:  "modal", // native EikenApp component — WorldLaunch.jsx embeds it directly for "eiken" specifically
     accent:  TOKENS.worldAccent["eiken"],
     art: {
       card:   "/assets/worlds/eiken-card.jpg",
