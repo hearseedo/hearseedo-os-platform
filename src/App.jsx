@@ -27,6 +27,7 @@ import Blueprint          from "./pages/Blueprint";
 import { isSSLEnabled }   from "./sipSpeakLearn/config";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
 import PreviewHome         from "./livingBlueprint/PreviewHome";
+import PreviewFamily       from "./livingBlueprint/PreviewFamily";
 import WorldPage           from "./livingBlueprint/WorldPage";
 import PreviewProgress     from "./livingBlueprint/PreviewProgress";
 import PreviewCoach        from "./livingBlueprint/PreviewCoach";
@@ -72,6 +73,11 @@ function LivingBlueprintOnboardingGate() {
 function LivingBlueprintHomeGate() {
   const { user } = useAuth();
   return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <Navigate to="/dashboard" replace />;
+}
+
+function LivingBlueprintFamilyGate() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewFamily /> : <Navigate to="/dashboard" replace />;
 }
 
 function LivingBlueprintWorldGate() {
@@ -164,6 +170,7 @@ export default function App() {
         <Route path="/preview/onboarding"   element={<ProtectedRoute><LivingBlueprintOnboardingGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 3 Individual/Family Home preview, flagged. */}
         <Route path="/preview/home"         element={<ProtectedRoute><LivingBlueprintHomeGate /></ProtectedRoute>} />
+        <Route path="/preview/family"       element={<ProtectedRoute><LivingBlueprintFamilyGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 4 World landing/launch preview, flagged. */}
         <Route path="/preview/world/:worldId" element={<ProtectedRoute><LivingBlueprintWorldGate /></ProtectedRoute>} />
         {/* Living Blueprint rebuild — Phase 5 Progress + Jona Coach preview, flagged. */}
@@ -189,6 +196,9 @@ export default function App() {
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/home-dev"   element={<PreviewHome />} />
+        )}
+        {import.meta.env.DEV && (
+          <Route path="/preview/family-dev" element={<PreviewFamily />} />
         )}
         {import.meta.env.DEV && (
           <Route path="/preview/world-dev/:worldId" element={<WorldPage />} />

@@ -10,7 +10,7 @@ import { useMobile } from "../../hooks/useMobile";
 // instead of wiring every page individually.
 const DEFAULT_ROUTES = {
   home: "/preview/home", worlds: "/preview/shell", progress: "/preview/progress",
-  coach: "/preview/coach", family: "/preview/home", messages: "/preview/messages",
+  coach: "/preview/coach", family: "/preview/family", messages: "/preview/messages",
   more: "/preview/more", history: "/preview/progress",
 };
 
