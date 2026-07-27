@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import { APPS } from "../../constants/apps";
 import { auth } from "../../lib/firebase";
+import { useSubscription } from "../../hooks/useSubscription";
 import { getWorldAccess } from "../home/worldAccess";
 
 // Rebuild prompt section 9 — "Launch behavior" for external/iframe Worlds:
@@ -26,7 +27,8 @@ export default function WorldLaunch({ world, user }) {
   const [blocked, setBlocked] = useState(false);
   const iframeRef = useRef(null);
 
-  const access = getWorldAccess(world, user);
+  const subscription = useSubscription();
+  const access = getWorldAccess(world, user, subscription);
   const app = world.iframeAppId ? APPS.find(a => a.id === world.iframeAppId) : null;
 
   useEffect(() => {
@@ -63,6 +65,17 @@ export default function WorldLaunch({ world, user }) {
           detail={access.reason}
           action={{ label: access.unlockLabel, onClick: () => navigate(access.unlockPath) }}
         />
+      </div>
+    );
+  }
+
+  // Coming-soon experiences (e.g. Monkeys Unlock) — real status from
+  // constants/apps.js, not a fake locked state.
+  if (world.comingSoon) {
+    return (
+      <div>
+        {BackLink}
+        <StateCard title={`${world.name} is coming soon`} detail="This experience isn't launched yet." />
       </div>
     );
   }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TOKENS } from "../../constants/tokens";
 import { WORLDS } from "../../constants/worlds";
 import { ACHIEVEMENTS } from "../../components/Achievements";
+import { useSubscription } from "../../hooks/useSubscription";
 import { getWorldAccess } from "../home/worldAccess";
 import { getTodaysRecommendation } from "../home/recommendation";
 
@@ -16,6 +17,7 @@ const ARTIFACTS = [
 // numbers are shown alongside it, not invented to match the art. Honors
 // prefers-reduced-motion via the SVG's own built-in media query.
 export default function LivingBlueprint({ user }) {
+  const subscription = useSubscription();
   const [worldFilter, setWorldFilter] = useState(null);
   const earned = ACHIEVEMENTS.filter(a => a.check(user ?? {}));
   const unlockedArtifactCount = Math.round((earned.length / ACHIEVEMENTS.length) * ARTIFACTS.length);
@@ -53,7 +55,7 @@ export default function LivingBlueprint({ user }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: TOKENS.space[5] }}>
         <FilterChip label="All" active={!worldFilter} onClick={() => setWorldFilter(null)} />
         {WORLDS.map(w => {
-          const access = getWorldAccess(w, user);
+          const access = getWorldAccess(w, user, subscription);
           return (
             <FilterChip
               key={w.id}
