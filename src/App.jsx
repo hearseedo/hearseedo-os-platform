@@ -119,14 +119,30 @@ function LivingBlueprintMoreGate() {
   return isLivingBlueprintEnabled(user) ? <PreviewMore /> : <Navigate to="/dashboard" replace />;
 }
 
+// Entry-point gates: when the flag is on, the new Living Blueprint pages
+// become the actual /dashboard and /welcome experience — not just reachable
+// at /preview/*. Same flag, same instant rollback (livingBlueprintFlag.js);
+// this just changes what the existing entry-point routes render, so
+// bookmarks/redirects that already point at /dashboard and /welcome (e.g.
+// SignIn.jsx, JoinFlow.jsx) pick up the new experience automatically.
+function DashboardEntry() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <AppShell><Dashboard /></AppShell>;
+}
+
+function WelcomeEntry() {
+  const { user } = useAuth();
+  return isLivingBlueprintEnabled(user) ? <OnboardingFlow /> : <AppShell><Welcome /></AppShell>;
+}
+
 export default function App() {
   return (
     <>
       <GlobalStyles />
       <Routes>
         <Route path="/"          element={<SignIn />} />
-        <Route path="/welcome"   element={<ProtectedRoute><AppShell><Welcome /></AppShell></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><AppShell><Dashboard /></AppShell></ProtectedRoute>} />
+        <Route path="/welcome"   element={<ProtectedRoute><WelcomeEntry /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardEntry /></ProtectedRoute>} />
         <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="/plans"     element={<ProtectedRoute><AppShell><Plans /></AppShell></ProtectedRoute>} />
         <Route path="/assessment" element={<ProtectedRoute><AppShell><Assessment /></AppShell></ProtectedRoute>} />
