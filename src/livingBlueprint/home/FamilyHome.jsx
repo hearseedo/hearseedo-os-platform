@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TOKENS } from "../../constants/tokens";
 import { confidenceLabel } from "../../lib/confidenceEngine";
 import { getTodaysRecommendation } from "./recommendation";
+import Leaderboard from "../../components/Leaderboard";
 
 // Confidence color scale — reused for both the ring around each member's
 // orb and their badge, so the color always means the same thing.
@@ -19,8 +20,9 @@ function timeAwareGreeting() {
 }
 
 // Rebuild prompt section 7 — Family Home: a shared constellation, not a
-// leaderboard. Reads the real (denormalized) users/{uid}.familyMembers
-// array — same data Achievements.jsx and claude.js already rely on.
+// competitive ranking. Reads the real (denormalized) users/{uid}.familyMembers
+// array — same data Achievements.jsx and claude.js already rely on. The
+// site-wide Leaderboard lives at the bottom of this page (see below).
 export default function FamilyHome({ user }) {
   const members = user?.familyMembers ?? [];
   const [selectedId, setSelectedId] = useState(members[0]?.id ?? null);
@@ -67,6 +69,13 @@ export default function FamilyHome({ user }) {
       {selected && <MemberDetail member={selected} />}
 
       <FamilyChallengeCard />
+
+      <div style={{ marginTop: TOKENS.space[5] }}>
+        {/* Was only reachable from the old Dashboard.jsx — became unreachable
+            once /dashboard started rendering this Living Blueprint experience
+            instead. Reused as-is (real Firestore XP rankings), not restyled. */}
+        <Leaderboard currentUid={user?.uid} />
+      </div>
     </div>
   );
 }

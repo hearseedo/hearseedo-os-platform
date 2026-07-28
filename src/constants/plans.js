@@ -64,7 +64,7 @@ export const PLANS = [
     aiAllowance:   100,
     ai_msgs:       100,
     members:       5,
-    color:         "#e01010",
+    color:         "#C9A84C",
     badge:         "Best Value",
     legacy:        false,
     stripe:        { monthly: "price_1TpbkrIxMNaZk137XB9lFqFF", yearly: "price_1TpblxIxMNaZk137BKjgCOl4" },

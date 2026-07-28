@@ -124,12 +124,15 @@ export default function Plans() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, padding: isMobile ? "28px 16px" : "52px 24px" }}>
+    <div style={{
+      minHeight: "100vh", color: COLORS.text, padding: isMobile ? "28px 16px" : "52px 24px",
+      background: "radial-gradient(circle at 50% 0%, #131a2c 0%, #050608 60%), url('/assets/bg/midnight-nebula.png') center/cover",
+    }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 10, color: COLORS.red, letterSpacing: 4, textTransform: "uppercase", marginBottom: 16 }}>
+          <div style={{ fontSize: 10, color: "#C9A84C", letterSpacing: 4, textTransform: "uppercase", marginBottom: 16 }}>
             {foundingOpen ? "Founding Member Pricing" : "Pricing"}
           </div>
           <h1 style={{ fontSize: isMobile ? 30 : 44, fontWeight: 900, margin: "0 0 14px", lineHeight: 1.05, letterSpacing: -0.5 }}>
@@ -169,8 +172,8 @@ export default function Plans() {
                   onClick={() => setBilling(b)}
                   style={{
                     padding: "8px 20px", borderRadius: 26, border: "none",
-                    background: billing === b ? COLORS.red : "transparent",
-                    color: billing === b ? "#fff" : COLORS.textMuted,
+                    background: billing === b ? "#C9A84C" : "transparent",
+                    color: billing === b ? "#0a0a0a" : COLORS.textMuted,
                     fontSize: 13, fontWeight: billing === b ? 700 : 400,
                     cursor: "pointer", transition: "all 0.15s",
                     display: "flex", alignItems: "center", gap: 6,
@@ -491,7 +494,7 @@ function FeatureRequestCard({ user, isMobile }) {
       padding: isMobile ? "24px 18px" : 32, maxWidth: 600, margin: "0 auto",
     }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#C9A84C", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
           Help Us Grow
         </div>
         <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Have an idea? Let us know.</div>
@@ -522,7 +525,7 @@ function FeatureRequestCard({ user, isMobile }) {
               fontFamily: "inherit", outline: "none", boxSizing: "border-box",
               transition: "border-color 0.15s",
             }}
-            onFocus={e => { e.target.style.borderColor = COLORS.red; }}
+            onFocus={e => { e.target.style.borderColor = "#C9A84C"; }}
             onBlur={e => { e.target.style.borderColor = "#2a2a2a"; }}
           />
           {user?.email && <div style={{ fontSize: 11, color: "#444" }}>Sending as {user.email}</div>}
@@ -531,8 +534,8 @@ function FeatureRequestCard({ user, isMobile }) {
             type="submit"
             disabled={status === "sending" || !text.trim()}
             style={{
-              padding: "13px 0", background: COLORS.red, border: "none",
-              borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700,
+              padding: "13px 0", background: "#C9A84C", border: "none",
+              borderRadius: 10, color: "#0a0a0a", fontSize: 14, fontWeight: 700,
               cursor: status === "sending" || !text.trim() ? "default" : "pointer",
               opacity: status === "sending" || !text.trim() ? 0.6 : 1,
               transition: "opacity 0.15s",
