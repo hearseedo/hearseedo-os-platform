@@ -41,7 +41,7 @@ export default function LivingBlueprint({ user }) {
             start at opacity:0, animate in via "forwards") don't reliably run
             when loaded through an <img> tag, leaving the illustration blank. */}
         <img
-          src="/assets/progress/growing-constellation.jpg"
+          src="/assets/progress/growing-constellation-wide.jpg"
           alt="Your growing constellation — an illustrative visualization of growth, not a literal data plot"
           style={{ width: "100%", display: "block", maxHeight: 420, objectFit: "cover" }}
         />
