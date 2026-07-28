@@ -1,7 +1,7 @@
 // Cloudflare Pages Function — ElevenLabs TTS proxy
-// Daniel voice — deep British male, Jarvis-style
+// Soft-spoken Canadian male — Jona's voice
 
-const VOICE_ID  = "onwK4e9ZLuTAKqWW03F9"; // Daniel
+const VOICE_ID  = "bBE6oKIBXZhM23o3YoXb";
 const MODEL_ID  = "eleven_monolingual_v1";
 const MAX_CHARS = 800; // cap to avoid runaway usage
 

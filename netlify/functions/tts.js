@@ -1,5 +1,5 @@
 // Netlify Function — ElevenLabs TTS proxy
-const VOICE_ID     = "onwK4e9ZLuTAKqWW03F9"; // Daniel — deep British male
+const VOICE_ID     = "bBE6oKIBXZhM23o3YoXb"; // soft-spoken Canadian male — Jona's voice
 const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
 const MAX_CHARS    = 1200;
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
