@@ -17,9 +17,24 @@ export default function JonaCoach({ user }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [listening, setListening] = useState(false);
 
   const { topic, activity } = getTodaysRecommendation(user || {});
   const suggestedPrompts = [topic, activity].filter(Boolean);
+
+  // Mirrors components/AIChat.jsx's startListening — same Web Speech API
+  // pattern, same "send immediately on result" behavior.
+  function startListening() {
+    const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
+    if (!SR) { setError("Speech recognition isn't supported in this browser."); return; }
+    const r = new SR();
+    r.lang = "en-US";
+    r.onstart = () => { setListening(true); setState("listening"); };
+    r.onend = () => setListening(false);
+    r.onerror = () => { setListening(false); setState("welcome"); };
+    r.onresult = (e) => handleSend(e.results[0][0].transcript);
+    r.start();
+  }
 
   async function handleSend(text) {
     const trimmed = (text ?? input).trim();
@@ -112,12 +127,32 @@ export default function JonaCoach({ user }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSend()}
-            placeholder="Type a message to Jona…"
+            placeholder={listening ? "Listening…" : "Type a message to Jona…"}
             style={{
               flex: 1, padding: "12px 14px", borderRadius: TOKENS.radius.pill, border: `1px solid ${TOKENS.color.border}`,
               background: TOKENS.color.bg, color: TOKENS.color.starlight, fontSize: TOKENS.font.size.sm,
             }}
           />
+          <button
+            onClick={startListening}
+            disabled={sending || listening}
+            title="Speak to Jona"
+            style={{
+              width: 44, height: 44, flexShrink: 0, borderRadius: "50%", border: `1px solid ${listening ? TOKENS.color.gold : TOKENS.color.border}`,
+              background: listening ? "rgba(201,168,76,0.15)" : "transparent",
+              color: listening ? TOKENS.color.gold : TOKENS.color.textMuted,
+              cursor: sending ? "not-allowed" : "pointer", fontSize: 18,
+              animation: listening ? "pulse 1s ease-in-out infinite" : "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </button>
           <button onClick={() => handleSend()} disabled={sending} style={{
             padding: "12px 24px", borderRadius: TOKENS.radius.pill, border: "none",
             background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: sending ? "not-allowed" : "pointer",
