@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import ResponsiveNavigation from "./ResponsiveNavigation";
 import { useMobile } from "../../hooks/useMobile";
+import { useLang } from "../../hooks/useLang";
 
 // Nav-id → preview route. Bug found while building Phase 6: no preview page
 // was ever passing `onNavigate`, so the sidebar/bottom nav only highlighted
@@ -21,6 +22,7 @@ export default function AppShell({ active = "home", onNavigate, showFamily = tru
   const isMobile = useMobile();
   const navigateTo = useNavigate();
   const [navActive, setNavActive] = useState(active);
+  const { lang, setLang } = useLang();
 
   const handleNavigate = (id) => {
     setNavActive(id);
@@ -34,6 +36,23 @@ export default function AppShell({ active = "home", onNavigate, showFamily = tru
       background: TOKENS.color.bg, color: TOKENS.color.starlight,
       fontFamily: TOKENS.font.family,
     }}>
+      {/* Language toggle — top right, same real shared lang context (and
+          same visual pattern) as SignIn.jsx, just missing on every Living
+          Blueprint page until now. */}
+      <div style={{
+        position: "fixed", top: 16, right: 16, zIndex: 100, display: "flex",
+        background: "rgba(255,255,255,0.06)", border: `1px solid ${TOKENS.color.border}`, borderRadius: 20, overflow: "hidden",
+      }}>
+        {["en", "jp"].map(l => (
+          <button key={l} onClick={() => setLang(l)} style={{
+            padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
+            background: lang === l ? TOKENS.color.gold : "transparent",
+            color: lang === l ? "#0a0700" : TOKENS.color.textDim,
+            border: "none", cursor: "pointer", transition: "all 0.15s",
+          }}>{l === "en" ? "EN" : "JP"}</button>
+        ))}
+      </div>
+
       {!isMobile && (
         <ResponsiveNavigation active={navActive} onNavigate={handleNavigate} showFamily={showFamily} />
       )}

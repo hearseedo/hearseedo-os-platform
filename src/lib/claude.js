@@ -42,12 +42,16 @@ You always:
 
 You are HSD AI. That is all you are.`;
 
-function buildSystemWithContext(user) {
+function buildSystemWithContext(user, lang) {
   const family = Array.isArray(user.familyMembers) && user.familyMembers.length > 0
     ? `\nFamily members: ${user.familyMembers.map(m => `${m.name}${m.age ? ` (age ${m.age})` : ""}${m.confidenceScore != null ? `, confidence ${m.confidenceScore}%` : ""}`).join(" · ")}`
     : "";
 
-  return `${HSD_AI_SYSTEM}
+  const langInstruction = lang === "jp"
+    ? "\n\nThe user's interface language is set to Japanese. Respond in natural, warm Japanese by default. If the user writes to you in English, reply in English instead — follow the language they actually use."
+    : "";
+
+  return `${HSD_AI_SYSTEM}${langInstruction}
 
 Current user context:
 Name: ${user.name}
@@ -60,7 +64,7 @@ Unlocked Apps: ${(user.subscriptions ?? []).join(", ") || "none yet"}
 Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toLocaleDateString() : "first session"}${family}`;
 }
 
-export async function sendMessage(messages, user) {
+export async function sendMessage(messages, user, lang) {
   // Get Firebase ID token to verify identity server-side for rate limiting
   let idToken = null;
   try {
@@ -71,7 +75,7 @@ export async function sendMessage(messages, user) {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({
-      system:   buildSystemWithContext(user),
+      system:   buildSystemWithContext(user, lang),
       messages: messages.map((m) => ({ role: m.role, content: m.text })),
       idToken,
       plan:     user.plan ?? "individual",

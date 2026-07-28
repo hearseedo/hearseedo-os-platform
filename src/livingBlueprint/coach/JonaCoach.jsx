@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { TOKENS } from "../../constants/tokens";
 import { useMobile } from "../../hooks/useMobile";
+import { useLang } from "../../hooks/useLang";
 import { sendMessage } from "../../lib/claude";
 import { getTodaysRecommendation } from "../home/recommendation";
 import JonaVisualState from "./JonaVisualState";
@@ -36,6 +37,7 @@ async function speakText(text, uid) {
 // flagged preview route instead of the live Dashboard chat panel.
 export default function JonaCoach({ user }) {
   const isMobile = useMobile();
+  const { lang } = useLang();
   const [state, setState] = useState("welcome");
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -66,7 +68,7 @@ export default function JonaCoach({ user }) {
     const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
     if (!SR) { setError("Speech recognition isn't supported in this browser."); return; }
     const r = new SR();
-    r.lang = "en-US";
+    r.lang = lang === "jp" ? "ja-JP" : "en-US";
     r.onstart = () => { setListening(true); setState("listening"); };
     r.onend = () => setListening(false);
     r.onerror = () => { setListening(false); setState("welcome"); };
@@ -87,7 +89,7 @@ export default function JonaCoach({ user }) {
     setSending(true);
     setState("thinking");
     try {
-      const reply = await sendMessage(next, user);
+      const reply = await sendMessage(next, user, lang);
       setMessages([...next, { role: "assistant", text: reply }]);
       setState("speaking");
       if (voiceOn) {
