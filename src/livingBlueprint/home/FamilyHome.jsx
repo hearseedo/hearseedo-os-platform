@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { TOKENS } from "../../constants/tokens";
-import { useMobile } from "../../hooks/useMobile";
 import { confidenceLabel } from "../../lib/confidenceEngine";
 import { getTodaysRecommendation } from "./recommendation";
 
@@ -23,7 +22,6 @@ function timeAwareGreeting() {
 // leaderboard. Reads the real (denormalized) users/{uid}.familyMembers
 // array — same data Achievements.jsx and claude.js already rely on.
 export default function FamilyHome({ user }) {
-  const isMobile = useMobile();
   const members = user?.familyMembers ?? [];
   const [selectedId, setSelectedId] = useState(members[0]?.id ?? null);
   const selected = members.find(m => m.id === selectedId) ?? null;
@@ -31,9 +29,6 @@ export default function FamilyHome({ user }) {
   const avgConfidence = members.length
     ? Math.round(members.reduce((sum, m) => sum + (m.confidenceScore ?? 0), 0) / members.length)
     : 0;
-
-  const radius = 140;
-  const angleFor = (i, n) => (2 * Math.PI * i) / n - Math.PI / 2;
 
   return (
     <div>
@@ -46,34 +41,20 @@ export default function FamilyHome({ user }) {
         }}>
           No family members yet. Add one from onboarding or Family Setup.
         </div>
-      ) : isMobile ? (
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: TOKENS.space[4] }}>
-          {members.map(m => <MemberOrb key={m.id} member={m} selected={m.id === selectedId} onClick={() => setSelectedId(m.id)} />)}
-        </div>
       ) : (
-        <div style={{ position: "relative", height: 320, marginBottom: TOKENS.space[4] }}>
-          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)" }}>
-            <div style={{
-              width: 70, height: 70, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-              background: `radial-gradient(circle, ${TOKENS.color.goldGlow} 0%, ${TOKENS.color.surfaceRaised} 70%)`,
-              border: `2px solid ${TOKENS.color.gold}`, boxShadow: TOKENS.shadow.glow, fontSize: 24,
-            }}>
-              ⌂
-            </div>
-          </div>
-          {members.map((m, i) => {
-            const angle = angleFor(i, members.length);
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-            return (
-              <div key={m.id} style={{ position: "absolute", top: `calc(50% + ${y}px)`, left: `calc(50% + ${x}px)`, transform: "translate(-50%,-50%)" }}>
-                <svg width={360} height={360} style={{ position: "absolute", top: -180, left: -180, pointerEvents: "none" }}>
-                  <line x1={180} y1={180} x2={180 - x} y2={180 - y} stroke="rgba(201,168,76,0.2)" strokeWidth={1} />
-                </svg>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", paddingBottom: 8 }}>
+            <HouseholdNode />
+            {members.map(m => (
+              <div key={m.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                <PathSegment />
                 <MemberOrb member={m} selected={m.id === selectedId} onClick={() => setSelectedId(m.id)} />
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: TOKENS.color.textDim, marginBottom: TOKENS.space[4] }}>
+            The path connects your household to each family member — click a member to see their details below.
+          </div>
         </div>
       )}
 
@@ -135,6 +116,31 @@ function JonaFamilyBanner({ greeting, familyName }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Horizontal path layout — was a radial constellation, which read as "two
+// unclear circles with a faint unlabeled line" per user feedback. A single
+// household-to-member path, left to right, is simpler to read and scrolls
+// naturally on mobile without a separate layout.
+function HouseholdNode() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+      <div style={{
+        width: 70, height: 70, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+        background: `radial-gradient(circle, ${TOKENS.color.goldGlow} 0%, ${TOKENS.color.surfaceRaised} 70%)`,
+        border: `2px solid ${TOKENS.color.gold}`, boxShadow: TOKENS.shadow.glow, fontSize: 24,
+      }}>
+        ⌂
+      </div>
+      <div style={{ fontSize: 10, color: TOKENS.color.gold, fontWeight: 700, letterSpacing: 0.5 }}>HOUSEHOLD</div>
+    </div>
+  );
+}
+
+function PathSegment() {
+  return (
+    <div style={{ width: 40, height: 0, borderTop: `2px dashed ${TOKENS.color.gold}`, opacity: 0.35, flexShrink: 0, marginBottom: 20 }} />
   );
 }
 
