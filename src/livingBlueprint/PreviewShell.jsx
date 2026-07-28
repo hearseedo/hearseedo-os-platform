@@ -1,19 +1,23 @@
 import { TOKENS } from "../constants/tokens";
 import { WORLDS } from "../constants/worlds";
-import { LEGACY_EXPERIENCES } from "../constants/experiences";
+import { ALL_EXPERIENCES } from "../constants/experiences";
+import { CATEGORY_ORDER, groupByCategory } from "../constants/worldCategories";
 import { useAuth } from "../hooks/useAuth";
 import { useSubscription } from "../hooks/useSubscription";
 import AppShell from "./components/AppShell";
 import WorldCard from "./components/WorldCard";
 import { getWorldAccess } from "./home/worldAccess";
 
-// Phase 4 — Explore Your Worlds. Started in Phase 1 as a static grid; now
-// reads real per-World access via useSubscription().isUnlocked (same check
-// the live Dashboard/AppModal use — includes admin, access pass, HSD
-// Family-always-free, and workbook-bonus special cases).
+// Phase 4 — Explore Your Worlds. Originally split into "six curated Worlds"
+// + a flat "More Experiences" grid; reorganized into simple audience
+// categories (Kids / Teens & University / Adults / Family) per explicit
+// request — easier to scan, and the curated/catalog distinction was an
+// implementation detail, not something a user needs to know about.
 export default function PreviewShell() {
   const { user } = useAuth();
   const subscription = useSubscription();
+
+  const grouped = groupByCategory([...WORLDS, ...ALL_EXPERIENCES]);
 
   return (
     <AppShell active="worlds">
@@ -29,51 +33,35 @@ export default function PreviewShell() {
         </p>
       </div>
 
-      <div style={{
-        display: "grid", gap: TOKENS.space[4],
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-      }}>
-        {WORLDS.map(world => {
-          const access = getWorldAccess(world, user, subscription);
-          return (
-            <WorldCard
-              key={world.id}
-              world={world}
-              status={access.status === "locked" ? "locked" : "explore"}
-              reason={access.reason}
-              unlockPath={access.unlockPath}
-              unlockLabel={access.unlockLabel}
-            />
-          );
-        })}
-      </div>
-
-      <div style={{ marginTop: TOKENS.space[6], marginBottom: TOKENS.space[4] }}>
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 4 }}>
-          MORE EXPERIENCES
-        </div>
-        <p style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
-          Existing HSDOS apps not yet part of the six curated Worlds — nothing here has been removed or merged.
-        </p>
-      </div>
-      <div style={{
-        display: "grid", gap: TOKENS.space[4],
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-      }}>
-        {LEGACY_EXPERIENCES.map(exp => {
-          const access = getWorldAccess(exp, user, subscription);
-          return (
-            <WorldCard
-              key={exp.id}
-              world={exp}
-              status={access.status === "locked" ? "locked" : "explore"}
-              reason={access.reason}
-              unlockPath={access.unlockPath}
-              unlockLabel={access.unlockLabel}
-            />
-          );
-        })}
-      </div>
+      {CATEGORY_ORDER.map(category => {
+        const items = grouped[category];
+        if (!items?.length) return null;
+        return (
+          <div key={category} style={{ marginBottom: TOKENS.space[6] }}>
+            <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: TOKENS.space[3] }}>
+              {category.toUpperCase()}
+            </div>
+            <div style={{
+              display: "grid", gap: TOKENS.space[4],
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            }}>
+              {items.map(item => {
+                const access = getWorldAccess(item, user, subscription);
+                return (
+                  <WorldCard
+                    key={item.id}
+                    world={item}
+                    status={access.status === "locked" ? "locked" : "explore"}
+                    reason={access.reason}
+                    unlockPath={access.unlockPath}
+                    unlockLabel={access.unlockLabel}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </AppShell>
   );
 }

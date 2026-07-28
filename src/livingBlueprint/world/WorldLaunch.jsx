@@ -77,6 +77,18 @@ export default function WorldLaunch({ world, user }) {
     </button>
   );
 
+  // Coming-soon experiences (e.g. Monkeys Unlock, Sip Speak Learn) — checked
+  // before the plan-lock state, since nobody can launch these yet regardless
+  // of plan; showing "requires a paid plan" here would be misleading.
+  if (world.comingSoon) {
+    return (
+      <div>
+        {BackLink}
+        <StateCard title={`${world.name} is coming soon`} detail="This experience isn't launched yet." />
+      </div>
+    );
+  }
+
   // Permission state — never attempt the iframe if the account isn't entitled.
   if (access.status === "locked") {
     return (
@@ -87,17 +99,6 @@ export default function WorldLaunch({ world, user }) {
           detail={access.reason}
           action={{ label: access.unlockLabel, onClick: () => navigate(access.unlockPath) }}
         />
-      </div>
-    );
-  }
-
-  // Coming-soon experiences (e.g. Monkeys Unlock) — real status from
-  // constants/apps.js, not a fake locked state.
-  if (world.comingSoon) {
-    return (
-      <div>
-        {BackLink}
-        <StateCard title={`${world.name} is coming soon`} detail="This experience isn't launched yet." />
       </div>
     );
   }

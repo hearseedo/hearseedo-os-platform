@@ -6,11 +6,16 @@ import { worldHref } from "../../constants/worlds";
 // access/progress state, Continue/Explore/Locked action.
 // Rebuild prompt section 11: locked cards must explain themselves, not just
 // show a padlock — `reason` and `unlockPath` come from worldAccess.js.
+// "Coming soon" is checked ahead of locked: nobody can launch these yet
+// regardless of plan, so a plan-upsell badge would be misleading.
 export default function WorldCard({ world, status = "explore", progress = null, reason, unlockPath, unlockLabel }) {
   const navigate = useNavigate();
-  const locked = status === "locked";
+  const comingSoon = !!world.comingSoon;
+  const locked = status === "locked" && !comingSoon;
+  const disabled = locked || comingSoon;
 
   const handleClick = () => {
+    if (comingSoon) return;
     if (locked) { if (unlockPath) navigate(unlockPath); return; }
     navigate(worldHref(world));
   };
@@ -21,7 +26,7 @@ export default function WorldCard({ world, status = "explore", progress = null, 
       border: `1px solid ${TOKENS.color.border}`,
       background: TOKENS.color.surfaceRaised,
       boxShadow: TOKENS.shadow.soft,
-      opacity: locked ? 0.75 : 1,
+      opacity: disabled ? 0.75 : 1,
     }}>
       <div style={{
         position: "relative", aspectRatio: "5 / 3", background: TOKENS.color.surface,
@@ -35,9 +40,13 @@ export default function WorldCard({ world, status = "explore", progress = null, 
             ART MISSING — placeholder
           </div>
         ) : (
-          <img src={world.art.card} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: locked ? "grayscale(0.5)" : "none" }} />
+          <img src={world.art.card} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: disabled ? "grayscale(0.5)" : "none" }} />
         )}
-        {locked && (
+        {comingSoon ? (
+          <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: `1px solid ${TOKENS.color.goldDim}`, borderRadius: TOKENS.radius.pill, padding: "4px 10px", fontSize: TOKENS.font.size.xs, color: TOKENS.color.gold }}>
+            Coming Soon
+          </div>
+        ) : locked && (
           <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", borderRadius: TOKENS.radius.pill, padding: "4px 10px", fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted }}>
             Locked
           </div>
@@ -50,25 +59,25 @@ export default function WorldCard({ world, status = "explore", progress = null, 
           {world.promise}
         </div>
 
-        {locked && reason && (
+        {locked && !comingSoon && reason && (
           <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.gold, marginBottom: TOKENS.space[3] }}>
             {reason}
           </div>
         )}
 
-        {typeof progress === "number" && !locked && (
+        {typeof progress === "number" && !disabled && (
           <div style={{ height: 4, borderRadius: TOKENS.radius.pill, background: "rgba(255,255,255,0.08)", marginBottom: TOKENS.space[3], overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${progress}%`, background: TOKENS.color.gold, borderRadius: TOKENS.radius.pill }} />
           </div>
         )}
 
-        <button onClick={handleClick} style={{
+        <button onClick={handleClick} disabled={comingSoon} style={{
           width: "100%", padding: "10px 14px", borderRadius: TOKENS.radius.md, border: "none",
-          fontWeight: 700, fontSize: TOKENS.font.size.sm, cursor: "pointer",
-          background: locked ? "rgba(255,255,255,0.08)" : (status === "continue" ? TOKENS.color.gold : "rgba(255,255,255,0.08)"),
-          color: locked ? TOKENS.color.starlight : (status === "continue" ? "#0a0a0a" : TOKENS.color.starlight),
+          fontWeight: 700, fontSize: TOKENS.font.size.sm, cursor: comingSoon ? "default" : "pointer",
+          background: disabled ? "rgba(255,255,255,0.08)" : (status === "continue" ? TOKENS.color.gold : "rgba(255,255,255,0.08)"),
+          color: disabled ? TOKENS.color.starlight : (status === "continue" ? "#0a0a0a" : TOKENS.color.starlight),
         }}>
-          {locked ? (unlockLabel || "See plans") : status === "continue" ? "Continue" : "Explore"}
+          {comingSoon ? "Coming Soon" : locked ? (unlockLabel || "See plans") : status === "continue" ? "Continue" : "Explore"}
         </button>
       </div>
     </div>
