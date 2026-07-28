@@ -2,17 +2,32 @@ import { useState, useRef, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { sendMessage } from "../lib/claude";
-
-const QUICK_ACTIONS = [
-  { label: "What should I study next?", icon: "🎯" },
-  { label: "Help me prepare for Eiken Pre-2", icon: "📚" },
-  { label: "Create a lesson for my child", icon: "👶" },
-  { label: "Practice travel English", icon: "✈️" },
-];
+import { useLang } from "../hooks/useLang";
+import { db } from "../lib/firebase";
+import { doc, setDoc, increment, getDoc } from "firebase/firestore";
+import { useJona } from "../context/JonaContext";
 
 const PLAN_LIMITS = {
-  individual: 5, kids_starter: 15, english_boost: 15,
-  adult_growth: 30, family_full: 30, all_access: 100,
+  free:               5,
+  individual:        50,
+  family:           100,
+  "university-bundle": 150,
+  organization:     999,
+  phonics:           15,
+  eiken:             15,
+  sipswitch:         15,
+  speak:             15,
+  innerkey:          15,
+  wondercamp:        15,
+  kids_starter:      30,
+  english_boost:     30,
+  adult_growth:      30,
+  adult_complete:    30,
+  family_full:       30,
+  family_core:       30,
+  family_plus:       60,
+  family_premium:   100,
+  all_access:       100,
 };
 
 function buildGreeting(name) {
@@ -22,7 +37,7 @@ function buildGreeting(name) {
   return `Good ${period}, ${first}. All systems are online. How may I assist you today?`;
 }
 
-async function speakText(text) {
+async function speakText(text, uid) {
   // Strip markdown symbols before sending to TTS
   const clean = text
     .replace(/\*\*(.+?)\*\*/g, "$1")
@@ -34,7 +49,7 @@ async function speakText(text) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: clean }),
+    body: JSON.stringify({ text: clean, uid }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob = await res.blob();
@@ -45,8 +60,11 @@ async function speakText(text) {
   return audio;
 }
 
-export default function AIChat() {
-  const { user }   = useAuth();
+export default function AIChat({ inputRef: externalInputRef }) {
+  const { user }      = useAuth();
+  const { t, lang }   = useLang();
+  const { setJonaSpeaking } = useJona();
+  const quickActions  = t("suggestions") || [];
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
@@ -60,13 +78,29 @@ export default function AIChat() {
   const audioRef    = useRef(null);
   const bottomRef   = useRef(null);
   const greetingRef = useRef(null);
+  const internalInputRef = useRef(null);
+  const inputRef = externalInputRef ?? internalInputRef;
 
-  const dailyLimit = PLAN_LIMITS[user?.plan] ?? PLAN_LIMITS.individual;
-  const remaining  = Math.max(0, dailyLimit - msgCount);
+  const monthlyLimit = PLAN_LIMITS[user?.plan] ?? PLAN_LIMITS.free;
+  const remaining    = Math.max(0, monthlyLimit - msgCount);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load this month's message count from Firestore so the counter survives page reloads
+  useEffect(() => {
+    if (!user?.uid) return;
+    const monthJST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }).slice(0, 7);
+    getDoc(doc(db, "users", user.uid, "chatUsage", monthJST))
+      .then((snap) => { if (snap.exists()) setMsgCount(snap.data().count ?? 0); })
+      .catch(() => {});
+  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync AI activity state to Jona orb
+  useEffect(() => {
+    setJonaSpeaking(loading || speaking);
+  }, [loading, speaking]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build greeting text once user is known, but don't autoplay (browser blocks it)
   useEffect(() => {
@@ -79,7 +113,7 @@ export default function AIChat() {
   const playGreeting = () => {
     setGreetBlocked(false);
     setSpeaking(true);
-    speakText(greetingRef.current)
+    speakText(greetingRef.current, user?.uid)
       .then((audio) => {
         audioRef.current = audio;
         audio.onended = () => { setSpeaking(false); audioRef.current = null; };
@@ -108,11 +142,15 @@ export default function AIChat() {
       const reply = await sendMessage(next, user);
       setMessages([...next, { role: "assistant", text: reply }]);
       setMsgCount((c) => c + 1);
+      if (user?.uid) {
+        const todayJST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+        setDoc(doc(db, "users", user.uid, "missions", todayJST), { chatCount: increment(1) }, { merge: true }).catch(() => {});
+      }
 
       if (voiceOn) {
         setSpeaking(true);
         try {
-          const audio = await speakText(reply);
+          const audio = await speakText(reply, user?.uid);
           audioRef.current = audio;
           audio.onended = () => { setSpeaking(false); audioRef.current = null; };
         } catch {
@@ -120,9 +158,8 @@ export default function AIChat() {
         }
       }
     } catch (err) {
-      if (err.message?.includes("limit")) {
+      if (err.isLimitError) {
         setLimitHit(true);
-        setMessages([...next, { role: "assistant", text: err.message }]);
       } else {
         setMessages([...next, { role: "assistant", text: "I'm having a moment. Try again in a second." }]);
       }
@@ -157,7 +194,7 @@ export default function AIChat() {
           {/* Voice toggle */}
           <button
             onClick={toggleVoice}
-            title={voiceOn ? "Voice on — click to mute" : "Click to enable Jarvis voice"}
+            title={voiceOn ? "Voice on — click to mute" : "Click to enable Jona voice"}
             style={{
               background: voiceOn ? "rgba(224,16,16,0.15)" : "transparent",
               border: `1px solid ${voiceOn ? "rgba(224,16,16,0.5)" : "#2a2a2a"}`,
@@ -172,7 +209,7 @@ export default function AIChat() {
                 {[0,1,2,3].map((i) => (
                   <span key={i} style={{
                     width: 2, borderRadius: 2, background: COLORS.red,
-                    animation: `jarvisBar 0.8s ${i * 0.15}s ease-in-out infinite alternate`,
+                    animation: `jonaBar 0.8s ${i * 0.15}s ease-in-out infinite alternate`,
                     height: `${6 + i * 3}px`,
                   }} />
                 ))}
@@ -183,17 +220,48 @@ export default function AIChat() {
             <span>{voiceOn ? "Voice" : "Voice off"}</span>
           </button>
           <div style={{ fontSize: 10, color: remaining <= 3 ? COLORS.red : COLORS.textDim }}>
-            {user?.plan === "all_access" ? "∞ unlimited" : `${remaining} msg${remaining !== 1 ? "s" : ""} left today`}
+            {(user?.plan === "all_access" || user?.plan === "organization")
+            ? "∞ unlimited"
+            : `${remaining} session${remaining !== 1 ? "s" : ""} left this month`}
           </div>
         </div>
       </div>
 
       {limitHit && (
-        <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(224,16,16,0.08)", border: "1px solid rgba(224,16,16,0.25)", borderRadius: 8, fontSize: 12, color: "#ff6060", textAlign: "center", lineHeight: 1.5 }}>
-          Daily limit reached — resets at midnight Japan time.<br />
-          <a href={import.meta.env.VITE_LANDING_PAGE_URL + "/#pricing"} target="_blank" rel="noreferrer" style={{ color: COLORS.red, fontWeight: 700 }}>
-            Upgrade your plan →
-          </a>
+        <div style={{
+          marginBottom: 12, padding: 16,
+          background: "linear-gradient(135deg, #0d1a1a 0%, #0a0a0a 100%)",
+          border: "1px solid rgba(224,16,16,0.2)", borderRadius: 12,
+          animation: "fadeIn 0.3s ease",
+        }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <img
+              src="/assets/jona1.png"
+              alt="Jona"
+              style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", objectPosition: "center 18%", flexShrink: 0 }}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>
+                JONA
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: COLORS.text, lineHeight: 1.6 }}>
+                You've made fantastic progress this month. Your AI coaching sessions have been fully used. Your allowance renews on the 1st.
+              </p>
+              <p style={{ margin: "8px 0 10px", fontSize: 12, color: COLORS.textMuted }}>
+                Need more?
+              </p>
+              <a
+                href="/plans"
+                style={{
+                  display: "inline-block", padding: "8px 18px",
+                  background: COLORS.red, borderRadius: 20,
+                  color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none",
+                }}
+              >
+                Add an AI Coaching Pack →
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
@@ -221,7 +289,7 @@ export default function AIChat() {
                     animation: "greetPulse 2s ease-in-out infinite",
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>▶</span> Hear Jarvis
+                  <span style={{ fontSize: 14 }}>▶</span> Hear Jona
                 </button>
               )}
             </div>
@@ -255,7 +323,7 @@ export default function AIChat() {
 
       {/* Quick actions */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {QUICK_ACTIONS.map((qa, i) => (
+        {quickActions.map((qa, i) => (
           <button
             key={i}
             onClick={() => send(qa.label)}
@@ -281,10 +349,11 @@ export default function AIChat() {
           borderRadius: 25, padding: "4px 16px", gap: 8,
         }}>
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={limitHit ? "Upgrade to keep chatting…" : "Ask HSD AI anything…"}
+            placeholder={limitHit ? t("upgrade_chat") : t("ask_anything")}
             disabled={limitHit}
             style={{ flex: 1, background: "none", border: "none", color: limitHit ? COLORS.textDim : COLORS.text, fontSize: 13, padding: "7px 0", cursor: limitHit ? "not-allowed" : "text" }}
           />
@@ -307,12 +376,12 @@ export default function AIChat() {
         </button>
       </div>
       <div style={{ textAlign: "center", fontSize: 10, color: COLORS.textDim, marginTop: 8 }}>
-        {voiceOn ? "Jarvis voice active — responses will be spoken aloud" : "Tap to talk • Enable voice for Jarvis responses"}
+        {voiceOn ? "Jona voice active — responses will be spoken aloud" : "Tap to talk • Enable voice for Jona responses"}
       </div>
 
       <style>{`
         @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-        @keyframes jarvisBar { from{opacity:0.4} to{opacity:1} }
+        @keyframes jonaBar { from{opacity:0.4} to{opacity:1} }
         @keyframes greetPulse { 0%,100%{box-shadow:0 0 0 0 rgba(224,16,16,0.3)} 50%{box-shadow:0 0 0 6px rgba(224,16,16,0)} }
         @keyframes glowPulse { 0%,100%{box-shadow:0 0 8px rgba(224,16,16,0.4)} 50%{box-shadow:0 0 18px rgba(224,16,16,0.8)} }
       `}</style>

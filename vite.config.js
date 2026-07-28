@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_APP_URL_FAMILY':              JSON.stringify(env.VITE_APP_URL_FAMILY),
       'import.meta.env.VITE_APP_URL_SIPSWITCH':           JSON.stringify(env.VITE_APP_URL_SIPSWITCH),
       'import.meta.env.VITE_APP_URL_INNERKEY':            JSON.stringify(env.VITE_APP_URL_INNERKEY),
+      'import.meta.env.VITE_APP_URL_MONKEYS_UNLOCK':      JSON.stringify(env.VITE_APP_URL_MONKEYS_UNLOCK),
       'import.meta.env.VITE_ELEVENLABS_API_KEY':          JSON.stringify(env.VITE_ELEVENLABS_API_KEY),
       'import.meta.env.VITE_ELEVENLABS_VOICE_ID':         JSON.stringify(env.VITE_ELEVENLABS_VOICE_ID),
     },

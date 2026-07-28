@@ -1,7 +1,7 @@
 // Cloudflare Pages Function — ElevenLabs TTS proxy
-// Daniel voice — deep British male, Jarvis-style
+// Soft-spoken Canadian male — Jona's voice
 
-const VOICE_ID  = "onwK4e9ZLuTAKqWW03F9"; // Daniel
+const VOICE_ID  = "bBE6oKIBXZhM23o3YoXb";
 const MODEL_ID  = "eleven_monolingual_v1";
 const MAX_CHARS = 800; // cap to avoid runaway usage
 
@@ -14,7 +14,7 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return new Response("Bad request", { status: 400 }); }
 
-  const text = (body.text || "").slice(0, MAX_CHARS).trim();
+  const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return new Response("No text", { status: 400 });
 
   const res = await fetch(

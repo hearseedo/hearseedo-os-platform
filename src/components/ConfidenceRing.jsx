@@ -31,7 +31,9 @@ export default function ConfidenceRing({ score }) {
         }}
       >
         <span style={{ fontSize: 26, fontWeight: 800, color: COLORS.red }}>{score}%</span>
-        <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 600 }}>Amazing!</span>
+        <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 600 }}>
+          {score >= 80 ? "Amazing!" : score >= 60 ? "Great!" : score >= 40 ? "Growing!" : score >= 20 ? "Starting!" : "Begin!"}
+        </span>
       </div>
     </div>
   );

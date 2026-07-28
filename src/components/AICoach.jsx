@@ -16,7 +16,7 @@ function thisMonday() {
 const SESSION_TYPES = [
   { id: "vocab",    label: "Vocabulary Drill",   icon: "📖", desc: "Build and test your word bank",        color: "#4488ff" },
   { id: "speaking", label: "Speaking Practice",  icon: "🎤", desc: "Speak freely, get instant feedback",   color: COLORS.red },
-  { id: "grammar",  label: "Grammar Focus",      icon: "✏️", desc: "Fix common mistakes with Jarvis",      color: "#22c55e" },
+  { id: "grammar",  label: "Grammar Focus",      icon: "✏️", desc: "Fix common mistakes with Jona",      color: "#22c55e" },
   { id: "eiken",    label: "Eiken Prep",         icon: "📝", desc: "Exam-style questions & band scoring",  color: COLORS.gold },
 ];
 
@@ -75,9 +75,30 @@ Give a personalised Monday briefing in exactly this structure (use line breaks b
 1. One sentence acknowledging their week (reference their actual stats, be specific)
 2. THIS WEEK'S FOCUS: One clear focus area for the week (2 sentences max)
 3. YOUR CHALLENGE: One specific challenge to complete this week
-4. JARVIS SAYS: One motivational line in your JARVIS voice
+4. JONA SAYS: One motivational line in your JONA voice
 
 Keep the whole thing under 120 words. Sound human, not corporate.`;
+
+// ── ElevenLabs TTS ────────────────────────────────────────────────────────────
+async function playTTS(text, uid, onStart, onEnd) {
+  try {
+    onStart?.();
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.slice(0, 800), uid }),
+    });
+    if (!res.ok) { onEnd?.(); return; }
+    const buf  = await res.arrayBuffer();
+    const blob = new Blob([buf], { type: "audio/mpeg" });
+    const url  = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    audio.onerror = () => { onEnd?.(); URL.revokeObjectURL(url); };
+    await audio.play();
+    return audio;
+  } catch { onEnd?.(); }
+}
 
 export default function AICoach({ user }) {
   const [view, setView]               = useState("home");      // home | session | weekly
@@ -88,7 +109,25 @@ export default function AICoach({ user }) {
   const [weeklyData, setWeeklyData]   = useState(null);
   const [loadingWeekly, setLoadingWeekly] = useState(true);
   const [listening, setListening]     = useState(false);
+  const [ttsEnabled, setTtsEnabled]   = useState(true);
+  const [speaking, setSpeaking]       = useState(false);
+  const currentAudioRef               = useRef(null);
   const bottomRef                     = useRef(null);
+
+  const speak = (text) => {
+    if (!ttsEnabled || !user?.uid) return;
+    if (currentAudioRef.current) { currentAudioRef.current.pause(); setSpeaking(false); }
+    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false))
+      .then(a => { if (a) currentAudioRef.current = a; });
+  };
+
+  const stopSpeaking = () => {
+    if (currentAudioRef.current) { currentAudioRef.current.pause(); currentAudioRef.current = null; }
+    setSpeaking(false);
+  };
+
+  // Stop audio when leaving session
+  useEffect(() => { if (view !== "session") stopSpeaking(); }, [view]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -114,7 +153,7 @@ export default function AICoach({ user }) {
       setWeeklyData(data);
       if (user?.uid) await setDoc(doc(db, "users", user.uid, "weeklyCheckin", thisMonday()), data);
     } catch (e) {
-      setWeeklyData({ content: "Jarvis couldn't connect this week — try again in a moment.", week: thisMonday(), generatedAt: Date.now() });
+      setWeeklyData({ content: "Jona couldn't connect this week — try again in a moment.", week: thisMonday(), generatedAt: Date.now() });
     }
     setLoadingWeekly(false);
   };
@@ -135,7 +174,9 @@ export default function AICoach({ user }) {
           plan:     user?.plan ?? "individual",
         }),
       }).then((r) => r.json());
-      setMessages([{ role: "assistant", text: reply.content }]);
+      const text = reply.content;
+      setMessages([{ role: "assistant", text }]);
+      speak(text);
     } catch {
       setMessages([{ role: "assistant", text: "I'm having trouble connecting. Try again in a moment." }]);
     }
@@ -160,7 +201,9 @@ export default function AICoach({ user }) {
           plan:     user?.plan ?? "individual",
         }),
       }).then((r) => r.json());
-      setMessages([...next, { role: "assistant", text: reply.content }]);
+      const replyText = reply.content;
+      setMessages([...next, { role: "assistant", text: replyText }]);
+      speak(replyText);
     } catch {
       setMessages([...next, { role: "assistant", text: "Connection issue — try again." }]);
     }
@@ -190,9 +233,23 @@ export default function AICoach({ user }) {
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{sessionType.label}</div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted }}>with Jarvis · session active</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>with Jona · session active</div>
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            {speaking && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{ width: 3, borderRadius: 2, background: COLORS.red, animation: `soundbar 0.8s ${i*0.15}s ease-in-out infinite alternate`, height: 6 + i * 4 }} />
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => { setTtsEnabled(v => !v); if (speaking) stopSpeaking(); }}
+              title={ttsEnabled ? "Mute Jona" : "Unmute Jona"}
+              style={{ background: ttsEnabled ? "rgba(224,16,16,0.15)" : "#1a1a1a", border: `1px solid ${ttsEnabled ? "rgba(224,16,16,0.4)" : "#333"}`, borderRadius: 20, padding: "4px 10px", color: ttsEnabled ? COLORS.red : COLORS.textMuted, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+            >
+              {ttsEnabled ? "🔊" : "🔇"}
+            </button>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.success, animation: "pulse 2s ease-in-out infinite" }} />
             <span style={{ fontSize: 11, color: COLORS.success }}>Live</span>
           </div>
@@ -210,9 +267,12 @@ export default function AICoach({ user }) {
                 fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", animation: "fadeIn 0.2s ease",
               }}>
                 {m.role === "assistant" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <img src="/assets/jarvis.png" alt="Jarvis" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
-                    <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>JARVIS</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <img src="/assets/jona.png" alt="Jona" style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
+                      <span style={{ fontSize: 10, color: COLORS.red, fontWeight: 700, letterSpacing: 1 }}>JONA</span>
+                    </div>
+                    <button onClick={() => speak(m.text)} title="Replay" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.textDim, padding: "0 4px", opacity: 0.6 }}>🔊</button>
                   </div>
                 )}
                 {m.text}
@@ -236,7 +296,7 @@ export default function AICoach({ user }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Reply to Jarvis…"
+              placeholder="Reply to Jona…"
               style={{ flex: 1, background: "none", border: "none", color: COLORS.text, fontSize: 13, padding: "8px 0" }}
             />
             <button onClick={() => send()} style={{ background: "none", border: "none", color: COLORS.red, cursor: "pointer", fontSize: 16 }}>➤</button>
@@ -247,7 +307,7 @@ export default function AICoach({ user }) {
           >🎤</button>
         </div>
 
-        <style>{`@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        <style>{`@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}} @keyframes soundbar{from{transform:scaleY(0.4)}to{transform:scaleY(1.6)}}`}</style>
       </div>
     );
   }
@@ -262,10 +322,10 @@ export default function AICoach({ user }) {
       {/* Weekly check-in card */}
       <div style={{ background: COLORS.card, border: `1px solid ${weeklyData ? "rgba(34,197,94,0.25)" : "#1e1e1e"}`, borderRadius: 14, padding: 20, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <img src="/assets/jarvis.png" alt="Jarvis" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 8px rgba(224,16,16,0.5))" }} />
+          <img src="/assets/jona.png" alt="Jona" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", filter: "drop-shadow(0 0 8px rgba(224,16,16,0.5))" }} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>Monday Check-In</div>
-            <div style={{ fontSize: 11, color: COLORS.textMuted }}>Jarvis reviews your week and sets your focus</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted }}>Jona reviews your week and sets your focus</div>
           </div>
           {weeklyData && <span style={{ marginLeft: "auto", fontSize: 10, color: COLORS.success, fontWeight: 700, border: "1px solid rgba(34,197,94,0.3)", padding: "3px 8px", borderRadius: 20 }}>THIS WEEK</span>}
         </div>
@@ -279,7 +339,7 @@ export default function AICoach({ user }) {
         ) : (
           <div>
             <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 12 }}>
-              {isMonday ? `It's Monday, ${firstName}. Let Jarvis review your week and set your focus.` : `Your next check-in is this Monday. Come back then for your weekly briefing.`}
+              {isMonday ? `It's Monday, ${firstName}. Let Jona review your week and set your focus.` : `Your next check-in is this Monday. Come back then for your weekly briefing.`}
             </div>
             {isMonday && (
               <button

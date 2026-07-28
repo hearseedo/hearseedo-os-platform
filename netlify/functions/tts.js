@@ -1,10 +1,33 @@
 // Netlify Function — ElevenLabs TTS proxy
-const VOICE_ID = "onwK4e9ZLuTAKqWW03F9"; // Daniel — deep British male
-const MODEL_ID = "eleven_monolingual_v1";
-const MAX_CHARS = 800;
+const VOICE_ID     = "bBE6oKIBXZhM23o3YoXb"; // soft-spoken Canadian male — Jona's voice
+const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
+const MAX_CHARS    = 1200;
+const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
+const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+
+function todayJST() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+}
+
+async function isKilled(service) {
+  try {
+    const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
+    if (!r.ok) return false;
+    const doc = await r.json();
+    const f   = doc.fields ?? {};
+    if (f.allEnabled?.booleanValue === false)                    return true;
+    if (service && f[`${service}Enabled`]?.booleanValue === false) return true;
+    return false;
+  } catch { return false; }
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
+
+  if (await isKilled("elevenLabs")) {
+    return { statusCode: 503, body: JSON.stringify({ error: "Voice features temporarily paused." }) };
+  }
 
   const API_KEY = process.env.ELEVENLABS_API_KEY;
   if (!API_KEY) return { statusCode: 503, body: "TTS not configured" };
@@ -13,7 +36,10 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || "{}"); }
   catch { return { statusCode: 400, body: "Bad request" }; }
 
-  const text = (body.text || "").slice(0, MAX_CHARS).trim();
+  const uid  = body.uid || body.sso_token;
+  if (!uid) return { statusCode: 401, body: "Unauthorized" };
+
+  const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
 
   const res = await fetch(
@@ -40,6 +66,23 @@ exports.handler = async (event) => {
   }
 
   const buf = await res.arrayBuffer();
+
+  // Fire-and-forget: log TTS usage to Firestore for cost tracking
+  const today = todayJST();
+  fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit?key=${FIREBASE_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      writes: [{ transform: {
+        document: `projects/${PROJECT_ID}/databases/(default)/documents/apiCosts/${today}`,
+        fieldTransforms: [
+          { fieldPath: "ttsCalls", increment: { integerValue: "1" } },
+          { fieldPath: "ttsChars", increment: { integerValue: String(text.length) } },
+        ],
+      }}],
+    }),
+  }).catch(() => {});
+
   return {
     statusCode: 200,
     headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },

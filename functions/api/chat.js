@@ -2,10 +2,12 @@
 // Replaces: netlify/functions/chat.js
 
 const PLAN_LIMITS = {
-  free: 5, individual: 5,
-  phonics: 15, eiken: 15, sipswitch: 15, speak: 15, innerkey: 15,
+  free: 5,
+  individual: 50, family: 100, "university-bundle": 150, organization: 999,
+  "career-ready": 30, "global-ready": 30, "speak-ready": 30, "sip-speak-learn": 30,
+  phonics: 15, eiken: 15, sipswitch: 15, speak: 15, innerkey: 15, wondercamp: 15,
   kids_starter: 30, english_boost: 30, adult_growth: 30, family_full: 30, adult_complete: 30,
-  all_access: 100,
+  family_core: 30, family_plus: 60, family_premium: 100, all_access: 100,
 };
 
 const CORS = {
@@ -14,8 +16,8 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-function todayJST() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+function thisMonthJST() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }).slice(0, 7);
 }
 
 async function sha1(str) {
@@ -51,7 +53,7 @@ async function firestoreIncrement(projectId, apiKey, path, field) {
 
 async function getUsageCount(projectId, apiKey, uid) {
   const res = await fetch(
-    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}/chatUsage/${todayJST()}?key=${apiKey}`
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}/chatUsage/${thisMonthJST()}?key=${apiKey}`
   );
   if (!res.ok) return 0;
   const doc = await res.json();
@@ -226,10 +228,8 @@ export async function onRequestPost(context) {
         const count = await getUsageCount(PROJECT_ID, FIREBASE_KEY, uid);
         if (count >= limit) {
           return new Response(JSON.stringify({
-            error: "daily_limit_reached", count, limit,
-            message: plan === "all_access"
-              ? "You've reached today's message limit. Resets at midnight Japan time."
-              : `You've used all ${limit} messages for today. Upgrade for more conversations.`,
+            error: "monthly_limit_reached", count, limit,
+            message: "You've made fantastic progress this month. Your AI coaching sessions have been fully used. Your allowance renews on the 1st.",
           }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
         }
       }
@@ -241,7 +241,7 @@ export async function onRequestPost(context) {
   const cached = await getCachedAI(PROJECT_ID, FIREBASE_KEY, hash);
   if (cached) {
     if (uid) {
-      firestoreIncrement(PROJECT_ID, FIREBASE_KEY, `/users/${uid}/chatUsage/${todayJST()}`, "count");
+      firestoreIncrement(PROJECT_ID, FIREBASE_KEY, `/users/${uid}/chatUsage/${thisMonthJST()}`, "count");
       const lastUserMsg = (messages || []).filter(m => m.role === "user").slice(-1)[0]?.content ?? "";
       saveLearnerIntelligence(PROJECT_ID, FIREBASE_KEY, uid, lastUserMsg, appId);
     }
@@ -296,7 +296,7 @@ export async function onRequestPost(context) {
     }
 
     if (uid) {
-      firestoreIncrement(PROJECT_ID, FIREBASE_KEY, `/users/${uid}/chatUsage/${todayJST()}`, "count");
+      firestoreIncrement(PROJECT_ID, FIREBASE_KEY, `/users/${uid}/chatUsage/${thisMonthJST()}`, "count");
       const lastUserMsg = (messages || []).filter(m => m.role === "user").slice(-1)[0]?.content ?? "";
       saveLearnerIntelligence(PROJECT_ID, FIREBASE_KEY, uid, lastUserMsg, appId);
     }

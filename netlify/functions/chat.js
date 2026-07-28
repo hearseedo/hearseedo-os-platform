@@ -1,30 +1,34 @@
-const Anthropic = require("@anthropic-ai/sdk");
-const crypto    = require("crypto");
+const crypto = require("crypto");
 
-const PROJECT_ID    = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
-const FIREBASE_KEY  = process.env.FIREBASE_API_KEY    || "";
-const FS_BASE       = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+const MODEL      = "gemini-2.5-flash";
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+const FIREBASE_KEY = process.env.FIREBASE_API_KEY  || "";
+const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const PLAN_LIMITS = {
-  free:          5,
-  individual:    5,
+  // Active plans
+  free:           5,
+  individual:    50,
+  family:       100,
+  // Legacy plans (existing subscribers)
   phonics:       15,
   eiken:         15,
   sipswitch:     15,
   speak:         15,
   innerkey:      15,
+  wondercamp:    15,
   kids_starter:  30,
   english_boost: 30,
   adult_growth:  30,
-  family_full:   30,
   adult_complete:30,
-  all_access:    100,
+  family_core:   30,
+  family_plus:   60,
+  family_premium:100,
+  all_access:   100,
 };
 
 // ── In-memory rate limit cache ─────────────────────────────────────────────
-// Eliminates 2 Firestore ops per message. Persists for the lifetime of the
-// Lambda instance (~15 min). Falls back to Firestore on cold start.
-const memCache = new Map(); // key: `${uid}:${date}` → count
+const memCache = new Map();
 
 function todayJST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -35,55 +39,48 @@ function memKey(uid) { return `${uid}:${todayJST()}`; }
 async function getCount(uid) {
   const key = memKey(uid);
   if (memCache.has(key)) return memCache.get(key);
-
-  // Cold start — read from Firestore once, then cache
   try {
-    const res  = await fetch(`${FS_BASE}/users/${uid}/chatUsage/${todayJST()}?key=${FIREBASE_KEY}`);
+    const res = await fetch(`${FS_BASE}/users/${uid}/chatUsage/${todayJST()}?key=${FIREBASE_KEY}`);
     if (res.status === 404) { memCache.set(key, 0); return 0; }
     const doc  = await res.json();
     const count = parseInt(doc.fields?.count?.integerValue ?? "0", 10);
     memCache.set(key, count);
     return count;
-  } catch {
-    return 0;
-  }
+  } catch { return 0; }
 }
 
 async function incrementCount(uid) {
-  const key   = memKey(uid);
-  const next  = (memCache.get(key) ?? 0) + 1;
+  const key  = memKey(uid);
+  const next = (memCache.get(key) ?? 0) + 1;
   memCache.set(key, next);
 
-  // Write to Firestore async — don't await, don't block the response
-  fetch(`${FS_BASE}/users/${uid}/chatUsage/${todayJST()}?key=${FIREBASE_KEY}`, {
+  const COMMIT = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit?key=${FIREBASE_KEY}`;
+  fetch(COMMIT, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-HTTP-Method-Override": "PATCH" },
-  }).catch(() => {});
-
-  // Atomic increment via Firestore field transform
-  fetch(
-    `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/chatUsage/${todayJST()}:commit?key=${FIREBASE_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        writes: [{
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      writes: [
+        {
           transform: {
             document: `projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/chatUsage/${todayJST()}`,
             fieldTransforms: [{ fieldPath: "count", increment: { integerValue: "1" } }],
           },
-        }],
-      }),
-    }
-  ).catch(() => {});
-
+        },
+        {
+          transform: {
+            document: `projects/${PROJECT_ID}/databases/(default)/documents/analytics/platform`,
+            fieldTransforms: [{ fieldPath: "totalAIMessages", increment: { integerValue: "1" } }],
+          },
+        },
+      ],
+    }),
+  }).catch(() => {});
   return next;
 }
 
 // ── AI response cache ──────────────────────────────────────────────────────
-// Cache common Q&A in Firestore. 40% token reduction at scale.
 function hashMessages(system, messages) {
-  const str = system + JSON.stringify(messages.slice(-2)); // last 2 turns
+  const str = system + JSON.stringify(messages.slice(-2));
   return crypto.createHash("sha1").update(str).digest("hex").slice(0, 16);
 }
 
@@ -93,13 +90,13 @@ async function getCachedResponse(hash) {
     if (!res.ok) return null;
     const doc = await res.json();
     const ttl = parseInt(doc.fields?.ttl?.integerValue ?? "0", 10);
-    if (Date.now() > ttl) return null; // expired
+    if (Date.now() > ttl) return null;
     return doc.fields?.response?.stringValue ?? null;
   } catch { return null; }
 }
 
 async function setCachedResponse(hash, response) {
-  const ttl = Date.now() + 24 * 60 * 60 * 1000; // 24h TTL
+  const ttl = Date.now() + 24 * 60 * 60 * 1000;
   fetch(`${FS_BASE}/aiCache/${hash}?updateMask.fieldPaths=response&updateMask.fieldPaths=ttl&key=${FIREBASE_KEY}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -123,15 +120,52 @@ async function verifyIdToken(idToken) {
   return data.users?.[0] ?? null;
 }
 
+// ── Convert Claude-format messages → Gemini contents ──────────────────────
+// Frontend sends {role:"user"|"assistant", content:"..."} — map to Gemini shape.
+// Gemini requires alternating user/model turns with no consecutive same roles.
+function toGeminiContents(messages) {
+  const contents = [];
+  for (const m of messages) {
+    if (m.role !== "user" && m.role !== "assistant") continue;
+    const role = m.role === "assistant" ? "model" : "user";
+    const text = typeof m.content === "string" ? m.content : "";
+    // Merge consecutive same-role messages to satisfy Gemini's alternation rule
+    if (contents.length > 0 && contents[contents.length - 1].role === role) {
+      contents[contents.length - 1].parts[0].text += "\n" + text;
+    } else {
+      contents.push({ role, parts: [{ text }] });
+    }
+  }
+  // Gemini requires the first turn to be "user"
+  if (contents.length > 0 && contents[0].role === "model") contents.shift();
+  return contents;
+}
+
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+async function isKilled(service) {
+  try {
+    const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
+    if (!r.ok) return false;
+    const doc = await r.json();
+    const f   = doc.fields ?? {};
+    if (f.allEnabled?.booleanValue === false)                      return true;
+    if (service && f[`${service}Enabled`]?.booleanValue === false) return true;
+    return false;
+  } catch { return false; }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
+
+  if (await isKilled("gemini")) {
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "AI features are temporarily paused." }) };
+  }
 
   let body;
   try { body = JSON.parse(event.body); }
@@ -139,41 +173,47 @@ exports.handler = async (event) => {
 
   const { system, messages, idToken, plan = "free" } = body;
 
-  // ── Auth + rate limit ──────────────────────────────────────────────────
-  let uid = null;
-  if (idToken) {
-    try {
-      const firebaseUser = await verifyIdToken(idToken);
-      if (firebaseUser) {
-        uid = firebaseUser.localId;
-        const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
-        const count = await getCount(uid);
-
-        if (count >= limit) {
-          return {
-            statusCode: 429,
-            headers: { ...CORS, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              error:   "daily_limit_reached",
-              count, limit,
-              message: plan === "all_access"
-                ? "You've reached today's message limit. Resets at midnight Japan time."
-                : `You've used all ${limit} messages for today. Upgrade for more daily conversations.`,
-            }),
-          };
-        }
-      }
-    } catch (e) {
-      console.error("Auth/rate-limit error:", e.message);
-      // Fail open — don't block legitimate users on auth errors
-    }
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array is required" }) };
   }
 
-  // ── AI cache check ─────────────────────────────────────────────────────
+  // ── Auth + rate limit ──────────────────────────────────────────────────
+  if (!idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+
+  let uid = null;
+  try {
+    const firebaseUser = await verifyIdToken(idToken);
+    if (!firebaseUser) {
+      return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid session. Please sign in again." }) };
+    }
+    uid = firebaseUser.localId;
+    const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+    const count = await getCount(uid);
+
+    if (count >= limit) {
+      return {
+        statusCode: 429,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error:   "daily_limit_reached",
+          count, limit,
+          message: plan === "all_access"
+            ? "You've reached today's message limit. Resets at midnight Japan time."
+            : `You've used all ${limit} messages for today. Upgrade for more daily conversations.`,
+        }),
+      };
+    }
+  } catch (e) {
+    console.error("Auth/rate-limit error:", e.message);
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication failed. Please sign in again." }) };
+  }
+
+  // ── Cache check ────────────────────────────────────────────────────────
   const cacheHash = hashMessages(system || "", messages || []);
   const cached    = await getCachedResponse(cacheHash);
   if (cached) {
-    // Cache hit — increment counter but skip Claude API entirely
     if (uid) await incrementCount(uid);
     return {
       statusCode: 200,
@@ -182,20 +222,78 @@ exports.handler = async (event) => {
     };
   }
 
-  // ── Claude API ─────────────────────────────────────────────────────────
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // ── Gemini API ─────────────────────────────────────────────────────────
+  const API_KEY = process.env.GEMINI_API_KEY;
+  if (!API_KEY) {
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "AI service not configured." }) };
+  }
 
   try {
-    const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 512,
-      system:     system || "You are Jarvis, the HSD OS AI English learning assistant.",
-      messages:   messages || [],
-    });
+    const geminiBody = {
+      contents: toGeminiContents(messages),
+      generationConfig: { temperature: 0.9, maxOutputTokens: 512 },
+    };
+    if (system) {
+      geminiBody.systemInstruction = { parts: [{ text: system }] };
+    }
 
-    const text = response.content[0].text;
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(geminiBody) }
+    );
 
-    // Increment counter and cache response (both non-blocking)
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Gemini chat error:", res.status, err);
+      return {
+        statusCode: 502,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "AI service temporarily unavailable. Please try again." }),
+      };
+    }
+
+    const data  = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const text  = (parts.find(p => !p.thought) ?? parts[0])?.text ?? "";
+
+    if (!text) {
+      console.error("Gemini chat: empty candidate", JSON.stringify(data));
+      return {
+        statusCode: 502,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Empty response from AI. Please try again." }),
+      };
+    }
+
+    console.log("GEMINI_JONA_CHAT_GENERATED", JSON.stringify({
+      model:        MODEL,
+      uid,
+      plan,
+      inputTokens:  data.usageMetadata?.promptTokenCount,
+      outputTokens: data.usageMetadata?.candidatesTokenCount,
+      cached:       false,
+    }));
+
+    // Persist to Firestore for permanent judge-verifiable evidence
+    if (uid && FIREBASE_KEY) {
+      fetch(`${FS_BASE}/geminiActivity?key=${FIREBASE_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fields: {
+            fn:          { stringValue: "jona-chat" },
+            uid:         { stringValue: uid },
+            model:       { stringValue: MODEL },
+            plan:        { stringValue: plan },
+            inputTokens: { integerValue: String(data.usageMetadata?.promptTokenCount ?? 0) },
+            outputTokens:{ integerValue: String(data.usageMetadata?.candidatesTokenCount ?? 0) },
+            timestamp:   { integerValue: String(Date.now()) },
+            date:        { stringValue: todayJST() },
+          },
+        }),
+      }).catch(() => {});
+    }
+
     if (uid) incrementCount(uid);
     setCachedResponse(cacheHash, text);
 
@@ -205,7 +303,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ content: text }),
     };
   } catch (err) {
-    console.error("Claude error:", err.message);
+    console.error("Gemini chat error:", err.message);
     return {
       statusCode: 500,
       headers: { ...CORS, "Content-Type": "application/json" },

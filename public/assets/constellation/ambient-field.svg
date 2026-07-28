@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440" role="img" aria-labelledby="title desc">
+  <title id="title">HSDOS ambient constellation field</title>
+  <desc id="desc">A sparse transparent field of drifting stars and incomplete Living Blueprint constellations with quiet space for interface content.</desc>
+  <defs>
+    <radialGradient id="whiteStar" cx="50%" cy="44%" r="60%">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset=".34" stop-color="#D9EDFF"/>
+      <stop offset="1" stop-color="#739BC3"/>
+    </radialGradient>
+    <radialGradient id="warmStar" cx="50%" cy="44%" r="60%">
+      <stop offset="0" stop-color="#FFF8E1"/>
+      <stop offset=".38" stop-color="#E9B95F"/>
+      <stop offset="1" stop-color="#9A6A2D"/>
+    </radialGradient>
+    <linearGradient id="coolPath" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#31577E"/>
+      <stop offset=".5" stop-color="#78A8D8"/>
+      <stop offset="1" stop-color="#31577E"/>
+    </linearGradient>
+    <filter id="softBlue" x="-300%" y="-300%" width="700%" height="700%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGold" x="-300%" y="-300%" width="700%" height="700%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      #far-stars { animation:farDrift 34s ease-in-out infinite alternate; }
+      #mid-stars { animation:midDrift 24s ease-in-out infinite alternate; }
+      #constellation-paths { animation:pathDrift 42s ease-in-out infinite alternate; }
+      .twinkle { transform-box:fill-box; transform-origin:center; animation:twinkle 8s ease-in-out infinite; }
+      .twinkle.t2 { animation-delay:-3.2s; } .twinkle.t3 { animation-delay:-5.7s; }
+      .signal { opacity:0; animation:signalWindow 18s ease-in-out infinite; }
+      @keyframes farDrift { from {transform:translate(-7px,-3px)} to {transform:translate(9px,5px)} }
+      @keyframes midDrift { from {transform:translate(8px,-5px)} to {transform:translate(-11px,8px)} }
+      @keyframes pathDrift { from {transform:translate(-4px,2px)} to {transform:translate(5px,-3px)} }
+      @keyframes twinkle { 0%,38%,62%,100% {opacity:.48; transform:scale(.92)} 50% {opacity:.9; transform:scale(1.12)} }
+      @keyframes signalWindow { 0%,68%,100% {opacity:0} 74%,86% {opacity:1} 92% {opacity:0} }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation:none !important; }
+        .signal { display:none; }
+      }
+    </style>
+  </defs>
+
+  <!-- FAR LAYER: tiny spatial depth, never competes with content -->
+  <g id="far-stars" fill="#B8D4EE">
+    <g opacity=".18">
+      <circle cx="72" cy="126" r="1.4"/><circle cx="143" cy="371" r="1.2"/><circle cx="227" cy="1024" r="1.3"/>
+      <circle cx="352" cy="813" r="1.1"/><circle cx="428" cy="132" r="1.4"/><circle cx="517" cy="1233" r="1.2"/>
+      <circle cx="642" cy="226" r="1.1"/><circle cx="741" cy="1195" r="1.4"/><circle cx="833" cy="92" r="1.3"/>
+      <circle cx="927" cy="1328" r="1.1"/><circle cx="1041" cy="184" r="1.2"/><circle cx="1168" cy="1259" r="1.4"/>
+      <circle cx="1306" cy="91" r="1.1"/><circle cx="1421" cy="1322" r="1.3"/><circle cx="1534" cy="172" r="1.2"/>
+      <circle cx="1658" cy="1284" r="1.1"/><circle cx="1779" cy="116" r="1.4"/><circle cx="1884" cy="1334" r="1.2"/>
+      <circle cx="1997" cy="191" r="1.3"/><circle cx="2102" cy="1237" r="1.1"/><circle cx="2214" cy="92" r="1.2"/>
+      <circle cx="2318" cy="1175" r="1.4"/><circle cx="2441" cy="236" r="1.2"/><circle cx="2509" cy="901" r="1.1"/>
+      <circle cx="108" cy="683" r="1.2"/><circle cx="296" cy="484" r="1.1"/><circle cx="492" cy="628" r="1.3"/>
+      <circle cx="2024" cy="533" r="1.2"/><circle cx="2247" cy="684" r="1.1"/><circle cx="2462" cy="489" r="1.3"/>
+      <circle cx="891" cy="409" r="1.1"/><circle cx="1712" cy="392" r="1.2"/><circle cx="916" cy="1040" r="1.2"/>
+      <circle cx="1678" cy="1078" r="1.1"/>
+    </g>
+  </g>
+
+  <!-- MID LAYER: sparse readable stars, still peripheral -->
+  <g id="mid-stars">
+    <g fill="url(#whiteStar)" filter="url(#softBlue)">
+      <circle class="twinkle" cx="188" cy="248" r="3.2"/>
+      <circle class="twinkle t2" cx="462" cy="947" r="2.8"/>
+      <circle class="twinkle t3" cx="723" cy="156" r="2.7"/>
+      <circle class="twinkle t2" cx="1868" cy="211" r="3"/>
+      <circle class="twinkle" cx="2218" cy="862" r="3.1"/>
+      <circle class="twinkle t3" cx="2416" cy="354" r="2.7"/>
+      <circle class="twinkle t2" cx="2021" cy="1198" r="2.8"/>
+      <circle class="twinkle" cx="702" cy="1272" r="2.8"/>
+    </g>
+    <g fill="#D9EDFF" opacity=".52">
+      <path d="M336 190 h18 M345 181 v18" stroke="#D9EDFF" stroke-width="1"/>
+      <path d="M2351 1092 h18 M2360 1083 v18" stroke="#D9EDFF" stroke-width="1"/>
+      <path d="M156 1161 h14 M163 1154 v14" stroke="#D9EDFF" stroke-width=".9"/>
+      <path d="M2325 154 h14 M2332 147 v14" stroke="#D9EDFF" stroke-width=".9"/>
+    </g>
+  </g>
+
+  <!-- CONSTELLATION LAYER: incomplete perimeter structures; central UI remains open -->
+  <g id="constellation-paths" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="url(#coolPath)" stroke-width="1.35" opacity=".48">
+      <path d="M86 424 C178 361 254 384 338 321 C407 270 484 292 564 231"/>
+      <path d="M1990 185 C2074 243 2162 217 2238 282 C2306 339 2383 316 2481 394"/>
+      <path d="M38 1048 C152 1002 238 1054 324 996 C391 951 448 974 516 932"/>
+      <path d="M2056 1118 C2140 1061 2228 1107 2305 1052 C2371 1005 2437 1023 2532 954"/>
+    </g>
+    <g stroke="#466D95" stroke-width=".9" opacity=".25" stroke-dasharray="7 11">
+      <path d="M221 494 C274 438 344 442 394 389"/>
+      <path d="M2175 954 C2230 903 2291 917 2345 861"/>
+      <path d="M1986 298 C2057 351 2122 349 2187 403"/>
+    </g>
+    <g fill="#D9EDFF" stroke="#729DC7" stroke-width="1">
+      <circle cx="86" cy="424" r="3.1"/><circle cx="338" cy="321" r="3.8"/><circle cx="564" cy="231" r="3"/>
+      <circle cx="1990" cy="185" r="3"/><circle cx="2238" cy="282" r="3.8"/><circle cx="2481" cy="394" r="3.1"/>
+      <circle cx="38" cy="1048" r="3"/><circle cx="324" cy="996" r="3.8"/><circle cx="516" cy="932" r="3"/>
+      <circle cx="2056" cy="1118" r="3"/><circle cx="2305" cy="1052" r="3.8"/><circle cx="2532" cy="954" r="3"/>
+    </g>
+    <g stroke="#719AC2" stroke-width=".8" opacity=".36">
+      <circle cx="338" cy="321" r="14"/><path d="M321 321h34M338 304v34"/>
+      <circle cx="2238" cy="282" r="14"/><path d="M2221 282h34M2238 265v34"/>
+      <circle cx="324" cy="996" r="14"/><path d="M307 996h34M324 979v34"/>
+      <circle cx="2305" cy="1052" r="14"/><path d="M2288 1052h34M2305 1035v34"/>
+    </g>
+    <!-- Only three warm activation accents, all at the perimeter -->
+    <g fill="url(#warmStar)" stroke="#C99742" stroke-width="1" filter="url(#softGold)">
+      <circle cx="564" cy="231" r="4.2"/>
+      <circle cx="38" cy="1048" r="3.8"/>
+      <circle cx="2305" cy="1052" r="4.1"/>
+    </g>
+    <!-- One occasional signal, hidden in reduced-motion mode -->
+    <circle class="signal" r="4.5" fill="#FFF8E1" stroke="#D6A54C" stroke-width="1.4" filter="url(#softGold)">
+      <animateMotion dur="3s" repeatCount="indefinite" path="M1990 185 C2074 243 2162 217 2238 282 C2306 339 2383 316 2481 394"/>
+    </circle>
+  </g>
+</svg>
