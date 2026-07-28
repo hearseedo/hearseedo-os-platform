@@ -4,6 +4,14 @@ import { useMobile } from "../../hooks/useMobile";
 import { confidenceLabel } from "../../lib/confidenceEngine";
 import { getTodaysRecommendation } from "./recommendation";
 
+// Confidence color scale — reused for both the ring around each member's
+// orb and their badge, so the color always means the same thing.
+function confidenceColor(score) {
+  if (score >= 70) return TOKENS.color.gold;
+  if (score >= 40) return TOKENS.worldAccent["global-ready"];
+  return TOKENS.color.textMuted;
+}
+
 function timeAwareGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -29,10 +37,7 @@ export default function FamilyHome({ user }) {
 
   return (
     <div>
-      <div style={{ marginBottom: TOKENS.space[5] }}>
-        <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted }}>{timeAwareGreeting()}</div>
-        <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>{user?.name ? `${user.name}'s Family` : "Your Family"}</h1>
-      </div>
+      <JonaFamilyBanner greeting={timeAwareGreeting()} familyName={user?.name ? `${user.name}'s Family` : "Your Family"} />
 
       {members.length === 0 ? (
         <div style={{
@@ -85,6 +90,54 @@ export default function FamilyHome({ user }) {
   );
 }
 
+// Large torso-up Jona over the family-hero art, with a slight talking bob —
+// CSS animation on the already-transparent pose-talking.png, not a
+// composited/layered mouth swap (no alignment data for that). Respects
+// prefers-reduced-motion.
+function JonaFamilyBanner({ greeting, familyName }) {
+  return (
+    <div style={{
+      position: "relative", borderRadius: TOKENS.radius.xl, overflow: "hidden",
+      border: `1px solid ${TOKENS.color.border}`, marginBottom: TOKENS.space[5],
+      minHeight: 240, display: "flex", alignItems: "flex-end",
+    }}>
+      <style>{`
+        @keyframes jonaTalkBob {
+          0%,100% { transform: translateX(-50%) translateY(0) scale(1); }
+          50%     { transform: translateX(-50%) translateY(-4px) scale(1.015); }
+        }
+        .jona-family-talk { animation: jonaTalkBob 2.6s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .jona-family-talk { animation: none; } }
+      `}</style>
+      <img src="/assets/worlds/family-hero.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(5,6,8,0.92) 0%, rgba(5,6,8,0.55) 45%, rgba(5,6,8,0.15) 100%)" }} />
+
+      <div style={{ position: "relative", padding: TOKENS.space[5], display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%", gap: TOKENS.space[4] }}>
+        <div>
+          <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, marginBottom: 4 }}>{greeting}</div>
+          <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, marginBottom: 6 }}>{familyName}</h1>
+          <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted, maxWidth: 320 }}>
+            "Hi, I'm Jona — here's how everyone's doing today."
+          </div>
+        </div>
+
+        <div style={{ width: 260, height: 320, overflow: "hidden", position: "relative", flexShrink: 0, marginBottom: -32 }}>
+          <img
+            src="/assets/jona/pose-talking.png"
+            alt="Jona"
+            className="jona-family-talk"
+            style={{
+              position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+              width: 388, height: "auto",
+              filter: "drop-shadow(0 12px 24px rgba(0,0,0,0.5))",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SummaryTile({ label, value, sub }) {
   return (
     <div style={{ flex: 1, minWidth: 140, padding: TOKENS.space[4], borderRadius: TOKENS.radius.lg, border: `1px solid ${TOKENS.color.border}`, background: TOKENS.color.surfaceRaised }}>
@@ -96,6 +149,11 @@ function SummaryTile({ label, value, sub }) {
 }
 
 function MemberOrb({ member, selected, onClick }) {
+  const score = member.confidenceScore ?? 0;
+  const color = confidenceColor(score);
+  const r = 27, circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+
   return (
     <button
       onClick={onClick}
@@ -105,16 +163,40 @@ function MemberOrb({ member, selected, onClick }) {
         background: "transparent", border: "none", cursor: "pointer", zIndex: 1, position: "relative",
       }}
     >
-      <div style={{
-        width: 54, height: 54, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-        background: TOKENS.color.surfaceRaised, border: `2px solid ${selected ? TOKENS.color.gold : TOKENS.color.border}`,
-        fontWeight: 700, boxShadow: selected ? TOKENS.shadow.glow : "none",
-      }}>
-        {member.name?.slice(0, 1).toUpperCase()}
+      <div style={{ position: "relative", width: 60, height: 60 }}>
+        <svg width={60} height={60} viewBox="0 0 60 60" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+          <circle cx={30} cy={30} r={r} fill="none" stroke={TOKENS.color.border} strokeWidth={3} />
+          <circle
+            cx={30} cy={30} r={r} fill="none" stroke={color} strokeWidth={3} strokeLinecap="round"
+            strokeDasharray={`${dash} ${circ - dash}`}
+          />
+        </svg>
+        <div style={{
+          position: "absolute", inset: 3, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+          background: TOKENS.color.surfaceRaised, border: `1px solid ${selected ? TOKENS.color.gold : "transparent"}`,
+          fontWeight: 700, boxShadow: selected ? TOKENS.shadow.glow : "none",
+        }}>
+          {member.name?.slice(0, 1).toUpperCase()}
+        </div>
       </div>
       <div style={{ fontSize: TOKENS.font.size.xs, fontWeight: 600 }}>{member.name}</div>
-      <div style={{ fontSize: 10, color: TOKENS.color.textDim }}>{member.confidenceScore ?? 0}% confidence</div>
+      <ConfidenceBadge score={score} color={color} />
     </button>
+  );
+}
+
+// The "confidence badge" — a compact chip, not a fabricated icon asset (no
+// dedicated confidence-badge art exists anywhere in the visuals folder).
+// Color + label are real, derived from the same confidenceScore/
+// confidenceLabel used throughout the rest of the app.
+function ConfidenceBadge({ score, color }) {
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, color, background: `${color}18`,
+      border: `1px solid ${color}40`, borderRadius: TOKENS.radius.pill, padding: "2px 8px",
+    }}>
+      {confidenceLabel(score)}
+    </span>
   );
 }
 
