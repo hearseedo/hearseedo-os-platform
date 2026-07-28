@@ -7,6 +7,7 @@ import { useSubscription } from "../hooks/useSubscription";
 import AppShell from "./components/AppShell";
 import WorldCard from "./components/WorldCard";
 import { getWorldAccess } from "./home/worldAccess";
+import { getWorldProgress } from "./home/worldProgress";
 
 // Phase 4 — Explore Your Worlds. Originally split into "six curated Worlds"
 // + a flat "More Experiences" grid; reorganized into simple audience
@@ -29,7 +30,8 @@ export default function PreviewShell() {
           Hi{user?.name ? `, ${user.name}` : ""} — Explore Your Worlds
         </h1>
         <p style={{ color: TOKENS.color.textMuted, marginTop: 4 }}>
-          Access reflects your real plan. Progress bars aren't wired to real data yet.
+          Access reflects your real plan. Progress bars show real practice history for Speak/Global/Career Ready —
+          other Worlds aren't tracked here yet.
         </p>
       </div>
 
@@ -47,6 +49,7 @@ export default function PreviewShell() {
             }}>
               {items.map(item => {
                 const access = getWorldAccess(item, user, subscription);
+                const progress = access.status === "locked" ? null : getWorldProgress(item.id, user?.uid);
                 return (
                   <WorldCard
                     key={item.id}
@@ -55,6 +58,7 @@ export default function PreviewShell() {
                     reason={access.reason}
                     unlockPath={access.unlockPath}
                     unlockLabel={access.unlockLabel}
+                    progress={progress}
                   />
                 );
               })}

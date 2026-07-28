@@ -1,22 +1,27 @@
 import { TOKENS } from "../../constants/tokens";
-import Events from "../../components/Events";
 
-// Rebuild prompt section 4/7 — Family Calendar. Reuses the live Events
-// component. Note: it's currently a hand-maintained list of community live
-// sessions (see its own comment: "swap for Firestore fetch when you have
-// real events"), not a per-family personal calendar — real content, but
-// not yet the family-specific calendar the rebuild prompt describes.
-export default function CalendarPanel({ user }) {
+// Rebuild prompt section 4/7 — Family Calendar. Previously wrapped the
+// legacy Events component, but its EVENTS list is hand-maintained demo
+// content (mostly already-past dates) — showing it here read as fake
+// scheduled events rather than an honest "nothing planned yet" state.
+// components/Events.jsx is left untouched (it's a separate, shared, live
+// surface); this page just no longer borrows its stale placeholder content.
+export default function CalendarPanel() {
   return (
     <div>
       <div style={{ marginBottom: TOKENS.space[5] }}>
         <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>CALENDAR</div>
         <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>Upcoming Events</h1>
-        <p style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm, marginTop: 4 }}>
-          Community live sessions for now — a personal family calendar isn't built yet.
-        </p>
       </div>
-      <Events user={user} />
+      <div style={{
+        padding: "60px 20px", textAlign: "center", borderRadius: TOKENS.radius.lg,
+        border: `1px solid ${TOKENS.color.border}`, background: TOKENS.color.surfaceRaised,
+      }}>
+        <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.lg, marginBottom: 6 }}>Nothing planned yet</div>
+        <div style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
+          Family sessions and live events will show up here once scheduled.
+        </div>
+      </div>
     </div>
   );
 }
