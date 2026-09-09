@@ -25,6 +25,20 @@ export const ACHIEVEMENTS = [
   { id: "family_add", category: "special",    title: "Family First",       titleJp: "ファミリーファースト", desc: "Add a family member",    descJp: "家族メンバーを追加",       icon: "👨‍👩‍👧", xp: 100,  check: (u) => (u.familyMembers ?? []).length >= 1 },
   { id: "all_access", category: "special",    title: "All Access Member",  titleJp: "オールアクセス会員", desc: "Upgrade to All Access",  descJp: "オールアクセスにアップグレード", icon: "👑", xp: 500,  check: (u) => u.plan === "all_access"   },
   { id: "founding",   category: "special",    title: "Founding Member",    titleJp: "ファウンディングメンバー", desc: "Joined in the first wave", descJp: "第一波に参加", icon: "🌟", xp: 2000, check: (u) => !!u.isFoundingMember  },
+  // ── HSD Family (Phase 3, 2026-09-09) — reuses this same architecture,
+  // checked against the new familyXxxCompleted counters src/family/
+  // familyProgress.js bumps on each activity completion. Deliberately a
+  // small starter set (item 22: "enough to test whether achievements
+  // motivate children", not dozens yet).
+  { id: "family_first_talk", category: "family", title: "First Conversation", titleJp: "はじめての会話",   desc: "Talk to Jona for the first time", descJp: "はじめてJonaと話した", icon: "👋", xp: 50,  check: (u) => (u.familyTalkCompleted ?? 0) >= 1 },
+  { id: "family_brave_speaker", category: "family", title: "Brave Speaker",   titleJp: "勇敢なスピーカー", desc: "Complete 3 Talk to Jona activities", descJp: "Jonaとの会話を3回完了", icon: "🎤", xp: 150, check: (u) => (u.familyTalkCompleted ?? 0) >= 3 },
+  { id: "family_great_listener", category: "family", title: "Great Listener", titleJp: "聞き上手",        desc: "Complete 3 Hear activities",      descJp: "Hearアクティビティを3回完了", icon: "👂", xp: 100, check: (u) => (u.familyHearCompleted ?? 0) >= 3 },
+  { id: "family_story_explorer", category: "family", title: "Story Explorer", titleJp: "ストーリー探検家", desc: "Complete 2 See activities",        descJp: "Seeアクティビティを2回完了", icon: "📖", xp: 100, check: (u) => (u.familySeeCompleted ?? 0) >= 2 },
+  { id: "family_movement_master", category: "family", title: "Movement Master", titleJp: "ムーブメントマスター", desc: "Complete 3 Do activities", descJp: "Doアクティビティを3回完了", icon: "🤸", xp: 100, check: (u) => (u.familyDoCompleted ?? 0) >= 3 },
+  { id: "family_creative_thinker", category: "family", title: "Creative Thinker", titleJp: "クリエイティブシンカー", desc: "Complete 2 Create activities", descJp: "Createアクティビティを2回完了", icon: "🎨", xp: 100, check: (u) => (u.familyCreateCompleted ?? 0) >= 2 },
+  { id: "family_challenge",  category: "family", title: "Family Challenge", titleJp: "ファミリーチャレンジ", desc: "Complete a Family Hub activity together", descJp: "ファミリーハブのアクティビティを一緒に完了", icon: "👨‍👩‍👧", xp: 100, check: (u) => (u.familyHubCompleted ?? 0) >= 1 },
+  { id: "family_5day",       category: "family", title: "5-Day Journey",    titleJp: "5日間の旅",       desc: "Reach a 5-day streak",             descJp: "5日連続ストリーク達成",     icon: "🔥", xp: 150, check: (u) => (u.streak ?? 0) >= 5 },
+  { id: "family_10_attempts", category: "family", title: "10 Speaking Attempts", titleJp: "10回のスピーキング挑戦", desc: "Complete 5 speaking-focused activities", descJp: "スピーキング活動を5回完了", icon: "💬", xp: 250, check: (u) => (u.familyTalkCompleted ?? 0) >= 5 },
 ];
 
 const CATEGORIES = [
@@ -35,11 +49,12 @@ const CATEGORIES = [
   { id: "apps",       label: "Apps",       labelJp: "アプリ" },
   { id: "lessons",    label: "Lessons",    labelJp: "レッスン" },
   { id: "special",    label: "Special",    labelJp: "スペシャル" },
+  { id: "family",     label: "Family",     labelJp: "ファミリー" },
 ];
 
 const CAT_COLOR = {
   streak: COLORS.red, xp: COLORS.gold, confidence: "#4488ff",
-  apps: COLORS.success, lessons: "#7B5EA7", special: "#ff6b35",
+  apps: COLORS.success, lessons: "#7B5EA7", special: "#ff6b35", family: "#e0559c",
 };
 
 export default function Achievements({ user }) {

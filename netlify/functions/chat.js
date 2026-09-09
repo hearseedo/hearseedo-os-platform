@@ -191,7 +191,12 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
-  const { system, messages, idToken } = body;
+  // profileId (Phase 3, item 17: "AI requests per profile") is purely
+  // descriptive logging metadata, optional, client-supplied — it is NEVER
+  // used for auth or quota decisions (those remain keyed on the verified
+  // uid only, per Phase 0), so trusting the client's value here carries no
+  // security risk, unlike plan (fixed in Phase 0) or uid (always server-verified).
+  const { system, messages, idToken, profileId } = body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array is required" }) };
@@ -305,6 +310,7 @@ exports.handler = async (event) => {
           fields: {
             fn:          { stringValue: "jona-chat" },
             uid:         { stringValue: uid },
+            profileId:   { stringValue: typeof profileId === "string" ? profileId.slice(0, 100) : "" },
             model:       { stringValue: MODEL },
             plan:        { stringValue: plan },
             inputTokens: { integerValue: String(data.usageMetadata?.promptTokenCount ?? 0) },

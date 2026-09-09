@@ -35,6 +35,18 @@ import PathwayLab         from "./pages/PathwayLab";
 import ChoosePath         from "./pages/ChoosePath";
 import PathwayEntry       from "./pages/PathwayEntry";
 import PathwayRoute       from "./components/PathwayRoute";
+// Lazy-loaded: HSD Family (Phase 3) is a large, self-contained feature
+// (activity content, player, achievements, parent view) only needed by
+// accounts actually using the Family pathway — same code-splitting
+// rationale as Sip Speak Learn above (item 32: do not worsen initial-load
+// weight for every visitor).
+const FamilyHome         = lazy(() => import("./family/FamilyHome"));
+const ActivityGrid       = lazy(() => import("./family/ActivityGrid"));
+const ActivityPlayer     = lazy(() => import("./family/ActivityPlayer"));
+const MyJourney          = lazy(() => import("./family/MyJourney"));
+const FamilyHub          = lazy(() => import("./family/FamilyHub"));
+const ChildProfileCreate = lazy(() => import("./family/ChildProfileCreate"));
+const FamilyParentView   = lazy(() => import("./family/FamilyParentView"));
 import DemoShell        from "./demo/DemoShell";
 import DemoStart        from "./demo/DemoStart";
 import DemoAssessment   from "./demo/DemoAssessment";
@@ -199,6 +211,16 @@ export default function App() {
             reachable directly by URL and via "Switch Pathway" in the account menu. */}
         <Route path="/choose-path" element={<ProtectedRoute><ChoosePath /></ProtectedRoute>} />
         <Route path="/family"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><PathwayEntry pathwayId="family" /></PathwayRoute></ProtectedRoute>} />
+        {/* Phase 3 — HSD Family Beta Foundation. All guarded by the same
+            PathwayRoute entitlement gate as /family above (Phase 2, item 36:
+            do not weaken existing pathway protection). */}
+        <Route path="/family/home"           element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><FamilyHome /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/add-child"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ChildProfileCreate /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/journey"        element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><MyJourney /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/hub"            element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><FamilyHub /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/parent"         element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><FamilyParentView /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/activity/:activityId" element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityPlayer /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/:category"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityGrid /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/student"     element={<ProtectedRoute><PathwayRoute pathwayId="student"><PathwayEntry pathwayId="student" /></PathwayRoute></ProtectedRoute>} />
         <Route path="/adult"       element={<ProtectedRoute><PathwayRoute pathwayId="adult"><PathwayEntry pathwayId="adult" /></PathwayRoute></ProtectedRoute>} />
         <Route path="/educator"    element={<ProtectedRoute><PathwayRoute pathwayId="educator"><PathwayEntry pathwayId="educator" /></PathwayRoute></ProtectedRoute>} />

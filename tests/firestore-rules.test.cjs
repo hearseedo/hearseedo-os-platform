@@ -201,3 +201,34 @@ test("pathway events: only the admin can read them", async () => {
   const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
   await assertSucceeds(adminDb.doc("pathwayEvents/evt1").get());
 });
+
+// ── Phase 3 — HSD Family activity progress ──────────────────────────────────
+
+test("activity progress: owner can write their own self-profile activity progress", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertSucceeds(
+    alice.firestore().doc("users/alice/activityProgress/talk-first-hello").set({ completed: true })
+  );
+});
+
+test("activity progress: a user cannot write another account's self-profile activity progress", async () => {
+  const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" });
+  await assertFails(
+    bob.firestore().doc("users/alice/activityProgress/talk-first-hello").set({ completed: true })
+  );
+});
+
+test("activity progress: owner can write a child profile's activity progress", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertSucceeds(
+    alice.firestore().doc("users/alice/familyMembers/child1/activityProgress/hear-hello-song").set({ completed: true })
+  );
+});
+
+test("activity progress: a user cannot read another account's child profile activity progress", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await alice.firestore().doc("users/alice/familyMembers/child1/activityProgress/hear-hello-song").set({ completed: true });
+
+  const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" });
+  await assertFails(bob.firestore().doc("users/alice/familyMembers/child1/activityProgress/hear-hello-song").get());
+});

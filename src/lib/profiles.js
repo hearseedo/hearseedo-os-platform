@@ -79,10 +79,17 @@ export function subscribeToFamilyMembers(uid, onChange) {
  * item 8) — existing familyMembers docs simply won't have them, which is
  * fine since every reader treats them as optional.
  */
-export async function createProfile(uid, { name, age, primaryApp, relationship = "child" }) {
+export async function createProfile(uid, { name, age, primaryApp, relationship = "child", ageBand = null, interests = [], confidenceGoal = null }) {
   return addDoc(collection(db, "users", uid, "familyMembers"), {
     name:            name.trim(),
     age:             age ?? null,
+    // Phase 3 (HSD Family, item 4): ageBand is the primary categorization
+    // used by content.js's getActivitiesByCategory(category, ageBand) —
+    // prefer this over the precise `age` integer, which is kept only for
+    // backward compatibility with pre-Phase-3 callers (EIKEN placement etc).
+    ageBand,
+    interests,
+    confidenceGoal,
     primaryApp:      primaryApp ?? null,
     confidenceScore: 0,
     cefr:            null,

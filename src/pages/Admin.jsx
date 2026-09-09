@@ -18,6 +18,7 @@ const TABS = [
   { id: "api_costs",     label: "API Costs",      icon: "💰" },
   { id: "support",       label: "Support",        icon: "💬" },
   { id: "feedback",      label: "Feedback",       icon: "📣" },
+  { id: "family_beta",   label: "Family Beta",    icon: "👨‍👩‍👧" },
   { id: "intelligence",  label: "Intelligence",   icon: "🧠" },
   { id: "eiken",         label: "EIKEN Monkey",   icon: "🐵" },
   { id: "users",         label: "Users",          icon: "👥" },
@@ -373,6 +374,7 @@ export default function Admin() {
           {tab === "revenue"      && <RevenueTab      users={realUsers} planCounts={planCounts} mrr={mrr} />}
           {tab === "audit"        && <AuditTab />}
           {tab === "feedback"     && <FeedbackTab />}
+          {tab === "family_beta"  && <FamilyBetaTab />}
           {tab === "settings"     && <SettingsTab />}
         </main>
       </div>
@@ -1876,6 +1878,90 @@ const MOOD_META = {
   ok:         { emoji: "😊", label: "It's OK",    color: "#f59e0b" },
   loving_it:  { emoji: "❤️", label: "Loving it!", color: "#22c55e" },
 };
+
+// HSD Family Beta visibility (Phase 3, item 29) — reuses the SAME
+// pathwayEvents (Phase 2 analytics) and geminiActivity/feedback collections
+// every other admin tab already reads; this is not a second admin app, just
+// a Family-scoped view over existing live data.
+function FamilyBetaTab() {
+  const [events, setEvents]   = useState([]);
+  const [geminiEvents, setGeminiEvents] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "pathwayEvents"), orderBy("timestamp", "desc"), limit(500));
+    const unsub = onSnapshot(q, snap => {
+      setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "geminiActivity"), orderBy("timestamp", "desc"), limit(500));
+    return onSnapshot(q, snap => setGeminiEvents(snap.docs.map(d => d.data()).filter(e => e.profileId)), () => {});
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "feedback"), orderBy("createdAt", "desc"));
+    return onSnapshot(q, snap => setFeedback(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(f => f.source === "family_beta")), () => {});
+  }, []);
+
+  const familyEvents = events.filter(e => ["family_home_viewed", "activity_started", "activity_completed", "activity_abandoned", "profile_selected", "profile_created"].includes(e.eventType));
+  const activeAccounts = new Set(familyEvents.map(e => e.uid)).size;
+  const activeProfiles = new Set(familyEvents.filter(e => e.profileId).map(e => `${e.uid}:${e.profileId}`)).size;
+  const started   = familyEvents.filter(e => e.eventType === "activity_started").length;
+  const completed = familyEvents.filter(e => e.eventType === "activity_completed").length;
+  const abandoned = familyEvents.filter(e => e.eventType === "activity_abandoned").length;
+  const jonaCalls = geminiEvents.length;
+
+  const byActivity = {};
+  familyEvents.filter(e => e.eventType === "activity_completed").forEach(e => {
+    byActivity[e.activityId] = (byActivity[e.activityId] ?? 0) + 1;
+  });
+  const topActivities = Object.entries(byActivity).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>HSD Family Beta</div>
+      <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 20 }}>
+        Live view over pathwayEvents/geminiActivity/feedback — no second admin system. AI/TTS cost detail lives in the API Costs tab.
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Active family accounts", value: activeAccounts },
+          { label: "Active child profiles",  value: activeProfiles },
+          { label: "Activities started",     value: started },
+          { label: "Activities completed",   value: completed },
+          { label: "Activities abandoned",   value: abandoned },
+          { label: "Jona Family AI calls",   value: jonaCalls },
+          { label: "Beta feedback items",    value: feedback.length },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{value}</div>
+            <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {topActivities.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>MOST-COMPLETED ACTIVITIES</div>
+          {topActivities.map(([id, count]) => (
+            <div key={id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a1a1a", fontSize: 13 }}>
+              <span style={{ color: COLORS.text }}>{id}</span>
+              <span style={{ color: COLORS.success, fontWeight: 700 }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading ? <Skeleton /> : familyEvents.length === 0 && <Empty>No Family beta activity yet — events will appear here in real time.</Empty>}
+    </div>
+  );
+}
 
 function FeedbackTab() {
   const [responses, setResponses] = useState([]);

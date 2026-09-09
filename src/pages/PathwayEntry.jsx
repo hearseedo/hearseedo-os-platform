@@ -72,7 +72,7 @@ export default function PathwayEntry({ pathwayId }) {
         {needsProfilePicker && !pickedProfile ? (
           <>
             <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>{t("path_whos_learning")}</h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginBottom: 16 }}>
               {profiles.map(p => (
                 <button
                   key={p.id}
@@ -82,20 +82,30 @@ export default function PathwayEntry({ pathwayId }) {
                     background: "#141414", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
-                  {p.name}{p.id === SELF_PROFILE_ID ? ` (${user.name?.split(" ")[0] ?? "Me"})` : ""}
+                  {p.name}{p.id === SELF_PROFILE_ID ? ` (${user.name?.split(" ")[0] ?? "Me"} — ${t("path_state_continue")})` : ""}
                 </button>
               ))}
             </div>
+            {pathwayId === "family" && (
+              <button onClick={() => navigate("/family/add-child")} style={{ background: "none", border: "none", color: pathway.accent.primary, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                + {t("path_add_profile")}
+              </button>
+            )}
           </>
         ) : (
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(pathwayId === "family" ? "/family/home" : "/dashboard")}
             style={{
               width: "100%", padding: 16, borderRadius: 12, border: "none",
               background: pathway.accent.primary, color: "#0a0700", fontSize: 16, fontWeight: 800, cursor: "pointer",
             }}
           >
             {t("nav_home")} →
+          </button>
+        )}
+        {pathwayId === "family" && !needsProfilePicker && (
+          <button onClick={() => navigate("/family/add-child")} style={{ marginTop: 12, background: "none", border: "none", color: pathway.accent.primary, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            + {t("path_add_profile")}
           </button>
         )}
       </div>
