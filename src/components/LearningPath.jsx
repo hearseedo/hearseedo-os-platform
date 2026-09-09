@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { COLORS } from "../constants/colors";
 import { APPS, APP_MAP } from "../constants/apps";
 import { doc, getDoc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { useLang } from "../hooks/useLang";
 
 // ── CEFR map — every app mapped to levels + skills ───────────────────────────
@@ -140,12 +140,13 @@ export default function LearningPath({ user, pathPrefix, member }) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
 
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch("/api/learning-path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          uid:             user?.uid,
+          idToken,
           level:           finalAnswers.level,
           goal:            finalAnswers.goal,
           time:            finalAnswers.time,

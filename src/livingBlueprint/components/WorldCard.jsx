@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import { worldHref } from "../../constants/worlds";
+import { useLang } from "../../hooks/useLang";
 
 // Rebuild prompt section 8: World card — title, promise, approved art,
 // access/progress state, Continue/Explore/Locked action.
@@ -10,6 +11,7 @@ import { worldHref } from "../../constants/worlds";
 // regardless of plan, so a plan-upsell badge would be misleading.
 export default function WorldCard({ world, status = "explore", progress = null, reason, unlockPath, unlockLabel }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const comingSoon = !!world.comingSoon;
   const locked = status === "locked" && !comingSoon;
   const disabled = locked || comingSoon;
@@ -44,11 +46,11 @@ export default function WorldCard({ world, status = "explore", progress = null, 
         )}
         {comingSoon ? (
           <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: `1px solid ${TOKENS.color.goldDim}`, borderRadius: TOKENS.radius.pill, padding: "4px 10px", fontSize: TOKENS.font.size.xs, color: TOKENS.color.gold }}>
-            Coming Soon
+            {t("coming_soon")}
           </div>
         ) : locked && (
           <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", borderRadius: TOKENS.radius.pill, padding: "4px 10px", fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted }}>
-            Locked
+            {t("locked")}
           </div>
         )}
       </div>
@@ -77,7 +79,7 @@ export default function WorldCard({ world, status = "explore", progress = null, 
           background: disabled ? "rgba(255,255,255,0.08)" : (status === "continue" ? TOKENS.color.gold : "rgba(255,255,255,0.08)"),
           color: disabled ? TOKENS.color.starlight : (status === "continue" ? "#0a0a0a" : TOKENS.color.starlight),
         }}>
-          {comingSoon ? "Coming Soon" : locked ? (unlockLabel || "See plans") : status === "continue" ? "Continue" : "Explore"}
+          {comingSoon ? t("coming_soon") : locked ? (unlockLabel || t("lb_see_plans")) : status === "continue" ? t("lb_continue") : t("lb_explore")}
         </button>
       </div>
     </div>

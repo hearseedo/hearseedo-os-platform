@@ -22,7 +22,13 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_APP_URL_SIPSWITCH':           JSON.stringify(env.VITE_APP_URL_SIPSWITCH),
       'import.meta.env.VITE_APP_URL_INNERKEY':            JSON.stringify(env.VITE_APP_URL_INNERKEY),
       'import.meta.env.VITE_APP_URL_MONKEYS_UNLOCK':      JSON.stringify(env.VITE_APP_URL_MONKEYS_UNLOCK),
-      'import.meta.env.VITE_ELEVENLABS_API_KEY':          JSON.stringify(env.VITE_ELEVENLABS_API_KEY),
+      // ElevenLabs is a paid TTS API called ONLY from server functions
+      // (tts.js, speak-ready-tts.js). VITE_ELEVENLABS_API_KEY was previously
+      // injected here too — dead wiring (the env var was unset and no client
+      // code read it), but if ever populated it would have shipped a real
+      // secret into the public JS bundle. Removed in the Phase 0 security
+      // hardening (2026-09-09); see docs/HSDOS_AUDIT_2026-09-09.md. Do not
+      // re-add a VITE_-prefixed ElevenLabs API key.
       'import.meta.env.VITE_ELEVENLABS_VOICE_ID':         JSON.stringify(env.VITE_ELEVENLABS_VOICE_ID),
     },
   }

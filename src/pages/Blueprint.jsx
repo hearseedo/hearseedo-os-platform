@@ -120,7 +120,15 @@ export default function Blueprint() {
         blueprintAt: serverTimestamp(),
       }).catch(() => {});
     }
-    navigate("/dashboard", { replace: true });
+    // Phase 2: this is the natural end of the existing sign-in/onboarding
+    // chain (SignIn → JoinFlow → Blueprint → here) for EVERY login, not
+    // just new signups — so it's the safest single place to decide "has
+    // this account ever chosen a pathway" without touching JoinFlow/
+    // Blueprint's own existing setup logic. An account that has never set
+    // lastUsedPathway goes to the selector once; every returning account
+    // (which will have it after their first pass through) goes straight to
+    // /dashboard exactly as before — never shown the selector unnecessarily.
+    navigate(user?.lastUsedPathway ? "/dashboard" : "/choose-path", { replace: true });
   };
 
   return (

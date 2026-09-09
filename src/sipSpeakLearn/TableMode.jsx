@@ -20,6 +20,7 @@ export default function TableMode({ uid, user, go }) {
 
   useEffect(() => {
     if (!controller) return;
+    controller.start?.(); // (re)establish listeners — safe under StrictMode's mount/cleanup/remount
     setState(controller.getState());
     const unsub = controller.subscribe(setState);
     return () => { unsub(); controller.destroy?.(); };

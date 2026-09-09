@@ -1,7 +1,7 @@
 // Cloudflare Pages Function — ElevenLabs TTS proxy
-// Soft-spoken Canadian male — Jona's voice
+// Jona's voice
 
-const VOICE_ID  = "bBE6oKIBXZhM23o3YoXb";
+const VOICE_ID  = "BnRBNgpLmN6RYIWw3eEw";
 const MODEL_ID  = "eleven_monolingual_v1";
 const MAX_CHARS = 800; // cap to avoid runaway usage
 

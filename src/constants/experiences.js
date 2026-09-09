@@ -42,19 +42,23 @@ export const LEGACY_EXPERIENCES = CATALOG_APP_IDS.map(id => {
   };
 });
 
-// SipSpeakLearn isn't in constants/apps.js — it's its own separate, dev-only
-// feature flag (sipSpeakLearn/config.js), not part of the live app registry
-// or subscription model. Listed here as coming soon per explicit request;
-// worldAccess.js has no APP_REGISTRY_MAP entry for it, so it always reads
-// as unlocked — comingSoon is what actually gates it in WorldLaunch.
+// SipSpeakLearn isn't in constants/apps.js — it's its own separate feature
+// flag (sipSpeakLearn/config.js), not part of the live app registry or
+// subscription model. worldAccess.js has no APP_REGISTRY_MAP entry for it,
+// so it always reads as unlocked (free for any signed-in user).
+//
+// Phase 8 cutover: launch flipped from "external"/comingSoon to "internal" —
+// it's a real native React sub-app (src/pages/SipSpeakLearn.jsx), not an
+// iframe, so it uses the same route+WorldLanding pattern as Speak Ready /
+// Global Ready (constants/worlds.js) rather than AppModal's iframe SSO flow.
 export const SIP_SPEAK_LEARN_EXPERIENCE = {
   id: "sip-speak-learn",
   name: "Sip Speak Learn",
   promise: "Adult conversation practice over drinks and games — journaled and replayed.",
-  launch: "external",
-  iframeAppId: null,
-  accent: TOKENS.color.gold,
-  comingSoon: true,
+  launch: "internal",
+  route: "/sip-speak-learn",
+  accent: "#b5794a", // SSL.copper — matches the app's own brand, distinct from other world accents
+  comingSoon: false,
   audience: "adult",
   art: {
     card:   "/assets/worlds/sip-speak-learn-card.jpg",

@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
 import { TOKENS, prefersReducedMotion } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 
 // Rebuild prompt section 5, Step 5 — Building your Blueprint (brief
 // transition). Status lines are sequenced to reflect real stages: reading
 // the collected answers, then handing off to Step 6 once done. No fake long
 // loader — capped at a few seconds.
 
-const STAGES = [
-  "Understanding your goals…",
-  "Learning your style…",
-  "Analyzing your strengths…",
-  "Creating your path…",
-  "Almost ready…",
-];
+const STAGE_KEYS = ["lb_stage_1", "lb_stage_2", "lb_stage_3", "lb_stage_4", "lb_stage_5"];
 
 export default function Step5BuildingBlueprint({ onDone }) {
+  const { t } = useLang();
+  const STAGES = STAGE_KEYS.map(t);
   const [stageIndex, setStageIndex] = useState(0);
   const reduced = prefersReducedMotion();
 

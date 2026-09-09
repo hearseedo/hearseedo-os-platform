@@ -102,7 +102,7 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
   function speak(text) {
     if (!ttsEnabled || !user?.uid || !text) return;
     stopSpeaking();
-    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false))
+    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false), lang)
       .then((a) => { if (a) audioRef.current = a; });
   }
 

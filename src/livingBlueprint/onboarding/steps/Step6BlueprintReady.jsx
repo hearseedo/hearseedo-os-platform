@@ -1,8 +1,10 @@
 import { TOKENS } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 
 // Rebuild prompt section 5, Step 6 — Your Blueprint is ready. Restrained
 // completion moment — no confetti, a brief gold glow only.
 export default function Step6BlueprintReady({ onFinish }) {
+  const { t } = useLang();
   return (
     <div style={{
       minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -10,9 +12,9 @@ export default function Step6BlueprintReady({ onFinish }) {
       color: TOKENS.color.starlight, padding: 24, textAlign: "center", boxSizing: "border-box",
     }}>
       <img src="/assets/innerkey/golden.png" alt="" style={{ width: 150, height: 150, marginBottom: 24, filter: `drop-shadow(0 0 30px ${TOKENS.color.goldGlow})` }} />
-      <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, marginBottom: 8 }}>Your Blueprint is ready!</h1>
+      <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, marginBottom: 8 }}>{t("lb_blueprint_ready")}</h1>
       <p style={{ color: TOKENS.color.textMuted, marginBottom: 32, maxWidth: 360 }}>
-        Let's uncover your potential together.
+        {t("lb_uncover_potential")}
       </p>
       <button
         onClick={onFinish}
@@ -22,7 +24,7 @@ export default function Step6BlueprintReady({ onFinish }) {
           cursor: "pointer", boxShadow: TOKENS.shadow.glow,
         }}
       >
-        See My Blueprint →
+        {t("lb_see_my_blueprint")}
       </button>
     </div>
   );

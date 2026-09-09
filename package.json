@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:functions": "node --test netlify/functions/__tests__/*.test.cjs",
+    "test:pathways": "node --test tests/pathway-access.test.js",
+    "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -17,6 +20,7 @@
     "resend": "^6.17.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
     "@vitejs/plugin-react": "^4.3.1",
     "firebase-tools": "^15.23.0",
     "vite": "^5.4.1"

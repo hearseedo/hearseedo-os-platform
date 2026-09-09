@@ -1,18 +1,20 @@
 import { TOKENS } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 import StepShell from "./StepShell";
 
 // Rebuild prompt section 5, Step 2 — Who is joining?
 const OPTIONS = [
-  { id: "solo",         label: "Just Me",           desc: "A personal learning journey, just for you.", icon: "◆" },
-  { id: "family",        label: "My Family",         desc: "Learn together — everyone's progress in one place.", icon: "◇" },
-  { id: "school",        label: "School / University", desc: "Learning connected to your institution.", icon: "◈" },
-  { id: "organization",  label: "Organization",      desc: "For teams and organizations.", icon: "▣" },
+  { id: "solo",         labelKey: "lb_opt_solo",   descKey: "lb_opt_solo_desc",   icon: "◆" },
+  { id: "family",       labelKey: "lb_opt_family", descKey: "lb_opt_family_desc", icon: "◇" },
+  { id: "school",       labelKey: "lb_opt_school", descKey: "lb_opt_school_desc", icon: "◈" },
+  { id: "organization", labelKey: "lb_opt_org",    descKey: "lb_opt_org_desc",    icon: "▣" },
 ];
 
 export default function Step2WhoIsJoining({ value, onChange, onBack, onNext }) {
+  const { t } = useLang();
   return (
     <StepShell
-      title="Who is joining HSDOS today?"
+      title={t("lb_who_is_joining")}
       step={2}
       onBack={onBack}
       onContinue={onNext}
@@ -35,8 +37,8 @@ export default function Step2WhoIsJoining({ value, onChange, onBack, onNext }) {
               }}
             >
               <div style={{ fontSize: 20, color: selected ? TOKENS.color.gold : TOKENS.color.textMuted, marginBottom: 8 }}>{opt.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.base, marginBottom: 4 }}>{opt.label}</div>
-              <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, lineHeight: 1.4 }}>{opt.desc}</div>
+              <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.base, marginBottom: 4 }}>{t(opt.labelKey)}</div>
+              <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, lineHeight: 1.4 }}>{t(opt.descKey)}</div>
             </button>
           );
         })}

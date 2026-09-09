@@ -65,6 +65,17 @@ export const ACCESS_CODES = {
     active: true,
     userFacingDesc: "Train your body. Build your English confidence. Enter your gym access code to unlock 1 month of full HSDOS.AI platform access and 30 AI practice credits.",
   },
+  "XPRIZE-JUDGE-2026": {
+    codeType: "Judge Access Code",
+    source: "xprize_judge",
+    campaignCategory: "Workshop / Event / Partner",
+    campaignName: "Build with Gemini XPRIZE — Judge Access",
+    accessDays: 90,
+    aiCredits: 100,
+    fullPlatformAccess: true,
+    active: true,
+    userFacingDesc: "Judge access code for the Build with Gemini XPRIZE — unlocks 90 days of full HSDOS.AI platform access and 100 AI practice credits across every World, including Jona Coach, EIKEN AI, and the university and adult tracks.",
+  },
 };
 
 export const INACTIVE_CODES = [

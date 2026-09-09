@@ -1,4 +1,10 @@
 // Gemini-powered personalised learning path generator
+//
+// Phase 0 security hardening (2026-09-09): this endpoint previously trusted
+// a client-supplied uid with no verification at all. It now requires a
+// valid Firebase ID token and derives identity from it server-side.
+const { verifyIdToken } = require("./_firebaseAdmin");
+
 const MODEL      = "gemini-2.5-flash";
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY  || "";
@@ -37,9 +43,17 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || "{}"); }
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
-  const { uid, level, goal, time, style, cefr, baselineScore, subscriptions = [], confidenceScore = 0, streak = 0, memberName, memberAge, isMember } = body;
+  const { level, goal, time, style, cefr, baselineScore, subscriptions = [], confidenceScore = 0, streak = 0, memberName, memberAge, isMember } = body;
 
-  if (!uid) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Unauthorized" }) };
+  if (!body.idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+  let uid;
+  try {
+    uid = await verifyIdToken(body.idToken);
+  } catch {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid or expired session." }) };
+  }
 
   if (!level || !goal) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Missing required fields" }) };
@@ -90,6 +104,8 @@ Available apps and what they do:
 - innerkey: Inner Key — confidence and personal growth for teens and adults. Mindset, self-awareness, reflection, emotional growth, communication. For users who feel stuck or want deeper growth. (B2-C2)
 
 IMPORTANT: The goal is to create confident learners, not just improve English. Recommend the app that best matches the user's type, goal, confidence level, and learning style. Never default to phonics unless the need is clearly phonics or early literacy.
+
+This learner may be a child — keep all content age-appropriate, no adult topics.
 
 Reply ONLY with valid JSON in this exact format, no markdown, no explanation:
 {

@@ -21,11 +21,11 @@ function buildGreeting(name, lang) {
   return `Good ${period}, ${first}. Your HSD dashboard is ready. Let's start your family's English journey today.`;
 }
 
-async function speakText(text, uid) {
+async function speakText(text, uid, lang) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, uid }),
+    body: JSON.stringify({ text, uid, lang }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob  = await res.blob();

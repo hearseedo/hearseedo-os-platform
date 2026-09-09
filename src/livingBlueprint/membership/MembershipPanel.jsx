@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import { useSubscription } from "../../hooks/useSubscription";
+import { useLang } from "../../hooks/useLang";
 import { AI_LIMITS, ACTIVE_PLANS } from "../../constants/plans";
 
 // Rebuild prompt section 14 — Membership and access, inside HSDOS (not a
@@ -8,6 +9,7 @@ import { AI_LIMITS, ACTIVE_PLANS } from "../../constants/plans";
 // "upgrade" hands off to the existing live /plans + Stripe flow).
 export default function MembershipPanel({ user }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { plan, subscriptions, hasAccessPass, workbookDaysRemaining } = useSubscription();
 
   const planInfo = ACTIVE_PLANS.find(p => p.id === plan);
@@ -17,21 +19,21 @@ export default function MembershipPanel({ user }) {
   return (
     <div>
       <div style={{ marginBottom: TOKENS.space[5] }}>
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>MEMBERSHIP & ACCESS</div>
+        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>{t("lb_membership_access_label")}</div>
         <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>{planInfo?.name ?? plan}</h1>
       </div>
 
       <div style={{ display: "flex", gap: TOKENS.space[3], marginBottom: TOKENS.space[5], flexWrap: "wrap" }}>
-        <Tile label="Plan" value={planInfo?.name ?? plan} />
-        <Tile label="Monthly AI Messages" value={aiLimit != null ? aiLimit : "Not tracked per-plan"} sub="Per-user usage isn't tracked yet — only the plan limit." />
-        {hasAccessPass() && <Tile label="Access Pass" value="Active" sub="Full platform access" />}
-        {workbookDays > 0 && <Tile label="Workbook Bonus" value={`${workbookDays} days left`} />}
+        <Tile label={t("plan_label")} value={planInfo?.name ?? plan} />
+        <Tile label={t("lb_monthly_ai_messages")} value={aiLimit != null ? aiLimit : t("lb_not_tracked_per_plan")} sub={t("lb_usage_not_tracked")} />
+        {hasAccessPass() && <Tile label={t("lb_access_pass")} value={t("active")} sub={t("lb_full_platform_access")} />}
+        {workbookDays > 0 && <Tile label={t("lb_workbook_bonus")} value={t("lb_days_left").replace("{n}", workbookDays)} />}
       </div>
 
-      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>UNLOCKED APPS</div>
+      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_unlocked_apps")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: TOKENS.space[5] }}>
         {subscriptions.length === 0 ? (
-          <div style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>None yet.</div>
+          <div style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>{t("lb_none_yet")}</div>
         ) : subscriptions.map(s => (
           <span key={s} style={{
             fontSize: TOKENS.font.size.xs, padding: "6px 12px", borderRadius: TOKENS.radius.pill,
@@ -47,11 +49,11 @@ export default function MembershipPanel({ user }) {
           padding: "12px 28px", borderRadius: TOKENS.radius.pill, border: "none",
           background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: "pointer",
         }}>
-          Manage Plan / Billing
+          {t("lb_manage_plan_billing")}
         </button>
       </div>
       <div style={{ fontSize: 10, color: TOKENS.color.textDim, marginTop: 8 }}>
-        Plan changes and billing go through the existing live /plans + Stripe flow — not duplicated here.
+        {t("lb_billing_note")}
       </div>
     </div>
   );

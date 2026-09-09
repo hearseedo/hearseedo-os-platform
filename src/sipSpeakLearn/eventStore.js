@@ -77,6 +77,12 @@ async function assignSeat(eventId, user) {
   });
 }
 
+// IMPORTANT: construction must stay side-effect-free — see the matching note
+// on createHostController in hostStore.js. React 18 StrictMode (dev only)
+// double-invokes lazy useState initializers and double-runs effects, which
+// would otherwise permanently kill these listeners on the first cleanup pass
+// with no way to re-establish them. The real work (seat assignment + Firestore
+// listeners) only begins when the caller's useEffect calls `start()`.
 export function createLiveController(eventId, user) {
   let state = { phase: "connecting", isDemo: false };
   const listeners = new Set();
@@ -85,6 +91,7 @@ export function createLiveController(eventId, user) {
 
   let unsubEvent = null, unsubTable = null;
   let event = null, table = null, seat = null;
+  let started = false;
 
   function computeAndPublish() {
     if (!event || !seat) return;
@@ -111,7 +118,7 @@ export function createLiveController(eventId, user) {
     });
   }
 
-  async function start() {
+  async function activate() {
     try {
       seat = await assignSeat(eventId, user);
     } catch {
@@ -130,7 +137,11 @@ export function createLiveController(eventId, user) {
       computeAndPublish();
     }, () => setState({ phase: "error", error: "offline" }));
   }
-  start();
+  function start() {
+    if (started) return;
+    started = true;
+    activate();
+  }
 
   const tableRef = () => doc(db, "sslEvents", eventId, "tables", seat.tableId);
   const participantRef = () => doc(db, "sslEvents", eventId, "participants", user.uid);
@@ -139,6 +150,7 @@ export function createLiveController(eventId, user) {
   return {
     getState: () => state,
     subscribe: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    start,
     actions: {
       anotherQuestion: async () => {
         const stage = STAGES[event.stageIndex] || "warmup";
@@ -157,9 +169,12 @@ export function createLiveController(eventId, user) {
       submitConfidenceBefore: async (v) => { await setDoc(participantRef(), { confidenceBefore: v }, { merge: true }); },
       submitConfidenceAfter: async (v) => { await setDoc(participantRef(), { confidenceAfter: v }, { merge: true }); },
       enterTable: () => {}, // live events enter automatically once the host starts
-      leave: () => {},
+      // Early departure: reflect it on the table's guest count so the host
+      // dashboard doesn't keep counting someone who has already left. Best
+      // effort (fire-and-forget) since the participant is navigating away.
+      leave: () => { if (seat) updateDoc(tableRef(), { participantCount: increment(-1) }).catch(() => {}); },
     },
-    destroy: () => { unsubEvent?.(); unsubTable?.(); },
+    destroy: () => { unsubEvent?.(); unsubTable?.(); unsubEvent = null; unsubTable = null; started = false; },
   };
 }
 
@@ -223,6 +238,7 @@ export function createDemoController(seasonId, { rolesEnabled = true, rotationMo
   return {
     getState: () => state,
     subscribe: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    start: () => {}, // no eager side effects to (re)activate — kept for interface parity with the live controller
     actions: {
       enterTable,
       anotherQuestion: () => setState({ question: { ...state.question, text: pickAnotherQuestion(state.seasonId, STAGES[state.stageIndex], state.question.text), level: "base" } }),

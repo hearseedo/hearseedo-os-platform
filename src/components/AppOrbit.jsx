@@ -14,7 +14,7 @@ const PATHS = [
     id:    "family",
     label: "Family",
     color: "#3b82f6",
-    apps:  ["family", "monkeys-unlock"],
+    apps:  ["family", "monkeys-unlock", "music-album"],
   },
   {
     id:    "university",

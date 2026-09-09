@@ -1,9 +1,18 @@
 // Emergency API kill-switch — passcode-protected
 // Sets flags in Firestore config/killSwitch that all AI functions check before executing.
-const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
-const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
-const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const PASSCODE     = process.env.SHUTDOWN_PASSCODE   || "HSD-STOP-2026";
+//
+// config/killSwitch is now admin-only in firestore.rules (Phase 0 security
+// hardening, 2026-09-09) — a bare API-key request has no request.auth, so
+// this must authenticate as the service account via firestoreFetch
+// (_firebaseAdmin.js), which bypasses rules entirely, same as the Stripe
+// webhook. The passcode check below is a second, independent layer on top
+// of that — not a substitute for it.
+const { firestoreFetch } = require("./_firebaseAdmin");
+
+if (!process.env.SHUTDOWN_PASSCODE) {
+  console.error("SHUTDOWN_PASSCODE env var is not set — kill-switch is relying on a source-code fallback value. Set it in Netlify now.");
+}
+const PASSCODE = process.env.SHUTDOWN_PASSCODE || "HSD-STOP-2026";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -42,7 +51,7 @@ exports.handler = async (event) => {
   // status action — just read and return current state
   if (action === "status") {
     try {
-      const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
+      const r = await firestoreFetch("/config/killSwitch");
       if (r.status === 404) return { statusCode: 200, headers: CORS, body: JSON.stringify({ allEnabled: true, geminiEnabled: true, elevenLabsEnabled: true }) };
       const doc = await r.json();
       const f   = doc.fields ?? {};
@@ -65,7 +74,7 @@ exports.handler = async (event) => {
     fields[k] = { booleanValue: v };
   }
 
-  const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`, {
+  const r = await firestoreFetch("/config/killSwitch", {
     method:  "PATCH",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fields }),

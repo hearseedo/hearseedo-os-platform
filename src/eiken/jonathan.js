@@ -32,7 +32,7 @@ function cacheAudioUrl(text, url) {
 // onAudioReady(audioEl) — optional; exposes the underlying <audio> element so
 // callers (e.g. TalkingMonkey's mouth animation) can attach a Web Audio
 // AnalyserNode to it for real-time volume-driven animation.
-export function speakElevenLabs(text, { onStart, onEnd, onAudioReady, muted = false } = {}, uid = "") {
+export function speakElevenLabs(text, { onStart, onEnd, onAudioReady, muted = false } = {}, uid = "", lang) {
   // Stop any playing audio
   if (_ttsAudio) { try { _ttsAudio.pause(); } catch {} _ttsAudio = null; }
 
@@ -54,7 +54,7 @@ export function speakElevenLabs(text, { onStart, onEnd, onAudioReady, muted = fa
   fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, uid }),
+    body: JSON.stringify({ text, uid, lang }),
   })
     .then(r => r.ok ? r.blob() : null)
     .then(blob => {

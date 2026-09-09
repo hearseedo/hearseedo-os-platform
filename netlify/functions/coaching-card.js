@@ -1,4 +1,10 @@
 // Gemini-powered daily coaching card
+//
+// Phase 0 security hardening (2026-09-09): this endpoint previously trusted
+// a client-supplied uid with no verification at all. It now requires a
+// valid Firebase ID token and derives identity from it server-side.
+const { verifyIdToken } = require("./_firebaseAdmin");
+
 const MODEL      = "gemini-2.5-flash";
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY  || "";
@@ -128,7 +134,7 @@ exports.handler = async (event) => {
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
   const {
-    uid, name,
+    name,
     confidenceScore = 50,
     cefr           = null,
     streak         = 0,
@@ -137,7 +143,15 @@ exports.handler = async (event) => {
     topWeakness    = null,
   } = body;
 
-  if (!uid) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Unauthorized" }) };
+  if (!body.idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+  let uid;
+  try {
+    uid = await verifyIdToken(body.idToken);
+  } catch {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid or expired session." }) };
+  }
 
   const today     = todayJST();
   const dayName   = new Date().toLocaleDateString("en-US", { weekday: "long", timeZone: "Asia/Tokyo" });
@@ -177,7 +191,7 @@ Return JSON with exactly these 8 keys — English and Japanese for each field:
   "tip_jp":       "同じヒントを日本語で。レベルに合わせて。"
 }
 
-Rules: address as 'you' in English; use warm ですます調 for Japanese. If confidence < 40 be extra encouraging. If > 70 push harder. Return ONLY the JSON object, no other text.`;
+Rules: address as 'you' in English; use warm ですます調 for Japanese. If confidence < 40 be extra encouraging. If > 70 push harder. Learners of any age including children may read this — keep it age-appropriate, no adult topics. Return ONLY the JSON object, no other text.`;
 
   try {
     const res = await fetch(

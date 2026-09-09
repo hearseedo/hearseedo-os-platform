@@ -1,8 +1,13 @@
-import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { onAuthChange, touchLastLogin, checkAndUpdateStreak } from "../lib/firebase";
+import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { onAuthChange, touchLastLogin, checkAndUpdateStreak, auth } from "../lib/firebase";
 import { initLearnerProfile } from "../lib/learnerProfile";
 import { db } from "../lib/firebase";
-import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, arrayUnion } from "firebase/firestore";
+import { getAccessiblePathways, getPathwayState } from "../lib/pathwayAccess";
+import { PATHWAY_IDS } from "../constants/pathways";
+import { subscribeToFamilyMembers, getProfiles, SELF_PROFILE_ID } from "../lib/profiles";
+import { isValidPathwayId } from "../constants/pathways";
+import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 
 const AuthContext = createContext(null);
 
@@ -11,7 +16,10 @@ export function AuthProvider({ children }) {
   const [profile, setProfile]           = useState(null);
   const [referralData, setReferralData] = useState(null);
   const [profileReady, setProfileReady] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState([]);
   const profileUnsubRef = useRef(null);
+  const familyMembersUnsubRef = useRef(null);
+  const migrationAttemptedRef = useRef(false);
 
   // refreshProfile kept for backwards compat — no longer needed but safe to call
   const refreshProfile = () => Promise.resolve();
@@ -26,8 +34,14 @@ export function AuthProvider({ children }) {
         profileUnsubRef.current();
         profileUnsubRef.current = null;
       }
+      if (familyMembersUnsubRef.current) {
+        familyMembersUnsubRef.current();
+        familyMembersUnsubRef.current = null;
+      }
+      migrationAttemptedRef.current = false;
 
       if (u) {
+        familyMembersUnsubRef.current = subscribeToFamilyMembers(u.uid, setFamilyMembers);
         // Real-time listener — profile updates instantly when Firestore changes
         let firstSnap = true;
         profileUnsubRef.current = onSnapshot(doc(db, "users", u.uid), (snap) => {
@@ -57,6 +71,21 @@ export function AuthProvider({ children }) {
                 .catch(err => console.error("Email backfill failed:", err));
             }
           }
+          // Phase 1 lazy migration (Stage C): an account with no pathwayAccess
+          // field yet gets one computed and written server-side, once per
+          // session, best-effort. pathwayAccess is privileged (only the
+          // service account/admin may write it — firestore.rules), so this
+          // can't be a client-side setDoc like the email/name backfill above.
+          if (data.pathwayAccess === undefined && !migrationAttemptedRef.current) {
+            migrationAttemptedRef.current = true;
+            auth.currentUser?.getIdToken()
+              .then(idToken => fetch("/api/migrate-pathway-access", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ idToken }),
+              }))
+              .catch(() => {}); // best-effort — account still works via inference either way
+          }
           if (firstSnap) { firstSnap = false; setProfileReady(true); }
         });
 
@@ -71,11 +100,13 @@ export function AuthProvider({ children }) {
       } else {
         setProfile(null);
         setReferralData(null);
+        setFamilyMembers([]);
       }
     });
     return () => {
       unsub();
       if (profileUnsubRef.current) profileUnsubRef.current();
+      if (familyMembersUnsubRef.current) familyMembersUnsubRef.current();
     };
   }, []);
 
@@ -88,7 +119,7 @@ export function AuthProvider({ children }) {
     ? {
         uid:                  firebaseUser.uid,
         email:                firebaseUser.email,
-        name:                 profile?.name ?? firebaseUser.displayName ?? firebaseUser.email.split("@")[0],
+        name:                 profile?.name ?? firebaseUser.displayName ?? firebaseUser.email?.split("@")[0] ?? "Guest",
         displayName:          firebaseUser.displayName,
         role,
         plan:                 profile?.plan ?? "individual",
@@ -130,11 +161,100 @@ export function AuthProvider({ children }) {
         workbookAccessStatus:   profile?.workbookAccessStatus ?? null,
         // HSDOS.AI Access Code pass
         accessPass:             profile?.accessPass ?? null,
+        // Phase 1 — account/profile/pathway architecture (2026-09-09).
+        // pathwayAccess is privileged (server/admin-only write — see
+        // firestore.rules); roles/lastUsedPathway/activeProfileId are plain
+        // self-writable preferences, same tier as nickname/setupDone above.
+        pathwayAccess:        profile?.pathwayAccess ?? null,
+        roles:                profile?.roles ?? [],
+        lastUsedPathway:      profile?.lastUsedPathway ?? null,
+        activeProfileId:      profile?.activeProfileId ?? SELF_PROFILE_ID,
+        // Phase 2 — which pathways this account has ever actually entered
+        // (distinct from lastUsedPathway, which only remembers the most
+        // recent one) — used to tell "available/continue" apart from
+        // "eligible/first-time setup" per pathway. Self-writable preference,
+        // not an entitlement signal.
+        visitedPathways:      profile?.visitedPathways ?? [],
       }
     : null;
 
+  // ── Phase 1: pathway access, profiles, current selection ────────────────
+  const accessiblePathways = useMemo(
+    () => getAccessiblePathways(user, isAdmin),
+    [user, isAdmin]
+  );
+
+  const profiles = useMemo(
+    () => getProfiles(user, familyMembers),
+    [user, familyMembers]
+  );
+
+  const currentProfile = useMemo(
+    () => profiles.find(p => p.id === user?.activeProfileId) ?? profiles[0] ?? null,
+    [profiles, user?.activeProfileId]
+  );
+
+  // Deliberately NOT auto-selected/auto-redirected (Phase 1 item 6) — null
+  // until the user (or a later phase's pathway selector UI) explicitly
+  // chooses one, even if lastUsedPathway was previously set, in case access
+  // to that pathway has since changed.
+  const currentPathway = useMemo(() => {
+    if (!user?.lastUsedPathway) return null;
+    return accessiblePathways.includes(user.lastUsedPathway) ? user.lastUsedPathway : null;
+  }, [user?.lastUsedPathway, accessiblePathways]);
+
+  // Phase 2 — state (available/eligible/locked/coming_soon) per pathway,
+  // computed once here so the selector, cards, and route guards all agree.
+  const pathwayStates = useMemo(() => {
+    const states = {};
+    for (const id of PATHWAY_IDS) {
+      states[id] = getPathwayState(id, {
+        accessible: accessiblePathways.includes(id),
+        visitedPathways: user?.visitedPathways ?? [],
+      });
+    }
+    return states;
+  }, [accessiblePathways, user?.visitedPathways]);
+
+  const setActivePathway = useCallback((pathwayId) => {
+    if (!firebaseUser || !isValidPathwayId(pathwayId) || !accessiblePathways.includes(pathwayId)) {
+      return Promise.resolve(false);
+    }
+    const isSwitch  = !!user?.lastUsedPathway && user.lastUsedPathway !== pathwayId;
+    const isFirstVisit = !(user?.visitedPathways ?? []).includes(pathwayId);
+    return setDoc(
+      doc(db, "users", firebaseUser.uid),
+      { lastUsedPathway: pathwayId, visitedPathways: arrayUnion(pathwayId) },
+      { merge: true }
+    )
+      .then(() => {
+        logPathwayEvent(firebaseUser.uid, isSwitch ? PATHWAY_EVENTS.PATHWAY_SWITCHED : PATHWAY_EVENTS.PATHWAY_SELECTED, { pathwayId });
+        if (isFirstVisit) logPathwayEvent(firebaseUser.uid, PATHWAY_EVENTS.PATHWAY_ONBOARDING_STARTED, { pathwayId });
+        return true;
+      })
+      .catch(() => false);
+  }, [firebaseUser, accessiblePathways, user?.lastUsedPathway, user?.visitedPathways]);
+
+  const setActiveProfile = useCallback((profileId) => {
+    if (!firebaseUser || !profiles.some(p => p.id === profileId)) return Promise.resolve(false);
+    return setDoc(doc(db, "users", firebaseUser.uid), { activeProfileId: profileId }, { merge: true })
+      .then(() => {
+        logPathwayEvent(firebaseUser.uid, PATHWAY_EVENTS.PROFILE_SELECTED, { profileId });
+        return true;
+      })
+      .catch(() => false);
+  }, [firebaseUser, profiles]);
+
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, profileReady, refreshProfile: () => firebaseUser ? refreshProfile(firebaseUser.uid) : Promise.resolve() }}>
+    <AuthContext.Provider value={{
+      user, isAdmin, loading, profileReady,
+      refreshProfile: () => firebaseUser ? refreshProfile(firebaseUser.uid) : Promise.resolve(),
+      // Phase 1 — account/profile/pathway architecture
+      accessiblePathways, profiles, currentProfile, currentPathway,
+      setActivePathway, setActiveProfile,
+      // Phase 2 — per-pathway card/route state
+      pathwayStates,
+    }}>
       {children}
     </AuthContext.Provider>
   );

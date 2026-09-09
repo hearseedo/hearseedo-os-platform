@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { WORLDS_MAP } from "../constants/worlds";
 import { LEGACY_EXPERIENCES_MAP } from "../constants/experiences";
 import { useAuth } from "../hooks/useAuth";
+import { useLang } from "../hooks/useLang";
 import AppShell from "./components/AppShell";
 import WorldLanding from "./world/WorldLanding";
 import WorldLaunch from "./world/WorldLaunch";
@@ -15,12 +16,13 @@ import { TOKENS } from "../constants/tokens";
 export default function WorldPage() {
   const { worldId } = useParams();
   const { user } = useAuth();
+  const { t } = useLang();
   const world = WORLDS_MAP[worldId] ?? LEGACY_EXPERIENCES_MAP[worldId];
 
   if (!world) {
     return (
       <AppShell active="worlds">
-        <div style={{ color: TOKENS.color.textMuted }}>Unknown World: {worldId}</div>
+        <div style={{ color: TOKENS.color.textMuted }}>{t("lb_unknown_world").replace("{id}", worldId)}</div>
       </AppShell>
     );
   }

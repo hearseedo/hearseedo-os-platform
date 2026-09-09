@@ -93,13 +93,19 @@ export function computeConfidenceTrend(history) {
 }
 
 // Confidence level label
-export function confidenceLabel(score) {
-  if (score >= 85) return "Breakthrough";
-  if (score >= 70) return "Confident";
-  if (score >= 55) return "Growing";
-  if (score >= 40) return "Building";
-  if (score >= 25) return "Starting";
-  return "Beginning";
+const CONFIDENCE_LABELS = {
+  en: { breakthrough: "Breakthrough", confident: "Confident", growing: "Growing", building: "Building", starting: "Starting", beginning: "Beginning" },
+  jp: { breakthrough: "大きな飛躍",   confident: "自信あり",   growing: "成長中",   building: "構築中",   starting: "スタート", beginning: "始まったばかり" },
+};
+
+export function confidenceLabel(score, lang = "en") {
+  const L = CONFIDENCE_LABELS[lang] ?? CONFIDENCE_LABELS.en;
+  if (score >= 85) return L.breakthrough;
+  if (score >= 70) return L.confident;
+  if (score >= 55) return L.growing;
+  if (score >= 40) return L.building;
+  if (score >= 25) return L.starting;
+  return L.beginning;
 }
 
 export function trendIcon(trend) {

@@ -74,6 +74,30 @@ export default function AppModal({ app, onClose, user, activeMember }) {
     }
   }, [app?.id]);
 
+  // Apps with launchMode "external" open in a new tab (with SSO token attached)
+  // instead of an iframe modal — e.g. The HSD Album, a standalone static site.
+  const externalOpenedRef = useRef(null);
+  useEffect(() => {
+    if (app?.launchMode !== "external") { externalOpenedRef.current = null; return; }
+    if (externalOpenedRef.current === app.id) return;
+    if (!user?.uid) return;
+
+    if (idToken) {
+      externalOpenedRef.current = app.id;
+      window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken), "_blank", "noopener,noreferrer");
+      onClose();
+    } else {
+      // Give the fresh-ID-token fetch a moment before opening without it.
+      const timer = setTimeout(() => {
+        if (externalOpenedRef.current === app.id) return;
+        externalOpenedRef.current = app.id;
+        window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken), "_blank", "noopener,noreferrer");
+        onClose();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [app?.id, app?.launchMode, user?.uid, idToken]);
+
   // Blank the iframe before closing — ends iOS scroll session so page scrolls again after
   function handleClose() {
     if (iframeRef.current) {
@@ -129,7 +153,7 @@ export default function AppModal({ app, onClose, user, activeMember }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [app?.id, app?.iframeUrl, user?.uid]);
 
-  if (!app || app.id === "career-ready" || app.id === "global-ready" || app.id === "speak-ready") return null;
+  if (!app || app.id === "career-ready" || app.id === "global-ready" || app.id === "speak-ready" || app.launchMode === "external") return null;
 
   const unlocked = isUnlocked(app.id);
   const accent   = app.accent ?? COLORS.red;

@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { firestoreFetch } = require("./_firebaseAdmin");
 
 const MODEL      = "gemini-2.5-flash";
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
@@ -35,6 +36,25 @@ function todayJST() {
 }
 
 function memKey(uid) { return `${uid}:${todayJST()}`; }
+
+// Phase 0 security hardening (2026-09-09): `plan` used to come straight from
+// the request body with no cross-check, so any caller could claim
+// plan: "all_access" and get the highest daily message quota regardless of
+// what they actually pay for. This reads the real plan from Firestore
+// server-side instead of trusting the client. Uses the service-account-
+// authenticated firestoreFetch (same helper the Stripe webhook uses) so it
+// works the same way regardless of auth token freshness/scope. Falls back
+// to "free" if the doc or field is missing.
+async function getRealPlan(uid) {
+  try {
+    const res = await firestoreFetch(`/users/${uid}`);
+    if (!res.ok) return "free";
+    const doc = await res.json();
+    return doc.fields?.plan?.stringValue || "free";
+  } catch {
+    return "free";
+  }
+}
 
 async function getCount(uid) {
   const key = memKey(uid);
@@ -171,7 +191,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
-  const { system, messages, idToken, plan = "free" } = body;
+  const { system, messages, idToken } = body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "messages array is required" }) };
@@ -183,12 +203,14 @@ exports.handler = async (event) => {
   }
 
   let uid = null;
+  let plan = "free";
   try {
     const firebaseUser = await verifyIdToken(idToken);
     if (!firebaseUser) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid session. Please sign in again." }) };
     }
     uid = firebaseUser.localId;
+    plan = await getRealPlan(uid);
     const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
     const count = await getCount(uid);
 

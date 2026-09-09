@@ -1,5 +1,10 @@
 // HSD OS — Placement Assessment Scorer
 // Takes MCQ answers + speaking transcript, returns CEFR level + baseline score via Gemini.
+//
+// Phase 0 security hardening (2026-09-09): this endpoint previously trusted
+// a client-supplied uid/sso_token with no verification at all. It now
+// requires a valid Firebase ID token and derives identity from it server-side.
+const { verifyIdToken } = require("./_firebaseAdmin");
 
 const MODEL        = "gemini-2.5-flash";
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
@@ -39,8 +44,15 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const uid = body.uid || body.sso_token;
-  if (!uid) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Unauthorized" }) };
+  if (!body.idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+  let uid;
+  try {
+    uid = await verifyIdToken(body.idToken);
+  } catch {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid or expired session." }) };
+  }
 
   const { answers = [], speakingTranscript = "", questions = [], lang = "en" } = body;
   const inJapanese = lang === "jp";
@@ -81,7 +93,7 @@ Based on these results, provide a placement assessment. Reply ONLY with valid JS
 
 Score range: 0–100. CEFR levels: A1, A2, B1, B2, C1, C2.
 A1=0-20, A2=20-40, B1=40-60, B2=60-80, C1=80-92, C2=92-100.
-Base on MCQ performance primarily; use speaking sample to refine.`;
+Base on MCQ performance primarily; use speaking sample to refine. This learner may be a child — keep all feedback age-appropriate, no adult topics.`;
 
   try {
     const res = await fetch(

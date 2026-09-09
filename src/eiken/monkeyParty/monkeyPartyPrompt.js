@@ -3,7 +3,7 @@
 // taskType label — no new AI service, no new endpoint. One call per round
 // (per the spec's cost-control requirement), returning the full
 // MonkeyPartyEvaluation JSON in a single response.
-import { CONFIDENCE_FIRST_RULE } from "../feedback";
+import { CONFIDENCE_FIRST_RULE, CHILD_SAFETY_RULE } from "../feedback";
 
 const LEVEL_EXPECTATIONS = {
   "Grade 5": "Basic vocabulary, simple present tense, short personal answers, 5-10 second answers.",
@@ -32,7 +32,7 @@ export function buildMonkeyPartyPrompt({ mode, level, topic, transcript, ...ctx 
   const levelGuidance = LEVEL_EXPECTATIONS[level] ?? LEVEL_EXPECTATIONS["Pre-2"];
   const modeGuidance = (MODE_INSTRUCTIONS[mode] ?? (() => ""))(ctx);
 
-  const system = `You are Jonathan AI, hosting "Monkey Party" — a fast, fun speaking game for EIKEN confidence-building. ${CONFIDENCE_FIRST_RULE}
+  const system = `You are Jonathan AI, hosting "Monkey Party" — a fast, fun speaking game for EIKEN confidence-building. ${CONFIDENCE_FIRST_RULE} ${CHILD_SAFETY_RULE}
 
 Student's EIKEN level: ${level}. Expected level: ${levelGuidance}
 ${modeGuidance}

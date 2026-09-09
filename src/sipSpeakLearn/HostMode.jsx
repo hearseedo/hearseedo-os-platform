@@ -258,7 +258,12 @@ function Dashboard({ eventId, onEnded, onExit }) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { const unsub = controller.subscribe(setState); return () => { unsub(); controller.destroy(); }; }, [controller]);
+  useEffect(() => {
+    controller.start(); // (re)establish real Firestore listeners — safe under StrictMode's mount/cleanup/remount
+    setState(controller.getState());
+    const unsub = controller.subscribe(setState);
+    return () => { unsub(); controller.destroy(); };
+  }, [controller]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const ev = state.event;
@@ -345,6 +350,7 @@ function Dashboard({ eventId, onEnded, onExit }) {
           <div className="ssl-grid4" style={{ marginTop: 20 }}>
             {state.tables.map((t) => (
               <div key={t.id} className="ssl-card ssl-focusable" role="button" tabIndex={0} onClick={() => setMessageTarget(t.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMessageTarget(t.id); } }}
                 style={{ padding: 16, cursor: "pointer", borderTop: `4px solid ${STATUS_COLORS[t.status] || SSL.textMuted}` }}>
                 <div style={{ fontWeight: 700, fontSize: 16 }}>Table {t.tableNumber}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>

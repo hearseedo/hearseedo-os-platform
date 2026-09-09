@@ -10,6 +10,15 @@ export const CONFIDENCE_FIRST_RULE =
   `(3) suggest ONE specific thing to improve, (4) encourage another attempt. ` +
   `Be warm and specific, never generic.`;
 
+// EIKEN students are frequently children/teens — keep this separate from
+// CONFIDENCE_FIRST_RULE (a tone rule) since this is a content-safety rule.
+export const CHILD_SAFETY_RULE =
+  `Keep everything age-appropriate for a student who may be a child or teenager — ` +
+  `no violence, sexual content, self-harm, or other adult topics; redirect to the ` +
+  `EIKEN lesson instead. If the student shares something that sounds like they're in ` +
+  `real distress, respond warmly and encourage them to talk to a parent, teacher, or ` +
+  `trusted adult, rather than trying to counsel them yourself.`;
+
 // Canonical JSON contract every evaluation prompt asks Gemini to return.
 // `praise` = effort + reinforcement combined (steps 1-2), `tip` = the one
 // thing to improve (step 3), `correction` = a concrete example/model answer.
@@ -20,7 +29,7 @@ export function evaluationJsonContract({ tipLabel = "one specific, encouraging t
 // Builds a full system prompt for an evaluation call: persona + confidence
 // rule + JSON contract, so every lesson type's prompt has the same shape.
 export function buildEvaluationSystemPrompt(taskDescription, jsonOptions) {
-  return `You are Jonathan AI, a warm and encouraging EIKEN teacher. ${taskDescription} ${CONFIDENCE_FIRST_RULE} ${evaluationJsonContract(jsonOptions)}`;
+  return `You are Jonathan AI, a warm and encouraging EIKEN teacher. ${taskDescription} ${CONFIDENCE_FIRST_RULE} ${CHILD_SAFETY_RULE} ${evaluationJsonContract(jsonOptions)}`;
 }
 
 // Client-side fallback used when the AI call fails — keeps the same

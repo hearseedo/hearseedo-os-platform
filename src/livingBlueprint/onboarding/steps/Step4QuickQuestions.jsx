@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TOKENS } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 import StepShell from "./StepShell";
 
 // Rebuild prompt section 5, Step 4 — Quick questions, one at a time per
@@ -8,15 +9,16 @@ import StepShell from "./StepShell";
 // recommendations, per spec.
 
 const CATEGORIES = [
-  { id: "school",     label: "School",           icon: "◆" },
-  { id: "speaking",   label: "English Speaking", icon: "●" },
-  { id: "reading",    label: "Reading",          icon: "▤" },
-  { id: "confidence", label: "Confidence",       icon: "✦" },
-  { id: "eiken",      label: "EIKEN",            icon: "◈" },
-  { id: "fun",        label: "Just for fun",     icon: "◇" },
+  { id: "school",     labelKey: "lb_cat_school",    icon: "◆" },
+  { id: "speaking",   labelKey: "lb_cat_speaking",  icon: "●" },
+  { id: "reading",    labelKey: "lb_cat_reading",   icon: "▤" },
+  { id: "confidence", labelKey: "lb_cat_confidence", icon: "✦" },
+  { id: "eiken",      labelKey: "lb_cat_eiken",     icon: "◈" },
+  { id: "fun",        labelKey: "lb_cat_fun",       icon: "◇" },
 ];
 
 export default function Step4QuickQuestions({ learners, answers, onChange, onBack, onNext }) {
+  const { t } = useLang();
   const [index, setIndex] = useState(0);
   const learner = learners[index];
   const selected = answers[learner.id]?.helpWith;
@@ -36,13 +38,13 @@ export default function Step4QuickQuestions({ learners, answers, onChange, onBac
 
   return (
     <StepShell
-      title="What would you like help with most?"
-      subtitle={learners.length > 1 ? `For ${learner.name} (${index + 1} of ${learners.length})` : undefined}
+      title={t("lb_help_with_most")}
+      subtitle={learners.length > 1 ? t("lb_for_learner_of").replace("{name}", learner.name).replace("{i}", index + 1).replace("{n}", learners.length) : undefined}
       step={4}
       onBack={goBack}
       onContinue={goNext}
       continueDisabled={!selected}
-      continueLabel={index < learners.length - 1 ? "Next Person" : "Continue"}
+      continueLabel={index < learners.length - 1 ? t("lb_next_person") : t("lb_continue")}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <div style={{
@@ -56,7 +58,7 @@ export default function Step4QuickQuestions({ learners, answers, onChange, onBac
           />
         </div>
         <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted }}>
-          Jona is asking on behalf of <strong style={{ color: TOKENS.color.starlight }}>{learner.name}</strong>.
+          {t("lb_jona_asking_on_behalf").split("{name}")[0]}<strong style={{ color: TOKENS.color.starlight }}>{learner.name}</strong>{t("lb_jona_asking_on_behalf").split("{name}")[1]}
         </div>
       </div>
 
@@ -75,7 +77,7 @@ export default function Step4QuickQuestions({ learners, answers, onChange, onBac
               }}
             >
               <div style={{ fontSize: 20, color: isSelected ? TOKENS.color.gold : TOKENS.color.textMuted, marginBottom: 6 }}>{cat.icon}</div>
-              <div style={{ fontWeight: 600, fontSize: TOKENS.font.size.sm }}>{cat.label}</div>
+              <div style={{ fontWeight: 600, fontSize: TOKENS.font.size.sm }}>{t(cat.labelKey)}</div>
             </button>
           );
         })}

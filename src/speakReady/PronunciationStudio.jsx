@@ -48,7 +48,7 @@ export default function PronunciationStudio({ user, onExit, onBadgesEarned }) {
   }
 
   function playModel() {
-    playTTS(drill.sentence, user?.uid, () => setModelSpeaking(true), () => setModelSpeaking(false))
+    playTTS(drill.sentence, user?.uid, () => setModelSpeaking(true), () => setModelSpeaking(false), lang)
       .then((a) => { if (a) modelAudioRef.current = a; });
   }
 

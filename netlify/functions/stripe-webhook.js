@@ -1,9 +1,8 @@
 const crypto = require("crypto");
+const { firestoreFetch } = require("./_firebaseAdmin");
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const PROJECT_ID     = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
-const FIREBASE_KEY   = process.env.FIREBASE_API_KEY    || "";
-const FS_BASE        = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const FOUNDING_LIMIT = 200; // first 200 paying users get the Founding Member badge
 
@@ -73,8 +72,14 @@ function verifyStripeSignature(payload, sigHeader, secret) {
 }
 
 // ── Firestore helpers ─────────────────────────────────────────────────────────
+// All writes go through the service-account-authenticated firestoreFetch
+// (see _firebaseAdmin.js) rather than an unauthenticated bare-API-key
+// request. Billing/plan fields on users/{uid} are now denied to any
+// non-admin, non-service-account write in firestore.rules, so this webhook
+// MUST authenticate as the service account (which bypasses rules entirely)
+// to keep granting/revoking access on real Stripe events.
 async function fsGet(path) {
-  const res = await fetch(`${FS_BASE}/${path}?key=${FIREBASE_KEY}`);
+  const res = await firestoreFetch(`/${path}`);
   if (res.status === 404) return null;
   const json = await res.json();
   return json.error ? null : json;
@@ -82,7 +87,7 @@ async function fsGet(path) {
 
 async function fsPatch(path, fields, fieldMask) {
   const mask = fieldMask.map(f => `updateMask.fieldPaths=${f}`).join("&");
-  await fetch(`${FS_BASE}/${path}?${mask}&key=${FIREBASE_KEY}`, {
+  await firestoreFetch(`/${path}?${mask}`, {
     method:  "PATCH",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fields }),
@@ -90,19 +95,16 @@ async function fsPatch(path, fields, fieldMask) {
 }
 
 async function fsIncrement(docPath, ...fieldPaths) {
-  await fetch(
-    `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit?key=${FIREBASE_KEY}`,
-    {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        writes: [{ transform: {
-          document:        `projects/${PROJECT_ID}/databases/(default)/documents/${docPath}`,
-          fieldTransforms: fieldPaths.map(fp => ({ fieldPath: fp, increment: { integerValue: "1" } })),
-        }}],
-      }),
-    }
-  );
+  await firestoreFetch(":commit", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({
+      writes: [{ transform: {
+        document:        `projects/${PROJECT_ID}/databases/(default)/documents/${docPath}`,
+        fieldTransforms: fieldPaths.map(fp => ({ fieldPath: fp, increment: { integerValue: "1" } })),
+      }}],
+    }),
+  });
 }
 
 async function fsGetCount(path, field) {

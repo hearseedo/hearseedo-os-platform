@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TOKENS } from "../../constants/tokens";
+import { useLang } from "../../hooks/useLang";
 import { getReferralLink, getReferralTierConfig } from "../../lib/referral";
 
 // Rebuild prompt section 4 — Referral Center. Real referral data already
@@ -7,7 +8,8 @@ import { getReferralLink, getReferralTierConfig } from "../../lib/referral";
 // referralBadge, referralCommission, isLegacyFounder.
 export default function ReferralPanel({ user }) {
   const [copied, setCopied] = useState(false);
-  if (!user) return <div style={{ color: TOKENS.color.textMuted }}>Sign in to see your referral center.</div>;
+  const { t } = useLang();
+  if (!user) return <div style={{ color: TOKENS.color.textMuted }}>{t("lb_sign_in_referrals")}</div>;
 
   const link = getReferralLink(user.uid);
   const tier = user.referralBadge ? getReferralTierConfig(user.referralBadge) : null;
@@ -22,18 +24,18 @@ export default function ReferralPanel({ user }) {
   return (
     <div>
       <div style={{ marginBottom: TOKENS.space[5] }}>
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>REFERRAL CENTER</div>
-        <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>Invite & Earn</h1>
+        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>{t("lb_referral_center_label")}</div>
+        <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>{t("lb_invite_earn")}</h1>
       </div>
 
       <div style={{ display: "flex", gap: TOKENS.space[3], marginBottom: TOKENS.space[5], flexWrap: "wrap" }}>
-        <Tile label="Active Referrals" value={user.referralCount ?? 0} />
-        <Tile label="Commission Rate" value={`${Math.round((user.referralCommission ?? 0) * 100)}%`} />
-        <Tile label="Badge" value={tier?.label ?? "None yet"} sub={tier?.subtitle} />
-        {user.isLegacyFounder && <Tile label="Status" value="Legacy Founder" />}
+        <Tile label={t("lb_active_referrals")} value={user.referralCount ?? 0} />
+        <Tile label={t("lb_commission_rate")} value={`${Math.round((user.referralCommission ?? 0) * 100)}%`} />
+        <Tile label={t("lb_badge_label")} value={tier?.label ?? t("lb_none_yet")} sub={tier?.subtitle} />
+        {user.isLegacyFounder && <Tile label={t("lb_status_label")} value={t("lb_legacy_founder")} />}
       </div>
 
-      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>YOUR LINK</div>
+      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_your_link")}</div>
       <div style={{ display: "flex", gap: 8 }}>
         <input readOnly value={link} style={{
           flex: 1, padding: "12px 14px", borderRadius: TOKENS.radius.pill, border: `1px solid ${TOKENS.color.border}`,
@@ -43,7 +45,7 @@ export default function ReferralPanel({ user }) {
           padding: "12px 24px", borderRadius: TOKENS.radius.pill, border: "none",
           background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: "pointer",
         }}>
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("lb_copied") : t("lb_copy")}
         </button>
       </div>
     </div>

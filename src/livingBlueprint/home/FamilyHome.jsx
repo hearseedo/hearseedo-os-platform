@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TOKENS } from "../../constants/tokens";
 import { confidenceLabel } from "../../lib/confidenceEngine";
+import { useLang } from "../../hooks/useLang";
 import { getTodaysRecommendation } from "./recommendation";
 import Leaderboard from "../../components/Leaderboard";
 
@@ -12,11 +13,11 @@ function confidenceColor(score) {
   return TOKENS.color.textMuted;
 }
 
-function timeAwareGreeting() {
+function timeAwareGreeting(t) {
   const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return t("good_morning");
+  if (h < 18) return t("good_afternoon");
+  return t("good_evening");
 }
 
 // Rebuild prompt section 7 — Family Home: a shared constellation, not a
@@ -24,6 +25,7 @@ function timeAwareGreeting() {
 // array — same data Achievements.jsx and claude.js already rely on. The
 // site-wide Leaderboard lives at the bottom of this page (see below).
 export default function FamilyHome({ user }) {
+  const { t, lang } = useLang();
   const members = user?.familyMembers ?? [];
   const [selectedId, setSelectedId] = useState(members[0]?.id ?? null);
   const selected = members.find(m => m.id === selectedId) ?? null;
@@ -32,16 +34,18 @@ export default function FamilyHome({ user }) {
     ? Math.round(members.reduce((sum, m) => sum + (m.confidenceScore ?? 0), 0) / members.length)
     : 0;
 
+  const familyName = user?.name ? t("lb_family_name_template").replace("{name}", user.name) : t("lb_your_family");
+
   return (
     <div>
-      <JonaFamilyBanner greeting={timeAwareGreeting()} familyName={user?.name ? `${user.name}'s Family` : "Your Family"} />
+      <JonaFamilyBanner greeting={timeAwareGreeting(t)} familyName={familyName} />
 
       {members.length === 0 ? (
         <div style={{
           padding: 32, borderRadius: TOKENS.radius.lg, border: `1px dashed ${TOKENS.color.border}`,
           color: TOKENS.color.textMuted, textAlign: "center",
         }}>
-          No family members yet. Add one from onboarding or Family Setup.
+          {t("lb_no_family_yet")}
         </div>
       ) : (
         <div>
@@ -55,15 +59,15 @@ export default function FamilyHome({ user }) {
             ))}
           </div>
           <div style={{ fontSize: 10, color: TOKENS.color.textDim, marginBottom: TOKENS.space[4] }}>
-            The path connects your household to each family member — click a member to see their details below.
+            {t("lb_family_path_hint")}
           </div>
         </div>
       )}
 
       <div style={{ display: "flex", gap: TOKENS.space[3], marginBottom: TOKENS.space[5], flexWrap: "wrap" }}>
-        <SummaryTile label="Family Progress" value={`${avgConfidence}%`} sub={confidenceLabel(avgConfidence)} />
-        <SummaryTile label="Weekly Goal" value="3 sessions" sub="Not tracked yet" />
-        <SummaryTile label="Family Streak" value={`${user?.streak ?? 0} days`} />
+        <SummaryTile label={t("family_progress")} value={`${avgConfidence}%`} sub={confidenceLabel(avgConfidence, lang)} />
+        <SummaryTile label={t("lb_weekly_goal")} value={t("lb_weekly_sessions_value")} sub={t("lb_not_tracked_yet")} />
+        <SummaryTile label={t("lb_family_streak")} value={`${user?.streak ?? 0} ${t("lb_days_suffix")}`} />
       </div>
 
       {selected && <MemberDetail member={selected} />}
@@ -85,6 +89,7 @@ export default function FamilyHome({ user }) {
 // composited/layered mouth swap (no alignment data for that). Respects
 // prefers-reduced-motion.
 function JonaFamilyBanner({ greeting, familyName }) {
+  const { t } = useLang();
   return (
     <div style={{
       position: "relative", borderRadius: TOKENS.radius.xl, overflow: "hidden",
@@ -107,7 +112,7 @@ function JonaFamilyBanner({ greeting, familyName }) {
           <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, marginBottom: 4 }}>{greeting}</div>
           <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, marginBottom: 6 }}>{familyName}</h1>
           <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted, maxWidth: 320 }}>
-            "Hi, I'm Jona — here's how everyone's doing today."
+            "{t("lb_jona_family_quote")}"
           </div>
         </div>
 
@@ -133,6 +138,7 @@ function JonaFamilyBanner({ greeting, familyName }) {
 // household-to-member path, left to right, is simpler to read and scrolls
 // naturally on mobile without a separate layout.
 function HouseholdNode() {
+  const { t } = useLang();
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
       <div style={{
@@ -142,7 +148,7 @@ function HouseholdNode() {
       }}>
         ⌂
       </div>
-      <div style={{ fontSize: 10, color: TOKENS.color.gold, fontWeight: 700, letterSpacing: 0.5 }}>HOUSEHOLD</div>
+      <div style={{ fontSize: 10, color: TOKENS.color.gold, fontWeight: 700, letterSpacing: 0.5 }}>{t("lb_household")}</div>
     </div>
   );
 }
@@ -205,17 +211,19 @@ function MemberOrb({ member, selected, onClick }) {
 // Color + label are real, derived from the same confidenceScore/
 // confidenceLabel used throughout the rest of the app.
 function ConfidenceBadge({ score, color }) {
+  const { lang } = useLang();
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, color, background: `${color}18`,
       border: `1px solid ${color}40`, borderRadius: TOKENS.radius.pill, padding: "2px 8px",
     }}>
-      {confidenceLabel(score)}
+      {confidenceLabel(score, lang)}
     </span>
   );
 }
 
 function MemberDetail({ member }) {
+  const { t } = useLang();
   const { world, lesson } = getTodaysRecommendation({ confidenceScore: member.confidenceScore ?? 50 });
   return (
     <div style={{
@@ -224,10 +232,10 @@ function MemberDetail({ member }) {
     }}>
       <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 8 }}>{member.name?.toUpperCase()}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        <DetailField label="Today's Mission" value={lesson} />
-        <DetailField label="Current World" value={world.name} />
-        <DetailField label="Confidence" value={`${member.confidenceScore ?? 0}%`} />
-        <DetailField label="Recent Activity" value="No recent activity yet." />
+        <DetailField label={t("lb_todays_mission")} value={lesson} />
+        <DetailField label={t("lb_current_world")} value={world.name} />
+        <DetailField label={t("lb_confidence_metric")} value={`${member.confidenceScore ?? 0}%`} />
+        <DetailField label={t("lb_recent_activity")} value={t("lb_no_recent_activity")} />
       </div>
     </div>
   );
@@ -243,21 +251,22 @@ function DetailField({ label, value }) {
 }
 
 function FamilyChallengeCard() {
+  const { t } = useLang();
   return (
     <div style={{
       padding: TOKENS.space[4], borderRadius: TOKENS.radius.lg, border: `1px solid ${TOKENS.color.goldDim}`,
       background: "rgba(201,168,76,0.06)",
     }}>
-      <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>FAMILY CHALLENGE · SAMPLE</div>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>7-Day Speaking Streak</div>
+      <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>{t("lb_family_challenge_label")}</div>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("lb_7day_streak_challenge")}</div>
       <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, marginBottom: 10 }}>
-        Everyone in the family completes one speaking session each day this week.
+        {t("lb_family_challenge_desc")}
       </div>
       <div style={{ height: 4, borderRadius: TOKENS.radius.pill, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
         <div style={{ height: "100%", width: "0%", background: TOKENS.color.gold }} />
       </div>
       <div style={{ fontSize: 10, color: TOKENS.color.textDim, marginTop: 6 }}>
-        Not started — real family-challenge tracking isn't wired up yet.
+        {t("lb_challenge_not_started")}
       </div>
     </div>
   );

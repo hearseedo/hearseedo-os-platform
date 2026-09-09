@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { ACTIVE_PLANS } from "../constants/plans";
 import { useAuth } from "../hooks/useAuth";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const CURRENCIES = [
@@ -109,10 +109,11 @@ export default function Plans() {
     setLoading(plan.id);
     setError("");
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId, planId: plan.id, uid: user.uid, email: user.email, billing }),
+        body: JSON.stringify({ priceId, idToken, email: user.email, billing }),
       });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; }

@@ -4,23 +4,28 @@ import { TOKENS } from "../../constants/tokens";
 import { APPS } from "../../constants/apps";
 import { auth } from "../../lib/firebase";
 import { useSubscription } from "../../hooks/useSubscription";
+import { useLang } from "../../hooks/useLang";
 import { getWorldAccess } from "../home/worldAccess";
+import { t as translate } from "../../lib/i18n";
 
 const EikenApp = lazy(() => import("../../pages/EikenApp"));
 
 // Mirrors components/AppModal.jsx's EikenBoundary (module-private there) —
 // EIKEN is a native React component, not an iframe, so it needs its own
 // error boundary rather than the generic iframe timeout/unavailable states.
+// A class component can't call useLang(), so it reads the saved language
+// directly (same localStorage key useLang.jsx persists to).
 class EikenBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
   render() {
     if (this.state.error) {
+      const lang = (() => { try { return localStorage.getItem("hsd-lang") ?? "en"; } catch { return "en"; } })();
       return (
         <StateCard
-          title="EIKEN AI Coach had a hiccup"
-          detail="Please try again. If the problem persists, refresh the page."
-          action={{ label: "Try Again", onClick: () => this.setState({ error: null }) }}
+          title={translate(lang, "lb_eiken_hiccup")}
+          detail={translate(lang, "lb_try_again_refresh")}
+          action={{ label: translate(lang, "lb_try_again"), onClick: () => this.setState({ error: null }) }}
         />
       );
     }
@@ -44,6 +49,7 @@ function buildIframeSrc(url, uid, idToken) {
 
 export default function WorldLaunch({ world, user }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [idToken, setIdToken] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -73,7 +79,7 @@ export default function WorldLaunch({ world, user }) {
       background: "none", border: "none", color: TOKENS.color.textMuted, cursor: "pointer",
       fontSize: TOKENS.font.size.sm, marginBottom: TOKENS.space[4], padding: 0,
     }}>
-      ← Back to HSDOS
+      {t("lb_back_to_hsdos")}
     </button>
   );
 
@@ -84,7 +90,7 @@ export default function WorldLaunch({ world, user }) {
     return (
       <div>
         {BackLink}
-        <StateCard title={`${world.name} is coming soon`} detail="This experience isn't launched yet." />
+        <StateCard title={t("lb_world_coming_soon").replace("{world}", world.name)} detail={t("lb_experience_not_launched")} />
       </div>
     );
   }
@@ -95,7 +101,7 @@ export default function WorldLaunch({ world, user }) {
       <div>
         {BackLink}
         <StateCard
-          title={`${world.name} is locked`}
+          title={t("lb_world_locked").replace("{world}", world.name)}
           detail={access.reason}
           action={{ label: access.unlockLabel, onClick: () => navigate(access.unlockPath) }}
         />
@@ -116,7 +122,7 @@ export default function WorldLaunch({ world, user }) {
             <EikenBoundary>
               <Suspense fallback={
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: TOKENS.color.surfaceRaised, color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
-                  Loading EIKEN AI Coach…
+                  {t("lb_loading_eiken")}
                 </div>
               }>
                 <EikenApp user={user} activeMember={null} />
@@ -130,9 +136,9 @@ export default function WorldLaunch({ world, user }) {
       <div>
         {BackLink}
         <StateCard
-          title={`${world.name} opens from the Dashboard`}
-          detail="This World is a native in-app experience that doesn't have a standalone Living Blueprint embed yet. It's reachable from the current Dashboard's app grid."
-          action={{ label: "Go to Dashboard", onClick: () => navigate("/dashboard") }}
+          title={t("lb_world_opens_dashboard").replace("{world}", world.name)}
+          detail={t("lb_world_dashboard_note")}
+          action={{ label: t("lb_go_to_dashboard"), onClick: () => navigate("/dashboard") }}
         />
       </div>
     );
@@ -144,8 +150,8 @@ export default function WorldLaunch({ world, user }) {
       <div>
         {BackLink}
         <StateCard
-          title={`${world.name} is unavailable right now`}
-          detail="No launch URL is configured for this environment."
+          title={t("lb_world_unavailable").replace("{world}", world.name)}
+          detail={t("lb_no_launch_url")}
         />
       </div>
     );
@@ -157,9 +163,9 @@ export default function WorldLaunch({ world, user }) {
       <div>
         {BackLink}
         <StateCard
-          title={`${world.name} didn't load`}
-          detail="It may be blocked by a browser extension or network setting."
-          action={{ label: "Open in a new tab", onClick: () => window.open(buildIframeSrc(app.iframeUrl, user?.uid, idToken), "_blank") }}
+          title={t("lb_world_failed_load").replace("{world}", world.name)}
+          detail={t("lb_maybe_blocked")}
+          action={{ label: t("lb_open_new_tab"), onClick: () => window.open(buildIframeSrc(app.iframeUrl, user?.uid, idToken), "_blank") }}
         />
       </div>
     );
@@ -171,7 +177,7 @@ export default function WorldLaunch({ world, user }) {
       <div style={{ position: "relative", borderRadius: TOKENS.radius.lg, overflow: "hidden", border: `1px solid ${TOKENS.color.border}`, height: "70vh", minHeight: 480 }}>
         {!loaded && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: TOKENS.color.surfaceRaised, color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
-            Loading {world.name}…
+            {t("lb_loading_world").replace("{world}", world.name)}
           </div>
         )}
         <iframe

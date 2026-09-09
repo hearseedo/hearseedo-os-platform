@@ -9,7 +9,7 @@ import { JONA_STATE_ORDER, JONA_STATES } from "./jonaStates";
 
 // Mirrors components/AIChat.jsx's speakText — same /api/tts (real
 // ElevenLabs) call, same markdown-stripping, same 800-char cap.
-async function speakText(text, uid) {
+async function speakText(text, uid, lang) {
   const clean = text
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
@@ -20,7 +20,7 @@ async function speakText(text, uid) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: clean, uid }),
+    body: JSON.stringify({ text: clean, uid, lang }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob = await res.blob();
@@ -37,7 +37,7 @@ async function speakText(text, uid) {
 // flagged preview route instead of the live Dashboard chat panel.
 export default function JonaCoach({ user }) {
   const isMobile = useMobile();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [state, setState] = useState("welcome");
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -79,7 +79,7 @@ export default function JonaCoach({ user }) {
   async function handleSend(text) {
     const trimmed = (text ?? input).trim();
     if (!trimmed || sending) return;
-    if (!user) { setError("Sign in to chat with Jona — this preview needs a real account for /api/chat."); return; }
+    if (!user) { setError(t("lb_sign_in_chat")); return; }
 
     const userMsg = { role: "user", text: trimmed };
     const next = [...messages, userMsg];
@@ -95,7 +95,7 @@ export default function JonaCoach({ user }) {
       if (voiceOn) {
         try {
           stopSpeaking();
-          const audio = await speakText(reply, user.uid);
+          const audio = await speakText(reply, user.uid, lang);
           audioRef.current = audio;
           audio.onended = () => { audioRef.current = null; setState("welcome"); };
         } catch {
@@ -103,7 +103,7 @@ export default function JonaCoach({ user }) {
         }
       }
     } catch (e) {
-      setError(e.message ?? "Jona is unavailable right now.");
+      setError(e.message ?? t("lb_jona_unavailable"));
       setState("concern");
     } finally {
       setSending(false);
@@ -117,7 +117,7 @@ export default function JonaCoach({ user }) {
 
         <button
           onClick={toggleVoice}
-          title={voiceOn ? "Voice on — click to mute" : "Click to enable Jona voice"}
+          title={voiceOn ? t("voice_on") : t("voice_off")}
           style={{
             display: "flex", alignItems: "center", gap: 6, fontSize: TOKENS.font.size.xs, fontWeight: 700,
             padding: "5px 14px", borderRadius: TOKENS.radius.pill, cursor: "pointer",
@@ -141,7 +141,7 @@ export default function JonaCoach({ user }) {
               </>
             )}
           </svg>
-          {voiceOn ? "Voice on" : "Voice off"}
+          {voiceOn ? t("lb_voice_on") : t("lb_voice_off")}
         </button>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: isMobile ? "center" : "flex-start" }}>
@@ -157,7 +157,7 @@ export default function JonaCoach({ user }) {
           ))}
         </div>
         <div style={{ fontSize: 10, color: TOKENS.color.textDim, textAlign: isMobile ? "center" : "left" }}>
-          State changes automatically while chatting — buttons above are for QA.
+          {t("lb_state_qa_note")}
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export default function JonaCoach({ user }) {
         }}>
           {messages.length === 0 && (
             <div style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
-              Ask Jona anything, or try a suggestion below.
+              {t("lb_ask_jona_placeholder_msg")}
             </div>
           )}
           {messages.map((m, i) => (
@@ -183,7 +183,7 @@ export default function JonaCoach({ user }) {
               {m.text}
             </div>
           ))}
-          {sending && <div style={{ color: TOKENS.color.textDim, fontSize: TOKENS.font.size.xs }}>Jona is thinking…</div>}
+          {sending && <div style={{ color: TOKENS.color.textDim, fontSize: TOKENS.font.size.xs }}>{t("lb_jona_thinking")}</div>}
         </div>
 
         {error && <div style={{ color: TOKENS.color.gold, fontSize: TOKENS.font.size.xs, marginBottom: 8 }}>{error}</div>}
@@ -206,7 +206,7 @@ export default function JonaCoach({ user }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSend()}
-            placeholder={listening ? "Listening…" : "Type a message to Jona…"}
+            placeholder={listening ? t("listening") : t("lb_type_message")}
             style={{
               flex: 1, padding: "12px 14px", borderRadius: TOKENS.radius.pill, border: `1px solid ${TOKENS.color.border}`,
               background: TOKENS.color.bg, color: TOKENS.color.starlight, fontSize: TOKENS.font.size.sm,
@@ -236,7 +236,7 @@ export default function JonaCoach({ user }) {
             padding: "12px 24px", borderRadius: TOKENS.radius.pill, border: "none",
             background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: sending ? "not-allowed" : "pointer",
           }}>
-            Send
+            {t("lb_send")}
           </button>
         </div>
       </div>

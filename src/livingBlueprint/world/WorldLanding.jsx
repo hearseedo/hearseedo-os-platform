@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
+import { useLang } from "../../hooks/useLang";
 import { getTodaysRecommendation } from "../home/recommendation";
 
 const SAMPLE_ARTIFACTS = [
@@ -13,6 +14,7 @@ const SAMPLE_ARTIFACTS = [
 // and modal Worlds use WorldLaunch.jsx instead.
 export default function WorldLanding({ world, user }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { lesson } = getTodaysRecommendation(user || {});
 
   return (
@@ -39,10 +41,10 @@ export default function WorldLanding({ world, user }) {
               onClick={() => navigate(world.route)}
               style={{ padding: "12px 28px", borderRadius: TOKENS.radius.pill, border: "none", background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: "pointer" }}
             >
-              Begin →
+              {t("lb_begin")}
             </button>
             <a href="#journey" style={{ padding: "12px 20px", borderRadius: TOKENS.radius.pill, border: `1px solid ${TOKENS.color.border}`, color: TOKENS.color.starlight, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center" }}>
-              View Journey
+              {t("lb_view_journey")}
             </a>
           </div>
         </div>
@@ -50,14 +52,14 @@ export default function WorldLanding({ world, user }) {
 
       <div id="journey" style={{ display: "grid", gap: TOKENS.space[5], gridTemplateColumns: "2fr 1fr" }}>
         <div>
-          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>CURRENT MISSION</div>
+          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_current_mission_label")}</div>
           <div style={{ padding: TOKENS.space[4], borderRadius: TOKENS.radius.lg, border: `1px solid ${TOKENS.color.border}`, background: TOKENS.color.surfaceRaised, marginBottom: TOKENS.space[5] }}>
             {lesson}
           </div>
 
-          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>NEXT MILESTONES</div>
+          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_next_milestones")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: TOKENS.space[5] }}>
-            {["Complete your first mission", "Reach a 3-day streak in this World", "Unlock the next chapter"].map((m, i) => (
+            {[t("lb_milestone_1"), t("lb_milestone_2"), t("lb_milestone_3")].map((m, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: TOKENS.radius.md, border: `1px solid ${TOKENS.color.border}` }}>
                 <div style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${TOKENS.color.goldDim}`, flexShrink: 0 }} />
                 <span style={{ fontSize: TOKENS.font.size.sm }}>{m}</span>
@@ -65,12 +67,12 @@ export default function WorldLanding({ world, user }) {
             ))}
           </div>
 
-          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>RECENT ACTIVITY</div>
-          <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted }}>No recent activity yet.</div>
+          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_recent_activity")}</div>
+          <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted }}>{t("lb_no_recent_activity")}</div>
         </div>
 
         <div>
-          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>SAMPLE ARTIFACTS</div>
+          <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_sample_artifacts")}</div>
           <div style={{ display: "flex", gap: 8, marginBottom: TOKENS.space[5] }}>
             {SAMPLE_ARTIFACTS.map(a => (
               <img key={a.name} src={a.img} alt={a.name} title={a.name} style={{ width: 56, height: 56, borderRadius: TOKENS.radius.md, objectFit: "cover", border: `1px solid ${TOKENS.color.border}` }} />
@@ -82,7 +84,7 @@ export default function WorldLanding({ world, user }) {
               <img src="/assets/jona/pose-encouraging.png" alt="" style={{ position: "absolute", top: -2, left: "50%", transform: "translateX(-50%)", width: 48, height: "auto" }} />
             </div>
             <div style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted }}>
-              Jona: "{lesson}"
+              {t("lb_jona_says").replace("{msg}", lesson)}
             </div>
           </div>
         </div>

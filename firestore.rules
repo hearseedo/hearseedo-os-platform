@@ -2,6 +2,54 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Fields on users/{uid} that grant paid access or reflect billing/
+    // credential state. These must only ever be set by the service account
+    // (stripe-webhook.js, redeem-workbook-code.js, redeem-access-code.js —
+    // all authenticate with a Google OAuth2 access token via _firebaseAdmin.js
+    // and so bypass these rules entirely) or by the admin console. A normal
+    // user's own client write must never be able to touch them — otherwise
+    // any signed-in user could grant themselves paid access with no real
+    // Stripe subscription, or flip the platform-wide kill switch.
+    // Phase 0 security hardening (2026-09-09) — see docs/HSDOS_AUDIT_2026-09-09.md.
+    function privilegedUserFields() {
+      return [
+        "plan", "subscriptions", "planStatus", "aiMsgLimit", "stripeSubId",
+        "planUpdatedAt", "isAdmin", "isFoundingMember", "foundingMemberNumber",
+        "foundingClaimedAt", "accessPass",
+        "workbookBonusRedeemed", "redeemedWorkbookCode", "workbookBookNumber",
+        "workbookBonusStartDate", "workbookBonusEndDate", "workbookAccessStatus",
+        "convertedFromWorkbookCode",
+        // Phase 1 (2026-09-09): pathway entitlement must not be self-grantable,
+        // same reasoning as plan/subscriptions above — see
+        // netlify/functions/migrate-pathway-access.js (service-account write)
+        // and src/lib/pathwayAccess.js (the resolver that reads this field).
+        "pathwayAccess"
+      ];
+    }
+    function touchesPrivilegedFieldsOnCreate() {
+      return request.resource.data.keys().hasAny(privilegedUserFields());
+    }
+    function touchesPrivilegedFieldsOnUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(privilegedUserFields());
+    }
+    // Both owner emails recognized here, matching the client's OWNER_EMAILS
+    // list (src/hooks/useAuth.jsx, src/hooks/useSubscription.js, etc: [
+    // VITE_ADMIN_EMAIL, "waltho79@gmail.com"]). Originally (2026-09-09,
+    // Phase 0) this only guarded users/{uid} and config/{docId} so
+    // waltho79@gmail.com's existing auto-grant behavior in useAuth.jsx kept
+    // working under the new privileged-field restriction. Per user request
+    // the same day, every other admin-only collection in this file (support,
+    // adminLogs, adminConfig, feedback, geminiActivity, apiCosts,
+    // workbookRedemptions, notifications) was also switched from the single
+    // hardcoded hearseedo.english@gmail.com literal to this function, so
+    // waltho79@gmail.com now has full, consistent admin access everywhere in
+    // this file rather than the narrower original scope.
+    function isAdminEmail() {
+      return request.auth != null && request.auth.token.email in [
+        "hearseedo.english@gmail.com", "waltho79@gmail.com"
+      ];
+    }
+
     // ── Public read-only meta (signup counter) ─────────────────────────────
     match /meta/{doc} {
       allow read: if true;
@@ -15,10 +63,15 @@ service cloud.firestore {
     }
 
     // ── Platform analytics — public read, server write only ────────────────
-    // log-page-view writes via service account (bypasses these rules)
+    // log-page-view writes via service account (bypasses these rules).
+    // totalAIMessages is incremented by netlify/functions/chat.js via REST
+    // with just the Firebase Web API key (no auth token, no service account)
+    // — same pattern as geminiActivity/apiCosts/config below, so it needs the
+    // same open create/update carve-out or the increment silently fails.
     match /analytics/{doc} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if true;
+      allow delete: if false;
     }
 
     // ── App Registry — public read, server write only ──────────────────────
@@ -39,10 +92,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── User profiles — owner read/write, admin read-all ─────────────────
+    // ── User profiles — owner read/write (except billing fields), admin full ──
+    // Owner may create/update their own doc, but never through fields in
+    // privilegedUserFields() — those are billing/entitlement/credential state
+    // and must only be set by the service account or the admin console. See
+    // the privilegedUserFields() comment above for why.
     match /users/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || request.auth.token.email == "hearseedo.english@gmail.com");
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdminEmail());
+
+      allow create: if request.auth != null && (
+        (request.auth.uid == uid && !touchesPrivilegedFieldsOnCreate()) || isAdminEmail()
+      );
+
+      allow update: if request.auth != null && (
+        (request.auth.uid == uid && !touchesPrivilegedFieldsOnUpdate()) || isAdminEmail()
+      );
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
 
       match /chatUsage/{day} {
         // Lambda reads/writes without a Firebase auth token (server-side rate-limit counter).
@@ -75,7 +141,7 @@ service cloud.firestore {
 
       match /notifications/{notifId} {
         allow read, update: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+        allow create: if isAdminEmail();
         allow delete: if false;
       }
 
@@ -142,35 +208,45 @@ service cloud.firestore {
 
     // ── Support messages — user owns thread, admin reads all ─────────────
     match /support/{uid} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || request.auth.token.email == "hearseedo.english@gmail.com");
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdminEmail());
 
       match /messages/{msgId} {
-        allow read, write: if request.auth != null && (request.auth.uid == uid || request.auth.token.email == "hearseedo.english@gmail.com");
+        allow read, write: if request.auth != null && (request.auth.uid == uid || isAdminEmail());
       }
     }
 
     // ── Workbook redemption log — user create only (no edit/delete), admin read ─
     match /workbookRedemptions/{docId} {
-      allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read: if isAdminEmail();
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
 
     // ── Admin audit log — any auth'd user can append, only admin can read ─
     match /adminLogs/{logId} {
-      allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read: if isAdminEmail();
       allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // ── Pathway/profile analytics (Phase 1, 2026-09-09) — same append-only
+    // pattern as adminLogs above: the writer can only be the authenticated
+    // account the event is about (checked via uid on the event doc itself),
+    // never read back except by admin, never edited/deleted client-side.
+    match /pathwayEvents/{eventId} {
+      allow read: if isAdminEmail();
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
       allow update, delete: if false;
     }
 
     // ── Admin config (DPA statuses, compliance settings) — admin only ────
     match /adminConfig/{docId} {
-      allow read, write: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read, write: if isAdminEmail();
     }
 
     // ── User feedback / pulse — any auth'd user can submit, only admin can read ─
     match /feedback/{docId} {
-      allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read: if isAdminEmail();
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
@@ -179,22 +255,35 @@ service cloud.firestore {
     // Netlify functions write using the client API key (no Firebase auth token).
     // allow create: if true is intentional — this is an append-only audit log.
     match /geminiActivity/{eventId} {
-      allow read: if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read: if isAdminEmail();
       allow create: if true;
       allow update, delete: if false;
     }
 
     // ── API cost tracking — Netlify TTS writes (no auth), admin read ────────
     match /apiCosts/{date} {
-      allow read:          if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
+      allow read:          if isAdminEmail();
       allow create, update: if true;   // Netlify functions write via REST without auth token
       allow delete:         if false;
     }
 
-    // ── Kill switch config — Netlify function writes, admin read ─────────────
+    // ── Kill switch config — public read (every AI function checks this
+    // before running), admin/service-account write only ─────────────────────
+    // Previously "allow create, update: if true" — anyone could flip the
+    // platform-wide AI/TTS kill switch with no login at all via a raw
+    // Firestore REST PATCH; the passcode in kill-switch.js never protected
+    // this because Firestore rules, not the function's own logic, are what
+    // Firestore actually enforces. kill-switch.js now writes via the
+    // service-account-authenticated firestoreFetch (_firebaseAdmin.js),
+    // which bypasses these rules entirely, so writes can be locked down to
+    // admin-only without breaking the legitimate kill switch. Read stays
+    // public because every AI Netlify function (chat.js, coaching-card.js,
+    // etc.) polls this doc via a bare API-key request (no auth token) to
+    // decide whether to run at all — the doc's contents (a few booleans)
+    // were never the sensitive part, only who could change them.
     match /config/{docId} {
-      allow read:          if request.auth != null && request.auth.token.email == "hearseedo.english@gmail.com";
-      allow create, update: if true;   // kill-switch.js writes via REST without auth token
+      allow read:           if true;
+      allow create, update: if isAdminEmail();
       allow delete:         if false;
     }
 
@@ -217,14 +306,29 @@ service cloud.firestore {
       );
       allow delete: if false;
 
-      // Table docs: host controls these broadly, but participants also write
-      // their own table's live question/status as part of Table Mode actions
-      // (e.g. "We're Finished") and the seat-assignment transaction bumps
-      // participantCount. Tightening this to per-field/per-table ownership is
-      // a fast-follow once the app is closer to production navigation.
+      // Table docs: the host can do anything to any table in their event.
+      // Any other auth'd participant may only touch the fields Table Mode's
+      // own actions actually write — status/question ("We're Finished",
+      // "Another Question", Easier/Deeper) and participantCount (bumped by
+      // the seat-assignment transaction) — never tableNumber or arbitrary
+      // fields.
+      // NOTE on create: tables are provisioned in the SAME atomic batch as
+      // the parent event doc's own creation (see hostStore.createEvent). A
+      // get() on the parent here would see pre-batch state — the event
+      // doesn't exist yet from the rules engine's point of view — so any
+      // hostUid check on create always fails the whole batch. create is left
+      // open to any auth'd user for this reason; update/delete (which only
+      // ever happen after the event already exists as a prior, separate,
+      // committed write) safely use get() to verify the host.
       match /tables/{tableId} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null;
+        allow create: if request.auth != null;
+        allow delete: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/sslEvents/$(eventId)).data.hostUid;
+        allow update: if request.auth != null && (
+          request.auth.uid == get(/databases/$(database)/documents/sslEvents/$(eventId)).data.hostUid ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "question", "message", "messageAt", "participantCount"])
+        );
       }
       match /participants/{uid} {
         allow read: if request.auth != null;

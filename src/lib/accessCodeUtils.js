@@ -1,5 +1,5 @@
 import { ACCESS_CODES, INACTIVE_CODES } from "../constants/accessCodes";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { doc, updateDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -19,27 +19,30 @@ export async function activateAccessCode(user, code) {
   const { valid, error, definition } = validateAccessCode(code);
   if (!valid) return { success: false, error };
 
-  const now        = new Date();
-  const expiresAt  = calculateExpiryDate(definition.accessDays);
+  // accessPass grants hasFullPlatformAccess — a privileged, access-granting
+  // field. As of the Phase 0 security hardening, firestore.rules denies
+  // client writes to it, so the actual validate-and-write now happens
+  // server-side (redeem-access-code.js), authenticated by the caller's own
+  // Firebase ID token. onSnapshot in useAuth still propagates the resulting
+  // change automatically once the server has written it.
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) return { success: false, error: "invalid" };
 
-  const accessPass = {
-    hasFullPlatformAccess: true,
-    accessPassType:        "Free Month Access Pass",
-    accessCodeUsed:        code,
-    codeType:              definition.codeType,
-    source:                definition.source,
-    campaignCategory:      definition.campaignCategory,
-    campaignName:          definition.campaignName,
-    activatedAt:           now.toISOString(),
-    expiresAt:             expiresAt.toISOString(),
-    aiCreditsGranted:      definition.aiCredits,
-    aiCreditsRemaining:    definition.aiCredits,
-    aiCreditsUsed:         0,
-    status:                "active",
-  };
+  let result;
+  try {
+    const res = await fetch("/api/redeem-access-code", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ idToken, code }),
+    });
+    result = await res.json();
+  } catch {
+    return { success: false, error: "invalid" };
+  }
 
-  // Write to Firestore — onSnapshot in useAuth propagates change automatically
-  await updateDoc(doc(db, "users", user.uid), { accessPass });
+  if (!result?.success) return { success: false, error: result?.error ?? "invalid" };
+
+  const { accessPass } = result;
 
   // Track in localStorage for admin panel (MVP)
   // TODO: Replace with Firestore collection write — e.g. addDoc(collection(db, "accessCodeActivations"), {...})
@@ -68,7 +71,13 @@ export async function deductAICredit(user, context = {}) {
   if ((pass.aiCreditsRemaining ?? 0) <= 0) return { allowed: false, reason: "no_credits" };
 
   // Decrement in Firestore atomically
-  // TODO: Use a Netlify function / transaction for server-side credit guard
+  // TODO: Use a Netlify function / transaction for server-side credit guard.
+  // NOTE: this function is not currently called from any UI (dead code as of
+  // the Phase 0 audit). accessPass is now a privileged field per
+  // firestore.rules, so this direct client write will fail with
+  // permission-denied if this function is ever wired up — that's intentional
+  // fail-safe behavior until it's rebuilt as a server endpoint like
+  // redeem-access-code.js.
   await updateDoc(doc(db, "users", user.uid), {
     "accessPass.aiCreditsRemaining": increment(-1),
     "accessPass.aiCreditsUsed":      increment(1),

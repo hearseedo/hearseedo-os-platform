@@ -1,4 +1,5 @@
 import { useAuth } from "../hooks/useAuth";
+import { useLang } from "../hooks/useLang";
 import AppShell from "./components/AppShell";
 import FamilyHome from "./home/FamilyHome";
 import { TOKENS } from "../constants/tokens";
@@ -21,6 +22,7 @@ const MOCK_FAMILY_PREVIEW_USER = {
 // explanatory empty state rather than a blank/broken page.
 export default function PreviewFamily() {
   const { user } = useAuth();
+  const { t } = useLang();
   const forceFamilyPreview = !user && new URLSearchParams(window.location.search).get("family") === "1";
   const effectiveUser = forceFamilyPreview ? MOCK_FAMILY_PREVIEW_USER : user;
   const isFamily = effectiveUser?.accountType === "family" || (effectiveUser?.familyMembers?.length ?? 0) > 0;
@@ -32,9 +34,9 @@ export default function PreviewFamily() {
       ) : (
         <div style={{ color: TOKENS.color.textMuted, textAlign: "center", padding: "80px 20px" }}>
           <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.lg, color: TOKENS.color.starlight, marginBottom: 8 }}>
-            No family added yet
+            {t("lb_no_family_added")}
           </div>
-          <div>Add family members during onboarding or from Settings to see your shared constellation here.</div>
+          <div>{t("lb_add_family_settings")}</div>
         </div>
       )}
     </AppShell>

@@ -27,6 +27,13 @@ export function useSubscription() {
     if (isAdmin) return true;
     if (hasAccessPass()) return true;
     if (appId === "family") return true;
+    // Sip Speak Learn isn't part of the subscription model (see
+    // constants/experiences.js) — free for any signed-in user, same as family.
+    if (appId === "sip-speak-learn") return true;
+    // The HSD Album tile is always reachable — its 4 seasonal CDs are free for
+    // everyone, and the 5 premium CDs are gated inside the album site itself
+    // (same Firebase project, checked client-side against this same user doc).
+    if (appId === "music-album") return true;
     // Workbook bonus: 1 free month of full access
     if (user?.workbookBonusRedeemed) {
       const endRaw = user?.workbookBonusEndDate;

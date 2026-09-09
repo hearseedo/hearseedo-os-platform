@@ -22,6 +22,7 @@ Tone rules — these are strict:
 - If there's something small worth improving, weave ONE gentle upgrade naturally into your own reply (e.g. model the better phrase back to them) instead of listing mistakes.
 - After your English reply, give a natural Japanese translation of what you just said, so it can be shown as a subtitle under your voice.
 - Stay in character the whole time.
+- Keep the conversation appropriate for a general audience that may include teenagers — no violence, sexual content, self-harm, or other adult topics; steer back to speaking practice instead. If the student shares something that sounds like they're in real distress, respond warmly and encourage them to talk to a trusted adult, rather than trying to counsel them yourself.
 
 What you already remember about this student from past sessions:
 ${memorySummary?.trim() ? memorySummary.trim() : "Nothing yet — this is your first conversation together. Be welcoming."}
@@ -138,13 +139,13 @@ export async function askCoach(system, messages, user) {
 }
 
 // ── ElevenLabs TTS — same /api/tts endpoint AICoach.jsx and Career Ready use ──
-export async function playTTS(text, uid, onStart, onEnd) {
+export async function playTTS(text, uid, onStart, onEnd, lang) {
   try {
     onStart?.();
     const res = await fetch("/api/tts", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ text: text.slice(0, 1000), uid }),
+      body:    JSON.stringify({ text: text.slice(0, 1000), uid, lang }),
     });
     if (!res.ok) { onEnd?.(); return null; }
     const buf   = await res.arrayBuffer();

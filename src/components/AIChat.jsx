@@ -37,7 +37,7 @@ function buildGreeting(name) {
   return `Good ${period}, ${first}. All systems are online. How may I assist you today?`;
 }
 
-async function speakText(text, uid) {
+async function speakText(text, uid, lang) {
   // Strip markdown symbols before sending to TTS
   const clean = text
     .replace(/\*\*(.+?)\*\*/g, "$1")
@@ -49,7 +49,7 @@ async function speakText(text, uid) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: clean, uid }),
+    body: JSON.stringify({ text: clean, uid, lang }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob = await res.blob();
@@ -113,7 +113,7 @@ export default function AIChat({ inputRef: externalInputRef }) {
   const playGreeting = () => {
     setGreetBlocked(false);
     setSpeaking(true);
-    speakText(greetingRef.current, user?.uid)
+    speakText(greetingRef.current, user?.uid, lang)
       .then((audio) => {
         audioRef.current = audio;
         audio.onended = () => { setSpeaking(false); audioRef.current = null; };
@@ -150,7 +150,7 @@ export default function AIChat({ inputRef: externalInputRef }) {
       if (voiceOn) {
         setSpeaking(true);
         try {
-          const audio = await speakText(reply, user?.uid);
+          const audio = await speakText(reply, user?.uid, lang);
           audioRef.current = audio;
           audio.onended = () => { setSpeaking(false); audioRef.current = null; };
         } catch {

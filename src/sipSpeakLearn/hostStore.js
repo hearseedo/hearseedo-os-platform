@@ -62,6 +62,15 @@ export async function createEvent(hostUid, config) {
 }
 
 // ── Live host controller ────────────────────────────────────────────────────
+// IMPORTANT: construction must stay side-effect-free. React 18 StrictMode
+// (dev only) double-invokes lazy useState initializers and double-runs
+// effects (mount → cleanup → mount) to surface impure code. If the real
+// onSnapshot listeners started here in the factory, that first StrictMode
+// cleanup would tear them down permanently — the callers's later re-mount
+// only re-subscribes a *local* listener to a controller whose Firestore
+// listeners are already dead, and the UI hangs on "loading" forever. So the
+// listeners only start when something explicitly calls `start()` — the
+// caller's useEffect, which itself is safe to run/cleanup/rerun repeatedly.
 export function createHostController(eventId) {
   let state = { loading: true, event: null, tables: [], participants: [] };
   const listeners = new Set();
@@ -70,17 +79,25 @@ export function createHostController(eventId) {
 
   const onError = () => setState({ loading: false, error: "offline" });
 
-  const unsubs = [
-    onSnapshot(doc(db, "sslEvents", eventId), (snap) => {
-      setState({ event: snap.exists() ? { id: snap.id, ...snap.data() } : null, loading: false });
-    }, onError),
-    onSnapshot(query(collection(db, "sslEvents", eventId, "tables")), (snap) => {
-      setState({ tables: snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.tableNumber - b.tableNumber) });
-    }, onError),
-    onSnapshot(query(collection(db, "sslEvents", eventId, "participants")), (snap) => {
-      setState({ participants: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
-    }, onError),
-  ];
+  let unsubs = [];
+  function start() {
+    if (unsubs.length) return; // already active
+    unsubs = [
+      onSnapshot(doc(db, "sslEvents", eventId), (snap) => {
+        setState({ event: snap.exists() ? { id: snap.id, ...snap.data() } : null, loading: false });
+      }, onError),
+      onSnapshot(query(collection(db, "sslEvents", eventId, "tables")), (snap) => {
+        setState({ tables: snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.tableNumber - b.tableNumber) });
+      }, onError),
+      onSnapshot(query(collection(db, "sslEvents", eventId, "participants")), (snap) => {
+        setState({ participants: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+      }, onError),
+    ];
+  }
+  function stop() {
+    unsubs.forEach((u) => u());
+    unsubs = [];
+  }
 
   const eventRef = doc(db, "sslEvents", eventId);
   const tablesCol = () => collection(db, "sslEvents", eventId, "tables");
@@ -95,6 +112,7 @@ export function createHostController(eventId) {
   return {
     getState: () => state,
     subscribe: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    start,
     actions: {
       async startEvent() {
         await updateDoc(eventRef, {
@@ -163,7 +181,7 @@ export function createHostController(eventId) {
         await endEventInternal(hostNotes);
       },
     },
-    destroy: () => unsubs.forEach((u) => u()),
+    destroy: stop,
   };
 
   async function endEventInternal(hostNotes) {

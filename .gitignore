@@ -10,3 +10,4 @@ dist/
 
 # Build/deploy artifacts
 deploy-site.zip
+firestore-debug.log

@@ -3,6 +3,7 @@ import { TOKENS } from "../../constants/tokens";
 import { WORLDS } from "../../constants/worlds";
 import { ACHIEVEMENTS } from "../../components/Achievements";
 import { useSubscription } from "../../hooks/useSubscription";
+import { useLang } from "../../hooks/useLang";
 import { getWorldAccess } from "../home/worldAccess";
 import { getTodaysRecommendation } from "../home/recommendation";
 
@@ -18,6 +19,7 @@ const ARTIFACTS = [
 // prefers-reduced-motion via the SVG's own built-in media query.
 export default function LivingBlueprint({ user }) {
   const subscription = useSubscription();
+  const { t } = useLang();
   const [worldFilter, setWorldFilter] = useState(null);
   const earned = ACHIEVEMENTS.filter(a => a.check(user ?? {}));
   const unlockedArtifactCount = Math.round((earned.length / ACHIEVEMENTS.length) * ARTIFACTS.length);
@@ -28,8 +30,8 @@ export default function LivingBlueprint({ user }) {
   return (
     <div>
       <div style={{ marginBottom: TOKENS.space[5] }}>
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>YOUR LIVING BLUEPRINT</div>
-        <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>Growth, visible over time</h1>
+        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 4 }}>{t("lb_your_blueprint_label")}</div>
+        <h1 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800 }}>{t("lb_growth_visible")}</h1>
       </div>
 
       <div style={{
@@ -48,15 +50,15 @@ export default function LivingBlueprint({ user }) {
       </div>
 
       <div style={{ display: "flex", gap: TOKENS.space[3], marginBottom: TOKENS.space[5], flexWrap: "wrap" }}>
-        <StatTile label="Family" value={user?.familyMembers?.length ?? 0} />
-        <StatTile label="Lessons Completed" value={user?.lessonsCompleted ?? 0} />
-        <StatTile label="Confidence" value={`${user?.confidenceScore ?? 0}%`} />
-        <StatTile label="Achievements" value={`${earned.length} / ${ACHIEVEMENTS.length}`} />
+        <StatTile label={t("lb_family_label")} value={user?.familyMembers?.length ?? 0} />
+        <StatTile label={t("lb_lessons_completed")} value={user?.lessonsCompleted ?? 0} />
+        <StatTile label={t("lb_confidence_metric")} value={`${user?.confidenceScore ?? 0}%`} />
+        <StatTile label={t("lb_achievements_label")} value={`${earned.length} / ${ACHIEVEMENTS.length}`} />
       </div>
 
-      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>FILTER BY WORLD</div>
+      <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>{t("lb_filter_by_world")}</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: TOKENS.space[5] }}>
-        <FilterChip label="All" active={!worldFilter} onClick={() => setWorldFilter(null)} />
+        <FilterChip label={t("lb_all_filter")} active={!worldFilter} onClick={() => setWorldFilter(null)} />
         {WORLDS.map(w => {
           const access = getWorldAccess(w, user, subscription);
           return (
@@ -82,7 +84,7 @@ export default function LivingBlueprint({ user }) {
       )}
 
       <div style={{ ...TOKENS.font.label, color: TOKENS.color.textDim, marginBottom: 10 }}>
-        ARTIFACT GALLERY · {unlockedArtifactCount} / {ARTIFACTS.length} unlocked
+        {t("lb_artifact_gallery").replace("{n}", unlockedArtifactCount).replace("{total}", ARTIFACTS.length)}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {ARTIFACTS.map((name, i) => {
@@ -92,7 +94,7 @@ export default function LivingBlueprint({ user }) {
               key={name}
               src={`/assets/achievements/${name}.jpg`}
               alt={unlocked ? name : "locked artifact"}
-              title={unlocked ? name.replace(/-/g, " ") : "Keep growing to unlock"}
+              title={unlocked ? name.replace(/-/g, " ") : t("lb_keep_growing")}
               style={{
                 width: 64, height: 64, borderRadius: TOKENS.radius.md, objectFit: "cover",
                 border: `1px solid ${TOKENS.color.border}`,
@@ -103,7 +105,7 @@ export default function LivingBlueprint({ user }) {
         })}
       </div>
       <div style={{ fontSize: 10, color: TOKENS.color.textDim, marginTop: 8 }}>
-        Artifacts unlock proportionally to overall achievement progress — not tied to specific milestones yet.
+        {t("lb_artifacts_note")}
       </div>
     </div>
   );
@@ -119,6 +121,7 @@ function StatTile({ label, value }) {
 }
 
 function FilterChip({ label, active, locked, onClick }) {
+  const { t } = useLang();
   return (
     <button onClick={onClick} style={{
       fontSize: TOKENS.font.size.xs, padding: "6px 14px", borderRadius: TOKENS.radius.pill, cursor: "pointer",
@@ -126,7 +129,7 @@ function FilterChip({ label, active, locked, onClick }) {
       background: active ? "rgba(201,168,76,0.1)" : "transparent",
       color: active ? TOKENS.color.gold : (locked ? TOKENS.color.textDim : TOKENS.color.textMuted),
     }}>
-      {label}{locked ? " · locked" : ""}
+      {label}{locked ? ` · ${t("locked")}` : ""}
     </button>
   );
 }

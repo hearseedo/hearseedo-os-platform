@@ -1,12 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
 import { worldHref } from "../../constants/worlds";
+import { useLang } from "../../hooks/useLang";
 
 // Rebuild prompt section 6 — Today's Mission hero, the largest card on the
 // Individual Home. Uses the recommended World's hero art (or the World
 // registry's art-gap placeholder when missing, e.g. Speak Ready).
 export default function MissionHero({ world, missionName, timeEstimate = "~10 min" }) {
   const navigate = useNavigate();
+  const { t } = useLang();
 
   return (
     <div style={{
@@ -22,7 +24,7 @@ export default function MissionHero({ world, missionName, timeEstimate = "~10 mi
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(5,6,8,0.92) 0%, rgba(5,6,8,0.45) 55%, rgba(5,6,8,0.1) 100%)" }} />
 
       <div style={{ position: "relative", padding: TOKENS.space[5], width: "100%" }}>
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>TODAY'S MISSION</div>
+        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>{t("lb_todays_mission").toUpperCase()}</div>
         <div style={{ fontSize: TOKENS.font.size.sm, color: TOKENS.color.textMuted, marginBottom: 4 }}>{world.name}</div>
         <h2 style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, marginBottom: 14, maxWidth: 480, lineHeight: 1.2 }}>
           {missionName}
@@ -35,7 +37,7 @@ export default function MissionHero({ world, missionName, timeEstimate = "~10 mi
               background: TOKENS.color.gold, color: "#0a0a0a", fontWeight: 800, cursor: "pointer",
             }}
           >
-            Begin →
+            {t("lb_begin")}
           </button>
           <span style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted }}>{timeEstimate}</span>
         </div>

@@ -1,7 +1,10 @@
 import { TOKENS } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 
 // Shared chrome for steps 2-4: grid background, step progress dots, Back/Continue.
-export default function StepShell({ title, subtitle, step, totalSteps = 4, onBack, onContinue, continueDisabled, continueLabel = "Continue", children }) {
+export default function StepShell({ title, subtitle, step, totalSteps = 4, onBack, onContinue, continueDisabled, continueLabel, children }) {
+  const { t } = useLang();
+  const resolvedContinueLabel = continueLabel ?? t("lb_continue");
   return (
     <div style={{
       minHeight: "100vh", width: "100%", background: TOKENS.color.bg, color: TOKENS.color.starlight,
@@ -37,7 +40,7 @@ export default function StepShell({ title, subtitle, step, totalSteps = 4, onBac
             padding: "12px 24px", borderRadius: TOKENS.radius.pill, border: `1px solid ${TOKENS.color.border}`,
             background: "transparent", color: TOKENS.color.textMuted, fontWeight: 600, cursor: "pointer",
           }}>
-            Back
+            {t("lb_back_plain")}
           </button>
         )}
         <button
@@ -50,7 +53,7 @@ export default function StepShell({ title, subtitle, step, totalSteps = 4, onBac
             fontWeight: 800, cursor: continueDisabled ? "not-allowed" : "pointer",
           }}
         >
-          {continueLabel}
+          {resolvedContinueLabel}
         </button>
       </div>
     </div>

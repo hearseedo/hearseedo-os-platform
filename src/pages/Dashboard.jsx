@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { NAV_ITEMS } from "../constants/nav";
-import { logout, awardXP } from "../lib/firebase";
+import { logout, awardXP, auth } from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp, collection, addDoc, deleteDoc, onSnapshot, orderBy, query, limit } from "firebase/firestore";
 import { useAuth } from "../hooks/useAuth";
@@ -36,7 +36,7 @@ import { JonaProvider, useJona } from "../context/JonaContext";
 import FoundingBanner from "../components/FoundingBanner";
 
 export default function Dashboard() {
-  const { user, profileReady, isAdmin } = useAuth();
+  const { user, profileReady, isAdmin, accessiblePathways } = useAuth();
   const { defaultView, isUnlocked }    = useSubscription();
   const navigate           = useNavigate();
   const location           = useLocation();
@@ -441,6 +441,17 @@ export default function Dashboard() {
               <NotificationBell count={unreadCount} />
             </div>
             <UserAvatar name={firstName} />
+            {/* Phase 2 — Switch Pathway, only surfaced for accounts with more
+                than one accessible pathway (item 10). Never logs out, never
+                creates a new account — just returns to /choose-path. */}
+            {(accessiblePathways?.length ?? 0) > 1 && (
+              <button
+                onClick={() => navigate("/choose-path")}
+                style={{ background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}
+              >
+                {t("path_switch_pathway")}
+              </button>
+            )}
             <button
               onClick={logout}
               style={{ background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}
@@ -1344,12 +1355,15 @@ function MobileExportDelete({ user, navigate }) {
   async function deleteAccount() {
     setPhase("deleting"); setError("");
     try {
-      const { getAuth, deleteUser } = await import("firebase/auth");
+      const { getAuth } = await import("firebase/auth");
       const fbAuth  = getAuth();
       const idToken = await fbAuth.currentUser.getIdToken(true);
+      // delete-account.js now deletes the Firebase Auth user itself (Phase 0
+      // security/correctness fix, 2026-09-09) — no client-side deleteUser()
+      // call needed anymore, and calling it here would fail since the user
+      // no longer exists by the time this response comes back.
       const res     = await fetch("/api/delete-account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
       if (!res.ok) throw new Error("Failed");
-      await deleteUser(fbAuth.currentUser);
       setPhase("done");
       setTimeout(() => navigate("/", { replace: true }), 1500);
     } catch (e) { setError(lang === "jp" ? "エラーが発生しました。" : "Something went wrong."); setPhase("idle"); }
@@ -2021,18 +2035,19 @@ function CoachingCard({ user, member, autoPlay, onSpeakReady }) {
       }
 
       try {
+        const idToken = await auth.currentUser?.getIdToken();
         const res = await fetch("/api/coaching-card", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(member ? {
-            uid:             user.uid,
+            idToken,
             name:            member.name?.split(" ")[0] ?? "there",
             age:             member.age ?? null,
             confidenceScore: member.confidenceScore ?? 40,
             plan:            user.plan ?? "free",
             isKid:           true,
           } : {
-            uid:             user.uid,
+            idToken,
             name:            user.name?.split(" ")[0] ?? "there",
             confidenceScore: user.confidenceScore ?? 50,
             cefr:            user.cefr ?? null,
@@ -3214,15 +3229,18 @@ function SettingsView({ user, onBack }) {
     setDeletePhase("deleting");
     setDeleteError("");
     try {
-      const { getAuth, deleteUser } = await import("firebase/auth");
+      const { getAuth } = await import("firebase/auth");
       const fbAuth  = getAuth();
       const idToken = await fbAuth.currentUser.getIdToken(true);
+      // delete-account.js now deletes the Firebase Auth user itself (Phase 0
+      // security/correctness fix, 2026-09-09) — no client-side deleteUser()
+      // call needed anymore, and calling it here would fail since the user
+      // no longer exists by the time this response comes back.
       const res     = await fetch("/api/delete-account", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
       });
       if (!res.ok) throw new Error("Server deletion failed");
-      await deleteUser(fbAuth.currentUser);
       setDeletePhase("done");
       setTimeout(() => navigate("/", { replace: true }), 1500);
     } catch (e) {

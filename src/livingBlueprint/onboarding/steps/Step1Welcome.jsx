@@ -1,7 +1,9 @@
 import { TOKENS } from "../../../constants/tokens";
+import { useLang } from "../../../hooks/useLang";
 
 // Rebuild prompt section 5, Step 1 — Welcome.
 export default function Step1Welcome({ onNext }) {
+  const { t } = useLang();
   return (
     <div style={{
       minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
@@ -21,12 +23,12 @@ export default function Step1Welcome({ onNext }) {
           />
         </div>
 
-        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>Hi, I'm Jona.</div>
+        <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 6 }}>{t("lb_hi_im_jona")}</div>
         <h1 style={{ fontSize: TOKENS.font.size["3xl"], fontWeight: 800, marginBottom: 10, lineHeight: 1.1 }}>
-          Welcome to HSDOS
+          {t("welcome_headline")}
         </h1>
-        <p style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.base, marginBottom: 32, lineHeight: 1.5 }}>
-          Discover your Inner Key.<br />Unlock your potential.
+        <p style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.base, marginBottom: 32, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+          {t("welcome_sub")}
         </p>
 
         <button
@@ -37,7 +39,7 @@ export default function Step1Welcome({ onNext }) {
             cursor: "pointer", boxShadow: TOKENS.shadow.glow,
           }}
         >
-          Begin Your Journey →
+          {t("begin_journey")}
         </button>
       </div>
     </div>

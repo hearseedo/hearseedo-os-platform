@@ -2,6 +2,13 @@
 // Validates a Monkey Yoga Phonics workbook code server-side and writes
 // a 1-month phonics access grant to the user's Firestore profile.
 // Codes are NEVER exposed to the client.
+//
+// The workbookBonus* fields are privileged (access-granting) fields per
+// firestore.rules (Phase 0 security hardening, 2026-09-09), so the write
+// below now goes through the service-account-authenticated firestoreFetch
+// (_firebaseAdmin.js) rather than the caller's own ID token — a plain user
+// bearer token no longer has permission to touch these fields, by design.
+const { verifyIdToken, firestoreFetch } = require("./_firebaseAdmin");
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -15,18 +22,8 @@ const VALID_CODES = {
   "MTU-WORKBOOK-HSD": { bookNumber: 2, bookName: "MTU Series Workbook" },
 };
 
-async function verifyIdToken(idToken, firebaseApiKey) {
-  const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.users?.[0]?.localId ?? null;
-}
-
-// Write workbook bonus fields to Firestore using the user's own ID token
-async function writeWorkbookBonus(uid, idToken, code, bookNumber, projectId) {
+// Write workbook bonus fields to Firestore via the service account
+async function writeWorkbookBonus(uid, code, bookNumber) {
   const startDate = new Date();
   const endDate   = new Date(startDate);
   endDate.setMonth(endDate.getMonth() + 1);
@@ -42,19 +39,17 @@ async function writeWorkbookBonus(uid, idToken, code, bookNumber, projectId) {
   };
 
   const mask = Object.keys(fields).map(f => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join("&");
-  const url  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}?${mask}`;
-
-  const res = await fetch(url, {
+  const res  = await firestoreFetch(`/users/${uid}?${mask}`, {
     method:  "PATCH",
-    headers: { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fields }),
   });
 
   return res.ok;
 }
 
-// Write to admin redemption log (uses service account if available, else skips)
-async function logRedemption(uid, email, code, bookNumber, projectId, idToken) {
+// Write to admin redemption log via the service account (non-blocking)
+async function logRedemption(uid, email, code, bookNumber) {
   const startDate = new Date();
   const endDate   = new Date(startDate);
   endDate.setMonth(endDate.getMonth() + 1);
@@ -73,10 +68,9 @@ async function logRedemption(uid, email, code, bookNumber, projectId, idToken) {
     }
   };
 
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/workbookRedemptions`;
-  await fetch(url, {
+  await firestoreFetch("/workbookRedemptions", {
     method:  "POST",
-    headers: { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(logData),
   }).catch(() => {}); // non-blocking
 }
@@ -84,13 +78,6 @@ async function logRedemption(uid, email, code, bookNumber, projectId, idToken) {
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
   if (event.httpMethod !== "POST")    return { statusCode: 405, headers: CORS, body: "Method not allowed" };
-
-  const FIREBASE_API_KEY = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
-  const PROJECT_ID       = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
-
-  if (!FIREBASE_API_KEY) {
-    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
-  }
 
   let idToken, code;
   try {
@@ -106,8 +93,10 @@ exports.handler = async (event) => {
   }
 
   // Verify ID token
-  const uid = await verifyIdToken(idToken, FIREBASE_API_KEY);
-  if (!uid) {
+  let uid;
+  try {
+    uid = await verifyIdToken(idToken);
+  } catch {
     return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid or expired session" }) };
   }
 
@@ -121,13 +110,15 @@ exports.handler = async (event) => {
     };
   }
 
-  // Check if user already redeemed a code by reading their profile
-  const profileUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`;
-  const profileRes = await fetch(profileUrl, {
-    headers: { "Authorization": `Bearer ${idToken}` },
-  });
+  // Check if user already redeemed a code by reading their profile.
+  // (Fixed a pre-existing bug here: profileData was previously declared
+  // inside the `if (profileRes.ok)` block but referenced outside it further
+  // down — a ReferenceError that would have thrown on every redemption
+  // attempt where the read succeeded, i.e. essentially always.)
+  let profileData = null;
+  const profileRes = await firestoreFetch(`/users/${uid}`);
   if (profileRes.ok) {
-    const profileData = await profileRes.json();
+    profileData = await profileRes.json();
     const alreadyRedeemed = profileData.fields?.workbookBonusRedeemed?.booleanValue;
     if (alreadyRedeemed) {
       return {
@@ -142,15 +133,15 @@ exports.handler = async (event) => {
   const endDate = new Date();
   endDate.setMonth(endDate.getMonth() + 1);
 
-  const email = profileRes.ok ? profileData?.fields?.email?.stringValue : null;
+  const email = profileData?.fields?.email?.stringValue ?? null;
 
-  const written = await writeWorkbookBonus(uid, idToken, code, codeData.bookNumber, PROJECT_ID);
+  const written = await writeWorkbookBonus(uid, code, codeData.bookNumber);
   if (!written) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Failed to activate code. Please try again." }) };
   }
 
   // Non-blocking admin log
-  logRedemption(uid, email, code, codeData.bookNumber, PROJECT_ID, idToken);
+  logRedemption(uid, email, code, codeData.bookNumber);
 
   return {
     statusCode: 200,

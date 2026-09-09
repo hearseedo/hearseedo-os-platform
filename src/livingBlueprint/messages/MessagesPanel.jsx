@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { TOKENS } from "../../constants/tokens";
+import { useLang } from "../../hooks/useLang";
 import { useNotifications } from "./useNotifications";
 
 // Rebuild prompt section 4 — Messages / AI Inbox. Reads the real
@@ -9,38 +10,39 @@ import { useNotifications } from "./useNotifications";
 // first, which is why it still showed the old raw jona.png and red brand
 // color instead of the gold/navy palette and cropped Jona avatar used
 // everywhere else in this rebuild.
-const CATS = {
-  streak:  { label: "Streak",       color: TOKENS.color.gold },
-  mission: { label: "Mission",      color: TOKENS.color.success },
-  weekly:  { label: "Weekly",       color: TOKENS.color.gold },
-  return:  { label: "Welcome Back", color: TOKENS.worldAccent["career-ready"] },
-  feature: { label: "New",          color: TOKENS.worldAccent["eiken"] },
-  message: { label: "Message",      color: TOKENS.worldAccent["speak-ready"] },
+const CAT_KEYS = {
+  streak:  { labelKey: "lb_streak",             color: TOKENS.color.gold },
+  mission: { labelKey: "lb_mission_label",      color: TOKENS.color.success },
+  weekly:  { labelKey: "lb_weekly_label",       color: TOKENS.color.gold },
+  return:  { labelKey: "lb_welcome_back_label", color: TOKENS.worldAccent["career-ready"] },
+  feature: { labelKey: "lb_new_label",          color: TOKENS.worldAccent["eiken"] },
+  message: { labelKey: "lb_message_label",      color: TOKENS.worldAccent["speak-ready"] },
 };
 
 function cat(category) {
-  return CATS[category] ?? CATS.message;
+  return CAT_KEYS[category] ?? CAT_KEYS.message;
 }
 
-function timeAgo(iso) {
+function timeAgo(iso, t) {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1)  return t("lb_just_now");
+  if (mins < 60) return t("lb_minutes_ago").replace("{n}", mins);
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
+  if (hrs < 24)  return t("lb_hours_ago").replace("{n}", hrs);
   const days = Math.floor(hrs / 24);
-  if (days < 7)  return `${days}d ago`;
-  return `${Math.floor(days / 7)}w ago`;
+  if (days < 7)  return t("lb_days_ago").replace("{n}", days);
+  return t("lb_weeks_ago").replace("{n}", Math.floor(days / 7));
 }
 
 export default function MessagesPanel({ user }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { notifications, dismiss, dismissAll } = useNotifications(user?.uid);
 
   if (!user) {
-    return <div style={{ color: TOKENS.color.textMuted }}>Sign in to see your messages.</div>;
+    return <div style={{ color: TOKENS.color.textMuted }}>{t("lb_sign_in_messages")}</div>;
   }
 
   const unread = notifications.filter(n => !n.read).length;
@@ -62,7 +64,7 @@ export default function MessagesPanel({ user }) {
         <div style={{ flex: 1 }}>
           <div style={{ ...TOKENS.font.label, color: TOKENS.color.gold, marginBottom: 2 }}>MESSAGES</div>
           <div style={{ fontSize: TOKENS.font.size["2xl"], fontWeight: 800, display: "flex", alignItems: "center", gap: 10 }}>
-            Your Inbox
+            {t("lb_your_inbox")}
             {unread > 0 && (
               <span style={{ fontSize: TOKENS.font.size.xs, fontWeight: 800, color: "#0a0a0a", background: TOKENS.color.gold, borderRadius: TOKENS.radius.pill, padding: "2px 10px" }}>
                 {unread}
@@ -72,16 +74,16 @@ export default function MessagesPanel({ user }) {
         </div>
         {unread > 0 && (
           <button onClick={dismissAll} style={{ fontSize: TOKENS.font.size.xs, color: TOKENS.color.textMuted, background: "none", border: `1px solid ${TOKENS.color.border}`, borderRadius: TOKENS.radius.pill, padding: "8px 16px", cursor: "pointer" }}>
-            Mark all as read
+            {t("lb_mark_all_read")}
           </button>
         )}
       </div>
 
       {notifications.length === 0 ? (
         <div style={{ padding: "60px 20px", textAlign: "center", borderRadius: TOKENS.radius.lg, border: `1px solid ${TOKENS.color.border}`, background: TOKENS.color.surfaceRaised }}>
-          <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.lg, marginBottom: 6 }}>All caught up</div>
+          <div style={{ fontWeight: 700, fontSize: TOKENS.font.size.lg, marginBottom: 6 }}>{t("lb_all_caught_up")}</div>
           <div style={{ color: TOKENS.color.textMuted, fontSize: TOKENS.font.size.sm }}>
-            Jona will message you here about milestones, missions, and what's new.
+            {t("lb_inbox_empty_desc")}
           </div>
         </div>
       ) : (
@@ -108,9 +110,9 @@ export default function MessagesPanel({ user }) {
                       background: `${c.color}18`, border: `1px solid ${c.color}38`,
                       borderRadius: TOKENS.radius.sm, padding: "2px 8px",
                     }}>
-                      {c.label}
+                      {t(c.labelKey)}
                     </span>
-                    <span style={{ fontSize: 11, color: TOKENS.color.textDim, marginLeft: "auto" }}>{timeAgo(notif.createdAt)}</span>
+                    <span style={{ fontSize: 11, color: TOKENS.color.textDim, marginLeft: "auto" }}>{timeAgo(notif.createdAt, t)}</span>
                     {!notif.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: TOKENS.color.gold, flexShrink: 0 }} />}
                   </div>
                   {notif.title && (

@@ -4,6 +4,7 @@ import { db } from "../lib/firebase";
 import { sendMessage } from "../lib/claude";
 import { COLORS } from "../constants/colors";
 import { APP_MAP } from "../constants/apps";
+import { useLang } from "../hooks/useLang";
 
 // ── Weekly check-in ───────────────────────────────────────────────────────────
 function thisMonday() {
@@ -80,13 +81,13 @@ Give a personalised Monday briefing in exactly this structure (use line breaks b
 Keep the whole thing under 120 words. Sound human, not corporate.`;
 
 // ── ElevenLabs TTS ────────────────────────────────────────────────────────────
-async function playTTS(text, uid, onStart, onEnd) {
+async function playTTS(text, uid, onStart, onEnd, lang) {
   try {
     onStart?.();
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.slice(0, 800), uid }),
+      body: JSON.stringify({ text: text.slice(0, 800), uid, lang }),
     });
     if (!res.ok) { onEnd?.(); return; }
     const buf  = await res.arrayBuffer();
@@ -101,6 +102,7 @@ async function playTTS(text, uid, onStart, onEnd) {
 }
 
 export default function AICoach({ user }) {
+  const { lang } = useLang();
   const [view, setView]               = useState("home");      // home | session | weekly
   const [sessionType, setSessionType] = useState(null);
   const [messages, setMessages]       = useState([]);
@@ -117,7 +119,7 @@ export default function AICoach({ user }) {
   const speak = (text) => {
     if (!ttsEnabled || !user?.uid) return;
     if (currentAudioRef.current) { currentAudioRef.current.pause(); setSpeaking(false); }
-    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false))
+    playTTS(text, user.uid, () => setSpeaking(true), () => setSpeaking(false), lang)
       .then(a => { if (a) currentAudioRef.current = a; });
   };
 

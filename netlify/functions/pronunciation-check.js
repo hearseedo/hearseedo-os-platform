@@ -1,5 +1,11 @@
 // HSD OS — Pronunciation Feedback via Gemini
 // Analyses a spoken English transcript for common Japanese-speaker errors.
+//
+// Phase 0 security hardening (2026-09-09): this endpoint previously trusted
+// a client-supplied uid/sso_token with no verification at all — anyone could
+// call it and consume a paid Gemini request. It now requires a valid
+// Firebase ID token and derives identity from it server-side.
+const { verifyIdToken } = require("./_firebaseAdmin");
 
 const MODEL        = "gemini-2.5-flash";
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
@@ -39,8 +45,15 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const uid = body.uid || body.sso_token;
-  if (!uid) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Unauthorized" }) };
+  if (!body.idToken) {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Authentication required." }) };
+  }
+  let uid;
+  try {
+    uid = await verifyIdToken(body.idToken);
+  } catch {
+    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid or expired session." }) };
+  }
 
   const { transcript = "", targetPhrase = "" } = body;
   if (!transcript) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "No transcript" }) };

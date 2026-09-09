@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { PLANS } from "../constants/plans";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 const PLAN_LIMITS = {
@@ -45,10 +45,11 @@ export default function Subscriptions({ user }) {
   async function openPortal() {
     setPortalLoading(true);
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res  = await fetch("/api/customer-portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user?.uid, email: user?.email }),
+        body: JSON.stringify({ idToken, email: user?.email }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;

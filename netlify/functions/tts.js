@@ -1,5 +1,6 @@
 // Netlify Function — ElevenLabs TTS proxy
-const VOICE_ID     = "bBE6oKIBXZhM23o3YoXb"; // soft-spoken Canadian male — Jona's voice
+const VOICE_ID_EN  = "BnRBNgpLmN6RYIWw3eEw"; // Jona's voice (English)
+const VOICE_ID_JP  = "5FNeYl6NmyAXYQWW7CEV"; // Jona's voice (Japanese only)
 const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
 const MAX_CHARS    = 1200;
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
@@ -41,6 +42,8 @@ exports.handler = async (event) => {
 
   const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
+
+  const VOICE_ID = body.lang === "jp" ? VOICE_ID_JP : VOICE_ID_EN;
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,

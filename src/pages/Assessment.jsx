@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 const QUESTION_BANK = [
@@ -205,10 +205,11 @@ export default function Assessment() {
   const scoreAssessment = async (finalTranscript) => {
     setPhase("scoring");
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res  = await fetch("/api/assessment-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user?.uid, answers, questions, speakingTranscript: finalTranscript, lang }),
+        body: JSON.stringify({ idToken, answers, questions, speakingTranscript: finalTranscript, lang }),
       });
       const data = await res.json();
       setResult(data);

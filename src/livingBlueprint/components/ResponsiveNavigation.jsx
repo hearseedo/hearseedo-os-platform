@@ -1,30 +1,32 @@
 import { TOKENS } from "../../constants/tokens";
 import { useMobile } from "../../hooks/useMobile";
+import { useLang } from "../../hooks/useLang";
 
 // Rebuild prompt section 4: restrained left rail (desktop) / persistent
 // bottom nav (mobile). Destinations are fixed per spec, not data-driven —
 // this is intentionally a thin nav, not a generic menu renderer.
 
 const DESKTOP_ITEMS = [
-  { id: "home",     label: "Home",     icon: "◆" },
-  { id: "worlds",   label: "Worlds",   icon: "✦" },
-  { id: "progress", label: "Progress", icon: "◈" },
-  { id: "coach",    label: "Coach Jona", icon: "●" },
-  { id: "family",   label: "Family",   icon: "◇" },
-  { id: "messages", label: "Messages", icon: "▣" },
-  { id: "more",     label: "More",     icon: "…" },
+  { id: "home",     labelKey: "lb_nav_home",   icon: "◆" },
+  { id: "worlds",   labelKey: "lb_nav_worlds", icon: "✦" },
+  { id: "progress", labelKey: "lb_nav_progress", icon: "◈" },
+  { id: "coach",    labelKey: "lb_nav_coach",  icon: "●" },
+  { id: "family",   labelKey: "lb_nav_family", icon: "◇" },
+  { id: "messages", labelKey: "lb_nav_messages", icon: "▣" },
+  { id: "more",     labelKey: "lb_nav_more",   icon: "…" },
 ];
 
 const MOBILE_ITEMS = [
-  { id: "home",     label: "Home",     icon: "◆" },
-  { id: "progress", label: "Progress", icon: "◈" },
-  { id: "coach",    label: "Coach",    icon: "●" },
-  { id: "history",  label: "History",  icon: "▤" },
-  { id: "more",     label: "More",     icon: "…" },
+  { id: "home",     labelKey: "lb_nav_home",   icon: "◆" },
+  { id: "progress", labelKey: "lb_nav_progress", icon: "◈" },
+  { id: "coach",    labelKey: "lb_nav_coach_short", icon: "●" },
+  { id: "history",  labelKey: "lb_nav_history", icon: "▤" },
+  { id: "more",     labelKey: "lb_nav_more",   icon: "…" },
 ];
 
 export default function ResponsiveNavigation({ active, onNavigate, showFamily = true }) {
   const isMobile = useMobile();
+  const { t } = useLang();
 
   if (isMobile) {
     return (
@@ -37,7 +39,7 @@ export default function ResponsiveNavigation({ active, onNavigate, showFamily = 
         backdropFilter: "blur(12px)",
       }}>
         {MOBILE_ITEMS.map(item => (
-          <NavButton key={item.id} item={item} active={active === item.id} onClick={() => onNavigate(item.id)} mobile />
+          <NavButton key={item.id} item={item} label={t(item.labelKey)} active={active === item.id} onClick={() => onNavigate(item.id)} mobile />
         ))}
       </nav>
     );
@@ -54,13 +56,13 @@ export default function ResponsiveNavigation({ active, onNavigate, showFamily = 
       display: "flex", flexDirection: "column", gap: TOKENS.space[2],
     }}>
       {items.map(item => (
-        <NavButton key={item.id} item={item} active={active === item.id} onClick={() => onNavigate(item.id)} />
+        <NavButton key={item.id} item={item} label={t(item.labelKey)} active={active === item.id} onClick={() => onNavigate(item.id)} />
       ))}
     </nav>
   );
 }
 
-function NavButton({ item, active, onClick, mobile }) {
+function NavButton({ item, label, active, onClick, mobile }) {
   return (
     <button
       onClick={onClick}
@@ -81,7 +83,7 @@ function NavButton({ item, active, onClick, mobile }) {
       }}
     >
       <span style={{ fontSize: mobile ? 16 : 14, lineHeight: 1 }}>{item.icon}</span>
-      <span>{item.label}</span>
+      <span>{label}</span>
     </button>
   );
 }

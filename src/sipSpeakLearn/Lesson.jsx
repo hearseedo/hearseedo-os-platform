@@ -267,6 +267,7 @@ function Hear({ lesson, season, onNext }) {
             </div>
             {lesson.dialogue.map((d, i) => (
               <div key={i} onClick={() => replayLine(i)} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); replayLine(i); } }}
                 style={{ display: "flex", gap: 12, padding: "10px 12px", borderRadius: 12, cursor: "pointer", marginBottom: 4,
                   background: current === i ? `${season.accent}22` : "transparent",
                   borderLeft: current === i ? `3px solid ${SSL.teal}` : "3px solid transparent" }}>

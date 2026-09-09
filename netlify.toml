@@ -47,6 +47,16 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/redeem-access-code"
+  to     = "/.netlify/functions/redeem-access-code"
+  status = 200
+
+[[redirects]]
+  from   = "/api/migrate-pathway-access"
+  to     = "/.netlify/functions/migrate-pathway-access"
+  status = 200
+
+[[redirects]]
   from   = "/api/coaching-card"
   to     = "/.netlify/functions/coaching-card"
   status = 200

@@ -35,6 +35,7 @@ export function GamesHub({ go }) {
         {GAMES.map((g) => (
           <div key={g.id} className="ssl-focusable" role="button" tabIndex={0}
             onClick={() => go({ name: "game", gameId: g.id })}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go({ name: "game", gameId: g.id }); } }}
             style={{ position: "relative", borderRadius: SSL.radius, overflow: "hidden", cursor: "pointer",
               aspectRatio: "4/5", minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
             <img src={g.cover} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -382,6 +383,7 @@ function OrderChallenge({ uid, onDone }) {
       <div className="ssl-grid4">
         {ORDER_SCENARIOS.map((s) => (
           <div key={s.id} className="ssl-card ssl-focusable" role="button" tabIndex={0} onClick={() => setActive(s.id)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(s.id); } }}
             style={{ padding: 18, cursor: "pointer", background: SSL.navy, color: SSL.onNavy, border: "none", opacity: done[s.id] ? 0.6 : 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div className="ssl-serif" style={{ fontSize: 16.5, color: "#fff" }}>{s.title}</div>
