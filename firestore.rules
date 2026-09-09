@@ -244,6 +244,30 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── HSD Family beta invites (Phase 4, 2026-09-09) — admin manages
+    // (creates/views) invite codes here; the actual redemption
+    // (netlify/functions/redeem-beta-invite.js) writes via the service
+    // account, which bypasses this rule entirely. No client (including the
+    // invited family) ever reads or writes this collection directly — the
+    // code is only ever validated server-side, so it can't be enumerated
+    // or self-redeemed by editing Firestore from the browser.
+    match /betaInvites/{code} {
+      allow read, write: if isAdminEmail();
+    }
+
+    // ── HSD Family beta feature flags (Phase 4, item 23) — same
+    // admin-write/public-read shape as config/killSwitch (Phase 0), reusing
+    // that already-hardened pattern rather than inventing a new one. Every
+    // AI Netlify function that needs to check "is Family/Jona/TTS disabled"
+    // polls this doc unauthenticated (same reason config/killSwitch's read
+    // is public), so read stays open; only admin (or the service account,
+    // which bypasses this) can flip a flag.
+    match /familyFlags/{docId} {
+      allow read:           if true;
+      allow create, update: if isAdminEmail();
+      allow delete:          if false;
+    }
+
     // ── Pathway/profile analytics (Phase 1, 2026-09-09) — same append-only
     // pattern as adminLogs above: the writer can only be the authenticated
     // account the event is about (checked via uid on the event doc itself),

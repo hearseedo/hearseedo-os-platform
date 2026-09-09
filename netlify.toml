@@ -57,6 +57,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/redeem-beta-invite"
+  to     = "/.netlify/functions/redeem-beta-invite"
+  status = 200
+
+[[redirects]]
   from   = "/api/coaching-card"
   to     = "/.netlify/functions/coaching-card"
   status = 200

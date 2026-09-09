@@ -232,3 +232,74 @@ test("activity progress: a user cannot read another account's child profile acti
   const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" });
   await assertFails(bob.firestore().doc("users/alice/familyMembers/child1/activityProgress/hear-hello-song").get());
 });
+
+// ── Phase 4 — HSD Family private beta: betaInvites + familyFlags ────────────
+// The core Phase 4 security requirement: beta access is server-authoritative.
+// A client must NEVER be able to read, create, or claim a beta invite code
+// directly — only the redeem-beta-invite.js function (via the admin SDK,
+// which bypasses these rules entirely) may touch betaInvites.
+
+test("betaInvites: a normal authenticated user cannot read an invite doc", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(alice.firestore().doc("betaInvites/HSD-FAMILY-0001").get());
+});
+
+test("betaInvites: a normal authenticated user cannot create an invite doc", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("betaInvites/HSD-FAMILY-0001").set({ status: "unused" })
+  );
+});
+
+test("betaInvites: a normal authenticated user cannot mark an invite as used (cannot self-grant beta access client-side)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await adminDb.doc("betaInvites/HSD-FAMILY-0002").set({ status: "unused" });
+
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("betaInvites/HSD-FAMILY-0002").update({ status: "used", usedByUid: "alice" })
+  );
+});
+
+test("betaInvites: an unauthenticated client cannot read or write invite docs", async () => {
+  const anonDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(anonDb.doc("betaInvites/HSD-FAMILY-0003").get());
+  await assertFails(anonDb.doc("betaInvites/HSD-FAMILY-0003").set({ status: "unused" }));
+});
+
+test("betaInvites: the admin CAN read and write invite docs directly (console management)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await assertSucceeds(adminDb.doc("betaInvites/HSD-FAMILY-0004").set({ status: "unused" }));
+  await assertSucceeds(adminDb.doc("betaInvites/HSD-FAMILY-0004").get());
+});
+
+test("familyFlags (kill switch): read is public (any client can check familyEnabled/jonaFamilyEnabled without auth)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await adminDb.doc("familyFlags/current").set({ familyEnabled: true });
+
+  const anon = testEnv.unauthenticatedContext();
+  await assertSucceeds(anon.firestore().doc("familyFlags/current").get());
+});
+
+test("familyFlags (kill switch): a normal authenticated user cannot write it", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("familyFlags/current").set({ familyEnabled: false })
+  );
+});
+
+test("familyFlags (kill switch): unauthenticated write is denied", async () => {
+  const anon = testEnv.unauthenticatedContext();
+  await assertFails(anon.firestore().doc("familyFlags/current").set({ familyEnabled: false }));
+});
+
+test("familyFlags (kill switch): the admin CAN write it (flip the switch to disable Family/Jona instantly)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await assertSucceeds(adminDb.doc("familyFlags/current").set({ familyEnabled: false, jonaFamilyEnabled: false }));
+});
+
+test("familyFlags (kill switch): delete is never allowed, even for the admin (matches the config/killSwitch pattern — flip, never remove)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await adminDb.doc("familyFlags/current").set({ familyEnabled: true });
+  await assertFails(adminDb.doc("familyFlags/current").delete());
+});

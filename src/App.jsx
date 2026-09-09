@@ -47,6 +47,7 @@ const MyJourney          = lazy(() => import("./family/MyJourney"));
 const FamilyHub          = lazy(() => import("./family/FamilyHub"));
 const ChildProfileCreate = lazy(() => import("./family/ChildProfileCreate"));
 const FamilyParentView   = lazy(() => import("./family/FamilyParentView"));
+const FamilyInvite       = lazy(() => import("./family/FamilyInvite"));
 import DemoShell        from "./demo/DemoShell";
 import DemoStart        from "./demo/DemoStart";
 import DemoAssessment   from "./demo/DemoAssessment";
@@ -210,6 +211,9 @@ export default function App() {
             are never automatically routed here (see /dashboard above, unchanged) —
             reachable directly by URL and via "Switch Pathway" in the account menu. */}
         <Route path="/choose-path" element={<ProtectedRoute><ChoosePath /></ProtectedRoute>} />
+        {/* Phase 4 — beta invite redemption. Deliberately NOT wrapped in
+            PathwayRoute (that would require access to grant access). */}
+        <Route path="/family/invite" element={<ProtectedRoute><Suspense fallback={<ChunkLoading />}><FamilyInvite /></Suspense></ProtectedRoute>} />
         <Route path="/family"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><PathwayEntry pathwayId="family" /></PathwayRoute></ProtectedRoute>} />
         {/* Phase 3 — HSD Family Beta Foundation. All guarded by the same
             PathwayRoute entitlement gate as /family above (Phase 2, item 36:

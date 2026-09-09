@@ -85,3 +85,29 @@ test("customer-portal: rejects a request with no idToken (400)", async () => {
   });
   assert.equal(res.statusCode, 400);
 });
+
+// Phase 4 — HSD Family private beta invite redemption. Same class of check:
+// beta access must never be grantable without a verified identity.
+test("redeem-beta-invite: rejects a request with no idToken (401)", async () => {
+  const { handler } = require("../redeem-beta-invite.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ code: "HSD-FAMILY-0001" }),
+  });
+  assert.equal(res.statusCode, 401);
+});
+
+test("redeem-beta-invite: rejects a request with no code (400)", async () => {
+  const { handler } = require("../redeem-beta-invite.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "irrelevant-invalid-token" }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("redeem-beta-invite: rejects non-POST methods", async () => {
+  const { handler } = require("../redeem-beta-invite.js");
+  const res = await handler({ httpMethod: "GET" });
+  assert.equal(res.statusCode, 405);
+});

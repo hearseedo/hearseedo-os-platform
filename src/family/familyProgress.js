@@ -59,6 +59,16 @@ export function recordActivityAbandoned(uid, profileId, activityId) {
   logPathwayEvent(uid, "activity_abandoned", { profileId, activityId });
 }
 
+// Phase 4 (item 14) — lightweight before/after mood signal, stored on the
+// same activityProgress doc rather than a new collection. Treated as a
+// behavioural indicator (item 14: "not clinical/psychological measurements"),
+// so it's just a mood string, nothing more.
+export async function recordConfidenceSignal(uid, profileId, activityId, phase, mood) {
+  const ref = doc(db, ...progressCollectionPath(uid, profileId), activityId);
+  await setDoc(ref, { [`mood_${phase}`]: mood }, { merge: true }).catch(() => {});
+  logPathwayEvent(uid, "confidence_signal", { profileId, activityId, phase, mood });
+}
+
 /**
  * Deterministic recommendation (item 34) — no ML, just simple rules:
  * 1. An unfinished (started, not completed) activity, if one exists.
@@ -90,6 +100,25 @@ export function getLastActivity(progress) {
   entries.sort((a, b) => (b.startedAt?.seconds ?? 0) - (a.startedAt?.seconds ?? 0));
   const last = entries[0];
   return ALL_ACTIVITIES.find(a => a.activityId === last.activityId) ?? null;
+}
+
+// Phase 4 (item 21) — parent weekly summary, computed in-app from the same
+// activityProgress data (no email delivery pipeline built yet — that would
+// need a scheduled Netlify function; reported honestly as not-yet-built in
+// the Phase 4 final report rather than faked here).
+export function getWeeklySummary(progress) {
+  const weekAgoSec = (Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000;
+  const completedThisWeek = Object.values(progress).filter(
+    p => p.completed && (p.completedAt?.seconds ?? 0) >= weekAgoSec
+  );
+  const moods = completedThisWeek.map(p => p.mood_after).filter(Boolean);
+  const excitedCount = moods.filter(m => m === "excited").length;
+  const byCategory = {};
+  completedThisWeek.forEach(p => {
+    const activity = ALL_ACTIVITIES.find(a => a.activityId === p.activityId);
+    if (activity?.category) byCategory[activity.category] = (byCategory[activity.category] ?? 0) + 1;
+  });
+  return { completedCount: completedThisWeek.length, excitedCount, moodCount: moods.length, byCategory };
 }
 
 export function getCompletionStats(progress) {

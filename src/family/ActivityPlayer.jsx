@@ -15,6 +15,8 @@ import { APPS } from "../constants/apps";
 import AppModal from "../components/AppModal";
 import FamilyError from "./FamilyError";
 import FamilyLoading from "./FamilyLoading";
+import { subscribeToFamilyFlags, DEFAULT_FLAGS } from "./familyFlags";
+import ConfidenceCheckIn from "./ConfidenceCheckIn";
 
 export default function ActivityPlayer() {
   const { activityId } = useParams();
@@ -26,12 +28,20 @@ export default function ActivityPlayer() {
   const startedRef = useRef(false);
   const [error, setError] = useState(null);
   const [showApp, setShowApp] = useState(false);
+  const [beforeCheckDone, setBeforeCheckDone] = useState(false);
+  // Phase 4 (item 23) — per-activity and Jona-specific kill switches.
+  const [flags, setFlags] = useState(DEFAULT_FLAGS);
+  useEffect(() => subscribeToFamilyFlags(setFlags), []);
+  const activityDisabled = activity && (
+    flags.disabledActivityIds?.includes(activity.activityId) ||
+    (activity.activityType === "jona" && !flags.jonaFamilyEnabled)
+  );
 
   useEffect(() => {
-    if (!user?.uid || !activity || startedRef.current) return;
+    if (!user?.uid || !activity || activityDisabled || startedRef.current) return;
     startedRef.current = true;
     recordActivityStarted(user.uid, profileId, activityId);
-  }, [user?.uid, activity, profileId, activityId]);
+  }, [user?.uid, activity, activityDisabled, profileId, activityId]);
 
   useEffect(() => () => {
     // Abandoned if the player unmounts before completion was recorded.
@@ -51,6 +61,10 @@ export default function ActivityPlayer() {
   if (!user) return <FamilyLoading />;
   if (!activity) return <FamilyError kind="unavailable" onBack={() => navigate("/family/home")} />;
   if (error) return <FamilyError kind={error} onRetry={() => setError(null)} onBack={() => navigate("/family/home")} />;
+  if (activityDisabled) {
+    // Item 9: never a technical "quota exceeded" message to a child.
+    return <FamilyError kind={activity.activityType === "jona" ? "ai" : "unavailable"} onBack={() => navigate("/family/home")} />;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -65,6 +79,13 @@ export default function ActivityPlayer() {
         <h1 style={{ fontSize: 22, fontWeight: 900, color: FAMILY_COLORS.text, textAlign: "center", marginBottom: 24 }}>
           {lang === "jp" && activity.titleJp ? activity.titleJp : activity.title}
         </h1>
+
+        {/* Confidence signal (item 14) — only on speaking-flavoured
+            activities (talk/create), not every activity. Blocks nothing —
+            the activity itself renders underneath once acknowledged. */}
+        {(activity.category === "talk" || activity.category === "create") && !beforeCheckDone && (
+          <ConfidenceCheckIn uid={user.uid} profileId={profileId} activityId={activityId} phase="before" onDone={() => setBeforeCheckDone(true)} />
+        )}
 
         {activity.activityType === "audio" && (
           <AudioPlayer activity={activity} onError={() => setError("audio")} onComplete={complete} t={t} />
@@ -145,6 +166,7 @@ function JonaPlayer({ activity, profile, user, onError, onComplete, t, lang }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [turns, setTurns] = useState(0);
+  const [afterCheckDone, setAfterCheckDone] = useState(false);
   const requiredTurns = parseInt(activity.completionCriteria?.split(":")[1] ?? "2", 10);
 
   useEffect(() => {
@@ -212,7 +234,10 @@ function JonaPlayer({ activity, profile, user, onError, onComplete, t, lang }) {
         />
         <button onClick={handleSend} disabled={loading} style={{ ...primaryBtn, padding: "12px 20px" }}>→</button>
       </div>
-      {canComplete && <button onClick={onComplete} style={primaryBtn}>{t("fam_continue")} →</button>}
+      {canComplete && !afterCheckDone && (
+        <ConfidenceCheckIn uid={user.uid} profileId={profile?.id} activityId={activity.activityId} phase="after" onDone={() => setAfterCheckDone(true)} />
+      )}
+      {canComplete && afterCheckDone && <button onClick={onComplete} style={primaryBtn}>{t("fam_continue")} →</button>}
     </div>
   );
 }

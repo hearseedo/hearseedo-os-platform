@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
-import { getActivityProgress, getCompletionStats, getRecommendedActivity } from "./familyProgress";
+import { getActivityProgress, getCompletionStats, getRecommendedActivity, getWeeklySummary } from "./familyProgress";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import { CATEGORIES } from "./content";
 import { db } from "../lib/firebase";
@@ -24,6 +24,7 @@ export default function FamilyParentView() {
   const [selectedId, setSelectedId] = useState(currentProfile?.id ?? SELF_PROFILE_ID);
   const [progress, setProgress] = useState(null);
   const [feedback, setFeedback] = useState("");
+  const [feedbackKind, setFeedbackKind] = useState("general");
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   useEffect(() => {
@@ -37,9 +38,10 @@ export default function FamilyParentView() {
     // create, admin-only read) — no new collection for beta feedback.
     await addDoc(collection(db, "feedback"), {
       uid: user.uid, source: "family_beta", profileId: selectedId,
-      text: feedback.trim(), createdAt: serverTimestamp(),
+      kind: feedbackKind, text: feedback.trim(), createdAt: serverTimestamp(),
     }).catch(() => {});
     setFeedback("");
+    setFeedbackKind("general");
     setFeedbackSent(true);
     setTimeout(() => setFeedbackSent(false), 3000);
   }
@@ -50,6 +52,13 @@ export default function FamilyParentView() {
   const stats = getCompletionStats(progress);
   const recommended = getRecommendedActivity(progress, child?.ageBand);
   const recentWins = Object.values(progress).filter(p => p.completed).slice(-5).reverse();
+  const weekly = getWeeklySummary(progress);
+
+  const FEEDBACK_KINDS = [
+    { id: "general", label: "General feedback" },
+    { id: "problem", label: "Report a problem" },
+    { id: "idea",    label: "Idea / suggestion" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -71,6 +80,20 @@ export default function FamilyParentView() {
             ))}
           </div>
         )}
+
+        {/* Phase 4 (item 21) — parent weekly summary, in-app only (no email
+            delivery pipeline built yet). */}
+        <div style={{ background: FAMILY_COLORS.pinkSoft, border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 8 }}>This Week</div>
+          {weekly.completedCount === 0 ? (
+            <div style={{ fontSize: 13, color: FAMILY_COLORS.textMuted }}>No activities completed in the last 7 days yet.</div>
+          ) : (
+            <div style={{ fontSize: 13, color: FAMILY_COLORS.text, lineHeight: 1.6 }}>
+              {child?.name ?? "Your child"} completed <strong>{weekly.completedCount}</strong> activit{weekly.completedCount === 1 ? "y" : "ies"} this week
+              {weekly.moodCount > 0 && weekly.excitedCount > 0 && <> — and felt excited about {weekly.excitedCount} of them! 😄</>}
+            </div>
+          )}
+        </div>
 
         <h2 style={{ fontSize: 15, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 12 }}>{t("fam_parent_progress")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 24 }}>
@@ -104,6 +127,16 @@ export default function FamilyParentView() {
         {/* Beta feedback — parent-facing only, no child-flow interruption (item 27) */}
         <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 10 }}>{t("fam_send_feedback")}</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+            {FEEDBACK_KINDS.map(k => (
+              <button key={k.id} onClick={() => setFeedbackKind(k.id)} style={{
+                padding: "6px 12px", borderRadius: 16, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                border: `2px solid ${feedbackKind === k.id ? FAMILY_COLORS.pink : FAMILY_COLORS.border}`,
+                background: feedbackKind === k.id ? FAMILY_COLORS.pinkSoft : "#fff",
+                color: FAMILY_COLORS.text,
+              }}>{k.label}</button>
+            ))}
+          </div>
           <textarea
             value={feedback} onChange={e => setFeedback(e.target.value)}
             placeholder={t("fam_feedback_placeholder")}

@@ -92,6 +92,13 @@ export default function ChoosePath() {
             <PathwayCard key={id} pathway={PATHWAYS[id]} state={pathwayStates[id]} onSelect={handleSelect} />
           ))}
         </div>
+
+        {/* Phase 4 — HSD Family private beta invite redemption */}
+        <div style={{ textAlign: "center", marginTop: 28 }}>
+          <button onClick={() => navigate("/family/invite")} style={{ background: "none", border: "none", color: "#999", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+            Have an HSD Family beta invite code?
+          </button>
+        </div>
       </div>
     </div>
   );

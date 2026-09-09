@@ -1887,6 +1887,7 @@ function FamilyBetaTab() {
   const [events, setEvents]   = useState([]);
   const [geminiEvents, setGeminiEvents] = useState([]);
   const [feedback, setFeedback] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1908,7 +1909,38 @@ function FamilyBetaTab() {
     return onSnapshot(q, snap => setFeedback(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(f => f.source === "family_beta")), () => {});
   }, []);
 
+  // Phase 4 (item 20) — beta cohort size, sourced from betaInvites (admin-only
+  // read; the same collection redeem-beta-invite.js writes to server-side).
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "betaInvites"), snap => setInvites(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => {});
+    return () => unsub();
+  }, []);
+
   const familyEvents = events.filter(e => ["family_home_viewed", "activity_started", "activity_completed", "activity_abandoned", "profile_selected", "profile_created"].includes(e.eventType));
+
+  // Phase 4 (item 20) — beta cohort + acquisition funnel. Funnel is
+  // account-level (uid), since a viewed selector precedes any profile.
+  const invitesUsed  = invites.filter(i => i.status === "used").length;
+  const invitesTotal = invites.length;
+  const selectorViewedUids = new Set(events.filter(e => e.eventType === "pathway_selector_viewed").map(e => e.uid));
+  const familySelectedUids = new Set(events.filter(e => e.eventType === "pathway_selected" && e.pathwayId === "family").map(e => e.uid));
+  const homeViewedUids     = new Set(events.filter(e => e.eventType === "family_home_viewed").map(e => e.uid));
+  const startedUids        = new Set(events.filter(e => e.eventType === "activity_started").map(e => e.uid));
+  const completedUids      = new Set(events.filter(e => e.eventType === "activity_completed").map(e => e.uid));
+  const funnelSteps = [
+    { label: "Viewed pathway selector", value: selectorViewedUids.size },
+    { label: "Selected Family",         value: familySelectedUids.size },
+    { label: "Reached Family Home",     value: homeViewedUids.size },
+    { label: "Started an activity",     value: startedUids.size },
+    { label: "Completed an activity",   value: completedUids.size },
+  ];
+
+  // Phase 4 (item 8) — AI cost per active family. Reuses the same Gemini
+  // Flash pricing already used in the API Costs tab (item avoids a second
+  // pricing constant living out of sync with it).
+  const geminiUSDTotal = geminiEvents.reduce((s, e) => s + (Number(e.inputTokens) || 0) / 1_000_000 * 0.075 + (Number(e.outputTokens) || 0) / 1_000_000 * 0.30, 0);
+  const jonaFamilies = new Set(geminiEvents.map(e => e.uid)).size;
+  const costPerFamily = jonaFamilies > 0 ? geminiUSDTotal / jonaFamilies : 0;
   const activeAccounts = new Set(familyEvents.map(e => e.uid)).size;
   const activeProfiles = new Set(familyEvents.filter(e => e.profileId).map(e => `${e.uid}:${e.profileId}`)).size;
   const started   = familyEvents.filter(e => e.eventType === "activity_started").length;
@@ -1946,6 +1978,42 @@ function FamilyBetaTab() {
         ))}
       </div>
 
+      {/* Phase 4 — beta cohort + AI economics */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
+        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{invitesUsed} / {invitesTotal}</div>
+          <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Beta invites redeemed</div>
+        </div>
+        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.gold }}>${geminiUSDTotal.toFixed(2)}</div>
+          <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Family Jona AI spend (all-time, last 500 calls)</div>
+        </div>
+        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>${costPerFamily.toFixed(3)}</div>
+          <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Avg AI cost per active family</div>
+        </div>
+      </div>
+
+      {/* Phase 4 (item 20) — acquisition/activation funnel, account-level */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>FAMILY FUNNEL</div>
+        {funnelSteps.map((step, i) => {
+          const base = funnelSteps[0].value || 1;
+          const pct = Math.round((step.value / base) * 100);
+          return (
+            <div key={step.label} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: COLORS.text, marginBottom: 3 }}>
+                <span>{step.label}</span>
+                <span style={{ fontWeight: 700 }}>{step.value} {i > 0 && <span style={{ color: COLORS.textMuted, fontWeight: 400 }}>({pct}%)</span>}</span>
+              </div>
+              <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3 }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: COLORS.success, borderRadius: 3, transition: "width 0.6s" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {topActivities.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>MOST-COMPLETED ACTIVITIES</div>
@@ -1953,6 +2021,24 @@ function FamilyBetaTab() {
             <div key={id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a1a1a", fontSize: 13 }}>
               <span style={{ color: COLORS.text }}>{id}</span>
               <span style={{ color: COLORS.success, fontWeight: 700 }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Phase 4 (item 28) — report-a-problem items surfaced for support triage,
+          reusing the extended feedback.kind field FamilyParentView now writes. */}
+      {feedback.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>FAMILY BETA FEEDBACK</div>
+          {feedback.slice(0, 15).map(f => (
+            <div key={f.id} style={{ padding: "10px 0", borderBottom: "1px solid #1a1a1a" }}>
+              <span style={{
+                fontSize: 10, fontWeight: 800, textTransform: "uppercase", padding: "2px 8px", borderRadius: 10, marginRight: 8,
+                background: f.kind === "problem" ? "rgba(224,16,16,0.15)" : f.kind === "idea" ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.08)",
+                color: f.kind === "problem" ? COLORS.red : f.kind === "idea" ? "#a855f7" : COLORS.textMuted,
+              }}>{f.kind ?? "general"}</span>
+              <span style={{ fontSize: 13, color: COLORS.text }}>{f.text}</span>
             </div>
           ))}
         </div>
