@@ -10,6 +10,7 @@ import { getActivityProgress } from "./familyProgress";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import { CATEGORIES } from "./content";
 import FamilyLoading from "./FamilyLoading";
+import { GraffitiStyles } from "./graffitiStyles";
 
 export default function ActivityGrid({ category: categoryProp }) {
   const params = useParams();
@@ -32,10 +33,12 @@ export default function ActivityGrid({ category: categoryProp }) {
 
   const style = CATEGORY_STYLE[category];
   const activities = getActivitiesByCategory(category, ageBand);
+  const isHub = category === "hub";
 
   return (
-    <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <header style={{ padding: "16px 20px", background: style.soft, borderBottom: `2px solid ${FAMILY_COLORS.border}` }}>
+    <div className={isHub ? "fam-world-bg" : undefined} style={{ minHeight: "100vh", background: isHub ? undefined : FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      {isHub && <GraffitiStyles />}
+      <header style={{ padding: "16px 20px", background: isHub ? "transparent" : style.soft, borderBottom: `2px solid ${FAMILY_COLORS.border}` }}>
         <button onClick={() => navigate("/family/home")} style={{ background: "none", border: "none", fontSize: 13, color: FAMILY_COLORS.textMuted, cursor: "pointer", marginBottom: 8 }}>
           {t("fam_back_to_home")}
         </button>
@@ -44,23 +47,50 @@ export default function ActivityGrid({ category: categoryProp }) {
         </div>
       </header>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 60px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 20px 60px" }}>
+        <div
+          className={isHub ? "fam-hub-grid" : undefined}
+          style={isHub ? undefined : { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}
+        >
           {activities.map(a => {
             const done = progress[a.activityId]?.completed;
+            const imageUrl = isHub ? a.media?.imageUrl : null;
             return (
               <button
                 key={a.activityId}
+                className={isHub ? "fam-hub-card" : undefined}
                 onClick={() => navigate(`/family/activity/${a.activityId}`)}
                 style={{
                   background: FAMILY_COLORS.card, border: `2px solid ${done ? style.color : FAMILY_COLORS.border}`,
-                  borderRadius: 18, padding: 16, textAlign: "left", cursor: "pointer", position: "relative", minHeight: 120,
+                  borderRadius: 18, textAlign: "left", cursor: "pointer", position: "relative",
+                  minHeight: imageUrl ? "auto" : 120,
+                  padding: imageUrl ? 0 : 16,
+                  overflow: imageUrl ? "hidden" : "visible",
                 }}
               >
-                {done && <span style={{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>✅</span>}
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{a.title}</div>
-                <div style={{ fontSize: 11, color: FAMILY_COLORS.textMuted }}>{a.duration} min</div>
+                {done && <span style={{ position: "absolute", top: 10, right: 10, fontSize: 18, zIndex: 2 }}>✅</span>}
+                {imageUrl ? (
+                  <>
+                    <img
+                      className="fam-hub-card-img"
+                      src={imageUrl}
+                      alt=""
+                      width={640} height={360}
+                      loading="lazy"
+                      style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", objectPosition: "center 40%" }}
+                    />
+                    <div className="fam-underline" style={{ padding: "14px 16px 16px", color: style.color }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{a.title}</div>
+                      <div style={{ fontSize: 11, color: FAMILY_COLORS.textMuted }}>{a.duration} min</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{a.title}</div>
+                    <div style={{ fontSize: 11, color: FAMILY_COLORS.textMuted }}>{a.duration} min</div>
+                  </>
+                )}
               </button>
             );
           })}

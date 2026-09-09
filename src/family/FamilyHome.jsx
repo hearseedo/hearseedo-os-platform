@@ -10,6 +10,7 @@ import { getActivityProgress, getRecommendedActivity, getLastActivity } from "./
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
+import { GraffitiStyles, spraySplash } from "./graffitiStyles";
 
 const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
@@ -34,7 +35,8 @@ export default function FamilyHome() {
   const last = getLastActivity(progress);
 
   return (
-    <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div className="fam-world-bg" style={{ minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <GraffitiStyles />
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: FAMILY_COLORS.card, borderBottom: `2px solid ${FAMILY_COLORS.border}` }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", fontSize: 13, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>
           {t("path_switch_pathway")}
@@ -51,65 +53,90 @@ export default function FamilyHome() {
       </header>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 60px" }}>
-        {/* Continue Your Journey — item 6, never leave "what's next" empty */}
-        <section style={{
-          background: `linear-gradient(135deg, ${FAMILY_COLORS.pinkSoft}, #fff)`,
-          border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 24, padding: 20, marginBottom: 28,
-          display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
-        }}>
-          <img src="/assets/hsd/family/characters/family-jona.webp" alt="" style={{ width: 64, height: 64, objectFit: "contain" }} />
+        {/* Continue Your Journey — item 6, never leave "what's next" empty.
+            family-hero.webp as the full illustrated banner background. */}
+        <section
+          className="fam-hero-banner"
+          style={{
+            backgroundImage: "url('/assets/hsd/family/backgrounds/family-hero.webp')",
+            border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 24, padding: 20, marginBottom: 28,
+            display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap",
+            aspectRatio: "16 / 7", minHeight: 220,
+          }}
+        >
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
               {t("fam_continue_journey")}
             </div>
             {last && (
-              <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                 {t("fam_last_activity")}: {last.icon} {last.title}
               </div>
             )}
-            <div style={{ fontSize: 17, fontWeight: 800, color: FAMILY_COLORS.text }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
               {recommended ? `${recommended.icon} ${recommended.title}` : "🎉 All caught up!"}
             </div>
           </div>
           {recommended && (
             <button
               onClick={() => navigate(`/family/activity/${recommended.activityId}`)}
-              style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
+              style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
             >
               {t("fam_start")} →
             </button>
           )}
         </section>
 
-        {/* Main actions — visually prominent, not a sidebar (item 5) */}
+        {/* Main actions — visually prominent, not a sidebar (item 5).
+            Each character image is the primary visual, not a small icon. */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16, marginBottom: 28 }}>
           {MAIN_CATEGORIES.map(cat => {
             const style = CATEGORY_STYLE[cat];
             return (
               <button
                 key={cat}
+                className="fam-tile"
                 onClick={() => navigate(`/family/${cat}`)}
                 style={{
                   background: style.soft, border: `2px solid ${style.color}33`, borderRadius: 20,
-                  padding: "20px 14px", textAlign: "center", cursor: "pointer", minHeight: 130,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "14px 10px 16px", textAlign: "center", cursor: "pointer", minHeight: 168,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 6,
+                  ...spraySplash(style.color),
                 }}
               >
-                <span style={{ fontSize: 32 }}>{style.icon}</span>
-                <span style={{ fontSize: 15, fontWeight: 800, color: style.color }}>{t(`fam_${cat}`)}</span>
+                <img
+                  className="fam-tile-char"
+                  src={style.image}
+                  alt=""
+                  width={96}
+                  height={96}
+                  loading="lazy"
+                  style={{ width: 96, height: 96, objectFit: "contain" }}
+                />
+                <span style={{ position: "relative", zIndex: 1, fontSize: 15, fontWeight: 800, color: style.color }}>{t(`fam_${cat}`)}</span>
               </button>
             );
           })}
         </div>
 
-        {/* My Journey + Family Hub */}
+        {/* My Journey + Family Hub — graffiti badge preview / family scene thumbnail */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           <button onClick={() => navigate("/family/journey")} style={secondaryCardStyle}>
-            <span style={{ fontSize: 24 }}>⭐</span>
+            <img
+              src="/assets/hsd/family/achievements/achievement-first-step.webp"
+              alt=""
+              width={52} height={52} loading="lazy"
+              style={{ width: 52, height: 52, objectFit: "contain", flexShrink: 0 }}
+            />
             <span style={{ fontWeight: 800, color: FAMILY_COLORS.text }}>{t("fam_my_journey")}</span>
           </button>
           <button onClick={() => navigate("/family/hub")} style={secondaryCardStyle}>
-            <span style={{ fontSize: 24 }}>👨‍👩‍👧</span>
+            <img
+              src={CATEGORY_STYLE.hub.image}
+              alt=""
+              width={68} height={52} loading="lazy"
+              style={{ width: 68, height: 52, objectFit: "cover", borderRadius: 10, flexShrink: 0 }}
+            />
             <span style={{ fontWeight: 800, color: FAMILY_COLORS.text }}>{t("fam_family_hub")}</span>
           </button>
         </div>

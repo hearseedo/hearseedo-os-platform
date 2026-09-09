@@ -13,6 +13,7 @@ import { SELF_PROFILE_ID } from "../lib/profiles";
 import Achievements from "../components/Achievements";
 import FamilyLoading from "./FamilyLoading";
 import { CATEGORIES } from "./content";
+import { GraffitiStyles, spraySplash } from "./graffitiStyles";
 
 export default function MyJourney() {
   const { user, currentProfile } = useAuth();
@@ -35,7 +36,8 @@ export default function MyJourney() {
   const achievementUser = { ...currentProfile, streak: user.streak ?? 0 };
 
   return (
-    <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div className="fam-world-bg" style={{ minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <GraffitiStyles />
       <header style={{ padding: "16px 20px" }}>
         <button onClick={() => navigate("/family/home")} style={{ background: "none", border: "none", fontSize: 13, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>
           {t("fam_back_to_home")}
@@ -50,17 +52,17 @@ export default function MyJourney() {
             const style = CATEGORY_STYLE[cat];
             const s = stats[cat];
             return (
-              <div key={cat} style={{ background: style.soft, border: `2px solid ${style.color}33`, borderRadius: 16, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 22 }}>{style.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: style.color }}>{t(`fam_${cat}`)}</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: FAMILY_COLORS.text }}>{s.done}/{s.total}</div>
+              <div key={cat} style={{ position: "relative", overflow: "hidden", background: style.soft, border: `2px solid ${style.color}33`, borderRadius: 16, padding: 14, textAlign: "center", ...spraySplash(style.color) }}>
+                <div style={{ position: "relative", fontSize: 22 }}>{style.icon}</div>
+                <div style={{ position: "relative", fontSize: 13, fontWeight: 800, color: style.color }}>{t(`fam_${cat}`)}</div>
+                <div style={{ position: "relative", fontSize: 18, fontWeight: 900, color: FAMILY_COLORS.text }}>{s.done}/{s.total}</div>
               </div>
             );
           })}
         </div>
 
         <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 20, padding: 20 }}>
-          <Achievements user={achievementUser} />
+          <Achievements user={achievementUser} variant="family" />
         </div>
       </div>
     </div>

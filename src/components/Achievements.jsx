@@ -2,6 +2,27 @@ import { useState } from "react";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 
+// HSD Family visual pass (2026-09-09) — real badge artwork for the subset of
+// achievements the supplied "HSD_Street_Graffiti_Achievement_Badges" set
+// covers, mapped by closest title/theme match (see the report for the full
+// mapping rationale). Additive metadata only — never read by `check()` or
+// any filter/unlock logic, and the default (non-family) Badge rendering
+// below ignores it entirely, so Dashboard/RewardsPanel are unaffected.
+const BADGE_BASE = "/assets/hsd/family/achievements";
+const FAMILY_BADGE_IMAGE = {
+  xp_100:                 `${BADGE_BASE}/achievement-first-step.webp`,
+  streak_7:                `${BADGE_BASE}/achievement-7-day-streak.webp`,
+  streak_30:               `${BADGE_BASE}/achievement-30-day-streak.webp`,
+  family_first_talk:       `${BADGE_BASE}/achievement-first-conversation.webp`,
+  family_10_attempts:      `${BADGE_BASE}/achievement-10-conversations.webp`,
+  family_story_explorer:   `${BADGE_BASE}/achievement-world-explorer.webp`,
+  family_challenge:        `${BADGE_BASE}/achievement-mission-complete.webp`,
+  lesson_10:                `${BADGE_BASE}/achievement-word-builder.webp`,
+  family_great_listener:   `${BADGE_BASE}/achievement-super-listener.webp`,
+  family_brave_speaker:    `${BADGE_BASE}/achievement-confident-speaker.webp`,
+  conf_25:                 `${BADGE_BASE}/achievement-confidence-builder.webp`,
+};
+
 export const ACHIEVEMENTS = [
   { id: "streak_3",   category: "streak",     title: "On a Roll",          titleJp: "絶好調",           desc: "3-day streak",           descJp: "3日連続ストリーク",           icon: "🔥", xp: 50,   check: (u) => (u.streak ?? 0) >= 3   },
   { id: "streak_7",   category: "streak",     title: "Week Warrior",       titleJp: "週間戦士",         desc: "7-day streak",           descJp: "7日連続ストリーク",           icon: "🔥", xp: 150,  check: (u) => (u.streak ?? 0) >= 7   },
@@ -57,7 +78,7 @@ const CAT_COLOR = {
   apps: COLORS.success, lessons: "#7B5EA7", special: "#ff6b35", family: "#e0559c",
 };
 
-export default function Achievements({ user }) {
+export default function Achievements({ user, variant = "default" }) {
   const { lang, t } = useLang();
   const [filter, setFilter] = useState("all");
   const u = user ?? {};
@@ -73,17 +94,17 @@ export default function Achievements({ user }) {
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
-        <StatCard label={t("badges_earned")} value={`${earned.length} / ${ACHIEVEMENTS.length}`} color={COLORS.gold}    />
-        <StatCard label={t("bonus_xp")}      value={`+${totalXP.toLocaleString()}`}              color={COLORS.red}     />
-        <StatCard label={t("completion")}    value={`${pct}%`}                                   color={COLORS.success} />
+        <StatCard label={t("badges_earned")} value={`${earned.length} / ${ACHIEVEMENTS.length}`} color={COLORS.gold}    variant={variant} />
+        <StatCard label={t("bonus_xp")}      value={`+${totalXP.toLocaleString()}`}              color={COLORS.red}     variant={variant} />
+        <StatCard label={t("completion")}    value={`${pct}%`}                                   color={COLORS.success} variant={variant} />
       </div>
 
       {/* Progress bar */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ height: 6, background: "#1e1e1e", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ height: 6, background: variant === "family" ? "#f0e4ea" : "#1e1e1e", borderRadius: 3, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${COLORS.red}, ${COLORS.gold})`, borderRadius: 3, transition: "width 1s ease" }} />
         </div>
-        <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 4 }}>{t("lb_achievements_unlocked_of").replace("{n}", earned.length).replace("{total}", ACHIEVEMENTS.length)}</div>
+        <div style={{ fontSize: 10, color: variant === "family" ? "#8a7a8a" : COLORS.textDim, marginTop: 4 }}>{t("lb_achievements_unlocked_of").replace("{n}", earned.length).replace("{total}", ACHIEVEMENTS.length)}</div>
       </div>
 
       {/* Category filter */}
@@ -95,8 +116,8 @@ export default function Achievements({ user }) {
             <button key={c.id} onClick={() => setFilter(c.id)} style={{
               padding: "5px 14px", borderRadius: 20, fontSize: 11, fontWeight: active ? 700 : 400,
               background: active ? color : "transparent",
-              border: `1px solid ${active ? color : "#2a2a2a"}`,
-              color: active ? "#fff" : COLORS.textMuted,
+              border: `1px solid ${active ? color : (variant === "family" ? "#e5d5dd" : "#2a2a2a")}`,
+              color: active ? "#fff" : (variant === "family" ? "#8a7a8a" : COLORS.textMuted),
               cursor: "pointer", transition: "all 0.15s",
             }}>{lang === "jp" ? c.labelJp : c.label}</button>
           );
@@ -110,7 +131,7 @@ export default function Achievements({ user }) {
             ✓ {t("earned")} ({visible(earned).length})
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px,1fr))", gap: 10 }}>
-            {visible(earned).map((a) => <Badge key={a.id} a={a} earned lang={lang} />)}
+            {visible(earned).map((a) => <Badge key={a.id} a={a} earned lang={lang} variant={variant} />)}
           </div>
         </div>
       )}
@@ -122,18 +143,74 @@ export default function Achievements({ user }) {
             {t("locked_badge")} ({visible(locked).length})
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px,1fr))", gap: 10 }}>
-            {visible(locked).map((a) => <Badge key={a.id} a={a} earned={false} lang={lang} />)}
+            {visible(locked).map((a) => <Badge key={a.id} a={a} earned={false} lang={lang} variant={variant} />)}
           </div>
         </div>
       )}
 
-      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fam-badge-pop{0%{transform:scale(0.85);filter:saturate(0.4)}60%{transform:scale(1.06);filter:saturate(1.3)}100%{transform:scale(1);filter:saturate(1)}}
+        .fam-ach-earned .fam-ach-visual{animation:fam-badge-pop 0.5s ease}
+        @media (prefers-reduced-motion: reduce){.fam-ach-earned .fam-ach-visual{animation:none}}
+      `}</style>
     </div>
   );
 }
 
-function Badge({ a, earned, lang }) {
+// Category-based CSS fallback for achievements outside the supplied badge
+// set (item: "restrained category-based fallback ... without generating new
+// artwork or displaying emojis"). A colored stencil ring + monogram, not an
+// icon font/emoji.
+function CategoryFallbackBadge({ category, earned, color }) {
+  const letter = (category || "?").charAt(0).toUpperCase();
+  return (
+    <div style={{
+      width: 56, height: 56, borderRadius: "50%", flexShrink: 0,
+      background: earned ? `radial-gradient(circle at 35% 30%, ${color}55, ${color}22 70%)` : "#eee",
+      border: `3px solid ${earned ? color : "#ccc"}`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      filter: earned ? "none" : "grayscale(1)",
+    }}>
+      <span style={{ fontSize: 22, fontWeight: 900, color: earned ? color : "#999", fontFamily: "'Arial Black', sans-serif" }}>{letter}</span>
+    </div>
+  );
+}
+
+function Badge({ a, earned, lang, variant = "default" }) {
   const color = CAT_COLOR[a.category] ?? COLORS.red;
+
+  if (variant === "family") {
+    const badgeImage = FAMILY_BADGE_IMAGE[a.id];
+    return (
+      <div className={`fam-badge-frame ${earned ? "fam-ach-earned fam-badge-earned" : "fam-badge-locked"}`} style={{
+        background: earned ? `${color}0d` : "#faf7f5",
+        border: `2px solid ${earned ? color + "55" : "#eee"}`,
+        borderRadius: 16, padding: "14px 14px 16px", textAlign: "center",
+      }}>
+        {!earned && <div className="fam-badge-overlay" />}
+        <div className="fam-ach-visual" style={{ marginBottom: 8, position: "relative" }}>
+          {badgeImage ? (
+            <img
+              className="fam-badge-img"
+              src={badgeImage}
+              alt=""
+              width={72} height={72} loading="lazy"
+              style={{ width: 72, height: 72, objectFit: "contain", margin: "0 auto", display: "block" }}
+            />
+          ) : (
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <CategoryFallbackBadge category={a.category} earned={earned} color={color} />
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: earned ? "#3a2a3a" : "#8a7a8a", marginBottom: 3, position: "relative" }}>{lang === "jp" ? a.titleJp : a.title}</div>
+        <div style={{ fontSize: 11, color: "#8a7a8a", marginBottom: 8, lineHeight: 1.4, position: "relative" }}>{lang === "jp" ? a.descJp : a.desc}</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: earned ? color : "#bbb", position: "relative" }}>+{a.xp} XP</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       background: earned ? `${color}0d` : COLORS.card,
@@ -149,7 +226,19 @@ function Badge({ a, earned, lang }) {
   );
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, variant = "default" }) {
+  if (variant === "family") {
+    return (
+      <div style={{
+        position: "relative", overflow: "hidden",
+        background: `radial-gradient(circle at 20% 15%, ${color}22, transparent 55%), #fff`,
+        border: `2px solid ${color}33`, borderRadius: 16, padding: "16px 16px 18px",
+      }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div>
+        <div style={{ fontSize: 11, color: "#8a7a8a", marginTop: 3, fontWeight: 600 }}>{label}</div>
+      </div>
+    );
+  }
   return (
     <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: "14px 16px" }}>
       <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
