@@ -214,7 +214,10 @@ test("record-curriculum-progress: a fully valid payload passes field validation 
   const { validateEvent } = require("../record-curriculum-progress.js");
   const errors = validateEvent({
     profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b2-h", section: "hear",
-    completed: true, skillsPracticed: ["listening", "phonics"], confidenceSignal: "confident", eventId: "b2-h:hear:12345",
+    completed: true, skillsPracticed: ["listening", "phonics"], confidenceSignal: "confident",
+    // A real crypto.randomUUID()-shaped id (correction, 2026-09-10) — eventId
+    // is no longer a free-form string, it's format-checked.
+    eventId: "550e8400-e29b-41d4-a716-446655440000",
   });
   assert.deepEqual(errors, []);
 });

@@ -6,7 +6,7 @@
 // firestore.rules — write: if false there now); every write goes through
 // this function instead, so every field is validated against V2's real
 // curriculum ids (_curriculumIds.js) before anything reaches Firestore.
-const { verifyIdToken, firestoreFetch, toFirestoreValue, fromFirestoreFields } = require("./_firebaseAdmin");
+const { verifyIdToken, firestoreFetch, PROJECT_ID, toFirestoreValue, fromFirestoreFields } = require("./_firebaseAdmin");
 const { VALID_CURRICULUM_IDS, VALID_SECTIONS, VALID_CONFIDENCE_SIGNALS, VALID_SKILLS, isValidLessonId, bookIdForLesson } = require("./_curriculumIds");
 
 const CORS = {
@@ -20,6 +20,19 @@ const MAX_STRING_LEN = 64;     // ids/sections are short fixed vocabulary, never
 
 function isShortString(v) {
   return typeof v === "string" && v.length > 0 && v.length <= MAX_STRING_LEN;
+}
+
+// Event-id format (correction, 2026-09-10): the client generates this with
+// crypto.randomUUID() (36-char hex+hyphen) or, only if that API is
+// unavailable, a base36-timestamp+random fallback (see V2's
+// generateAttemptId()). Both shapes are plain [a-zA-Z0-9-], so a charset +
+// length check here rejects anything malformed or oversized without
+// hard-coding the UUID shape specifically — the id is an opaque idempotency
+// key, never parsed for meaning.
+const EVENT_ID_PATTERN = /^[a-zA-Z0-9-]{8,64}$/;
+
+function isValidEventId(v) {
+  return typeof v === "string" && EVENT_ID_PATTERN.test(v);
 }
 
 /**
@@ -41,9 +54,12 @@ function validateEvent(body) {
       errors.push("skillsPracticed");
     }
   }
-  // eventId is the dedup key (correction #5) — required, not optional, so
-  // every write path is idempotent by construction, not by convention.
-  if (!isShortString(body.eventId)) errors.push("eventId");
+  // eventId is the dedup key (correction #5) — required, format-checked,
+  // never trusted as proof of authentication or ownership by itself (that
+  // comes from idToken verification below; the id is scoped to this
+  // request's own uid/profileId path, never used to look anything up on
+  // its own).
+  if (!isValidEventId(body.eventId)) errors.push("eventId");
   return errors;
 }
 
@@ -92,58 +108,85 @@ exports.handler = async (event) => {
       }
     }
 
-    // Idempotency (correction #5): eventId names a fixed doc under
-    // processedEvents/ — if it already exists, this exact transmission was
-    // already handled; return success without writing again or duplicating
-    // the home-practice log. A genuinely new attempt gets a different
-    // eventId from the client (see docs/CURRICULUM_PROGRESS_ARCHITECTURE.md
-    // for exactly how the two are told apart), so real repeat practice is
-    // never suppressed — only literal replays of the same transmission are.
-    const dedupPath = `${basePath}/processedEvents/${encodeURIComponent(eventId)}`;
-    const existing = await firestoreFetch(dedupPath);
-    if (existing.ok) {
-      return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ success: true, duplicate: true }) };
-    }
+    const now = new Date().toISOString();
+    const docName = (p) => `projects/${PROJECT_ID}/databases/(default)/documents${p}`;
 
-    // Mark this event processed BEFORE the rest of the writes — if a
-    // near-simultaneous retry lands while this request is still in flight,
-    // it's better to risk a rare skipped write than a duplicate one.
-    await firestoreFetch(dedupPath, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields: { recordedAt: toFirestoreValue(new Date().toISOString()) } }),
-    });
-
-    await firestoreFetch(`${basePath}?updateMask.fieldPaths=curriculumId&updateMask.fieldPaths=lastBookId&updateMask.fieldPaths=lastLessonId&updateMask.fieldPaths=lastSection&updateMask.fieldPaths=lastConfidenceSignal&updateMask.fieldPaths=updatedAt`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fields: {
-          curriculumId: toFirestoreValue(curriculumId),
-          lastBookId: toFirestoreValue(bookId),
-          lastLessonId: toFirestoreValue(lessonId),
-          lastSection: toFirestoreValue(section ?? null),
-          lastConfidenceSignal: toFirestoreValue(confidenceSignal),
-          updatedAt: toFirestoreValue(new Date().toISOString()),
-        },
-      }),
-    });
-
-    await firestoreFetch(`${basePath}/homePracticeLog?documentId=${encodeURIComponent(eventId)}`, {
+    // Atomic idempotent write (correction, 2026-09-10): a single Firestore
+    // :commit call, not a sequential read-then-write. The processedEvents
+    // marker write below carries `currentDocument: { exists: false }` —
+    // Firestore evaluates that precondition and applies every write in
+    // this request as one all-or-nothing unit. Because the precondition
+    // check and the write happen inside the same atomic commit (this is
+    // Firestore's documented commit contract, not something built on top
+    // of it), two simultaneous requests carrying the same eventId cannot
+    // both succeed: whichever reaches Firestore first wins and creates the
+    // marker + summary + log entry together; the other's precondition
+    // fails and NONE of its writes apply (not just the marker) — so there
+    // is no window where a partial/duplicate write can land. This is the
+    // "equivalent atomic operation" the design calls for in place of an
+    // explicit beginTransaction/commit pair, which isn't needed here since
+    // we never need to read a value first — only to assert non-existence.
+    const commitRes = await firestoreFetch(":commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fields: {
-          bookId: toFirestoreValue(bookId),
-          lessonId: toFirestoreValue(lessonId),
-          section: toFirestoreValue(section ?? null),
-          completed: toFirestoreValue(completed),
-          skillsPracticed: toFirestoreValue(skillsPracticed),
-          confidenceSignal: toFirestoreValue(confidenceSignal),
-          timestamp: toFirestoreValue(new Date().toISOString()),
-        },
+        writes: [
+          {
+            update: {
+              name: docName(`${basePath}/processedEvents/${eventId}`),
+              fields: { recordedAt: toFirestoreValue(now) },
+            },
+            currentDocument: { exists: false },
+          },
+          {
+            update: {
+              name: docName(basePath),
+              fields: {
+                curriculumId: toFirestoreValue(curriculumId),
+                lastBookId: toFirestoreValue(bookId),
+                lastLessonId: toFirestoreValue(lessonId),
+                lastSection: toFirestoreValue(section ?? null),
+                lastConfidenceSignal: toFirestoreValue(confidenceSignal),
+                updatedAt: toFirestoreValue(now),
+              },
+            },
+            updateMask: {
+              fieldPaths: ["curriculumId", "lastBookId", "lastLessonId", "lastSection", "lastConfidenceSignal", "updatedAt"],
+            },
+          },
+          {
+            // The event id doubles as the home-practice log document id —
+            // the cleanest structure that keeps "one genuine attempt = one
+            // log entry" true by construction, with no separate id needed.
+            update: {
+              name: docName(`${basePath}/homePracticeLog/${eventId}`),
+              fields: {
+                bookId: toFirestoreValue(bookId),
+                lessonId: toFirestoreValue(lessonId),
+                section: toFirestoreValue(section ?? null),
+                completed: toFirestoreValue(completed),
+                skillsPracticed: toFirestoreValue(skillsPracticed),
+                confidenceSignal: toFirestoreValue(confidenceSignal),
+                timestamp: toFirestoreValue(now),
+              },
+            },
+          },
+        ],
       }),
-    }).catch(() => {}); // best-effort — the summary write above is the one that matters for routing
+    });
+
+    if (!commitRes.ok) {
+      // A failed-precondition here means the processedEvents marker already
+      // existed — i.e. this exact eventId was already processed (either a
+      // genuine prior success, or we lost a race to a concurrent identical
+      // request). Either way the correct response is the same: report the
+      // duplicate, write nothing further. Any other failure is a real error.
+      if (commitRes.status === 409 || commitRes.status === 400) {
+        return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ success: true, duplicate: true }) };
+      }
+      const errText = await commitRes.text().catch(() => "");
+      throw new Error(`Firestore commit failed (${commitRes.status}): ${errText}`);
+    }
 
     return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ success: true, duplicate: false }) };
   } catch (err) {
@@ -153,3 +196,4 @@ exports.handler = async (event) => {
 };
 
 module.exports.validateEvent = validateEvent;
+module.exports.isValidEventId = isValidEventId;
