@@ -11,7 +11,19 @@ export const APPS = [
     accent: "#e01010",
     audience: "kids",
     price: 980,
-    iframeUrl: import.meta.env.VITE_APP_URL_PHONICS || "",
+    // V1 (manus.space) is dead — the Manus account no longer exists and it
+    // must never be treated as a fallback or migration target. The live
+    // Netlify env var VITE_APP_URL_PHONICS still points at it as of this
+    // change (see Admin.jsx's DPA/config panel) and needs to be repointed
+    // to V2's real deployed URL before this repoint takes effect in
+    // production — that's a deploy-time action, not something changed here.
+    // The fallback below is what a fresh/unset env var resolves to now.
+    iframeUrl: import.meta.env.VITE_APP_URL_PHONICS || "https://hearseedo-monkey-yoga-phonics-v2.netlify.app",
+    // Security correction (Phase A/B review) — V2 implements the secure
+    // HSD_OS_READY -> HSD_OS_AUTH handshake, so its iframe URL never
+    // carries sso_token/id_token. Every other app below is unchanged and
+    // keeps the pre-existing URL-based SSO until it's separately audited.
+    usesSecureHandshake: true,
   },
   {
     id: "eiken",

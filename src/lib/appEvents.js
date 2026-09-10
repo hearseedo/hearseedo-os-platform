@@ -7,6 +7,8 @@ import {
   doc, getDoc, setDoc, updateDoc, collection, serverTimestamp,
 } from "firebase/firestore";
 import { computeConfidenceTrend } from "./confidenceEngine";
+import { recordCurriculumProgressEvent } from "../family/curriculumProgress";
+import { SELF_PROFILE_ID } from "./profiles";
 
 const SKILL_MAP = {
   eiken:      ["vocabulary", "reading", "listening", "speaking"],
@@ -30,6 +32,15 @@ export async function processAppEvent(uid, event) {
     isCorrect   = true,
     score       = null,
   } = event;
+
+  // Curriculum-aware apps (Monkey Yoga V2 today) carry a curriculumId in
+  // addition to the generic fields above — route those, additively, into
+  // the profile-scoped curriculum state (src/family/curriculumProgress.js)
+  // alongside the existing generic learnerProfiles/{uid} write below, which
+  // every other app (eiken, speak, etc.) still uses unchanged.
+  if (event.curriculumId) {
+    await recordCurriculumProgressEvent(uid, event.profileId || SELF_PROFILE_ID, event).catch(() => {});
+  }
 
   try {
     const profileRef = doc(db, "learnerProfiles", uid);

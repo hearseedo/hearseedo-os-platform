@@ -74,7 +74,7 @@ export const WORLDS = [
     name:    "Monkey Yoga Phonics",
     promise: "Phonics, movement, and confidence for ages 4–8.",
     audience: ["children"],
-    launch:  "external", // manus.space iframe (V1) — see project_phonics_v2 memory for V2 plan
+    launch:  "external", // V1 (manus.space) is dead/deprecated — this card opens via constants/apps.js's iframeUrl, which should point at Monkey Yoga V2
     iframeAppId: "phonics", // constants/apps.js → VITE_APP_URL_PHONICS
     accent:  TOKENS.worldAccent["phonics"],
     art: {

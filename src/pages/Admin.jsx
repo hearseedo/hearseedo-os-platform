@@ -19,6 +19,7 @@ const TABS = [
   { id: "support",       label: "Support",        icon: "💬" },
   { id: "feedback",      label: "Feedback",       icon: "📣" },
   { id: "family_beta",   label: "Family Beta",    icon: "👨‍👩‍👧" },
+  { id: "classes",       label: "Classes",        icon: "🏫" },
   { id: "intelligence",  label: "Intelligence",   icon: "🧠" },
   { id: "eiken",         label: "EIKEN Monkey",   icon: "🐵" },
   { id: "users",         label: "Users",          icon: "👥" },
@@ -375,6 +376,7 @@ export default function Admin() {
           {tab === "audit"        && <AuditTab />}
           {tab === "feedback"     && <FeedbackTab />}
           {tab === "family_beta"  && <FamilyBetaTab />}
+          {tab === "classes"      && <ClassesTab />}
           {tab === "settings"     && <SettingsTab />}
         </main>
       </div>
@@ -2045,6 +2047,116 @@ function FamilyBetaTab() {
       )}
 
       {loading ? <Skeleton /> : familyEvents.length === 0 && <Empty>No Family beta activity yet — events will appear here in real time.</Empty>}
+    </div>
+  );
+}
+
+// Minimal classroom connection (2026-09-10) — NOT an LMS. The only
+// capability here is "set which book/lesson a class is currently on" and
+// "which learners belong to it" — no assignments, grading, or attendance.
+// lessonId is free text (e.g. "b1-s") matching Monkey Yoga V2's own
+// canonical ids verbatim — admin looks it up from the Teacher Manual/V2
+// curriculum map rather than this UI inventing a second id scheme.
+function ClassesTab() {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState("");
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "classes"), snap => {
+      setClasses(snap.docs.map(d => ({ classId: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return unsub;
+  }, []);
+
+  async function createClass() {
+    if (!newName.trim()) return;
+    await addDoc(collection(db, "classes"), {
+      name: newName.trim(), curriculumId: "monkey-yoga-phonics",
+      currentBookId: 1, currentLessonId: null, learnerKeys: [],
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    });
+    setNewName("");
+  }
+
+  async function updatePosition(classId, bookId, lessonId) {
+    await setDoc(doc(db, "classes", classId), {
+      currentBookId: Number(bookId), currentLessonId: lessonId.trim() || null, updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+
+  async function addLearner(classId, uid, profileId) {
+    if (!uid.trim()) return;
+    const key = `${uid.trim()}:${(profileId || "self").trim()}`;
+    const cls = classes.find(c => c.classId === classId);
+    const keys = Array.from(new Set([...(cls?.learnerKeys ?? []), key]));
+    await setDoc(doc(db, "classes", classId), { learnerKeys: keys, updatedAt: serverTimestamp() }, { merge: true });
+  }
+
+  async function removeLearner(classId, key) {
+    const cls = classes.find(c => c.classId === classId);
+    const keys = (cls?.learnerKeys ?? []).filter(k => k !== key);
+    await setDoc(doc(db, "classes", classId), { learnerKeys: keys, updatedAt: serverTimestamp() }, { merge: true });
+  }
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Classroom Connection</div>
+      <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 20 }}>
+        Minimal — set a class's current Book/Lesson so HSD Family routes its learners there. Not an LMS: no assignments, grading, or attendance.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="New class name (e.g. Murakumo Nenchu)"
+          style={{ flex: 1, padding: "8px 12px", background: COLORS.card, border: "1px solid #2a2a2a", borderRadius: 8, color: COLORS.text, fontSize: 13 }} />
+        <button onClick={createClass} style={{ padding: "8px 16px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>+ Create Class</button>
+      </div>
+
+      {loading ? <Skeleton /> : classes.length === 0 ? <Empty>No classes yet — create one above.</Empty> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {classes.map(c => <ClassCard key={c.classId} cls={c} onUpdatePosition={updatePosition} onAddLearner={addLearner} onRemoveLearner={removeLearner} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClassCard({ cls, onUpdatePosition, onAddLearner, onRemoveLearner }) {
+  const [bookId, setBookId] = useState(cls.currentBookId ?? 1);
+  const [lessonId, setLessonId] = useState(cls.currentLessonId ?? "");
+  const [newUid, setNewUid] = useState("");
+  const [newProfileId, setNewProfileId] = useState("");
+
+  return (
+    <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>{cls.name}</div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, color: COLORS.textMuted }}>Book</span>
+        <select value={bookId} onChange={e => setBookId(e.target.value)} style={{ padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }}>
+          {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <span style={{ fontSize: 11, color: COLORS.textMuted }}>Lesson ID</span>
+        <input value={lessonId} onChange={e => setLessonId(e.target.value)} placeholder="e.g. b2-h"
+          style={{ padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12, width: 90 }} />
+        <button onClick={() => onUpdatePosition(cls.classId, bookId, lessonId)} style={{ padding: "5px 12px", background: "rgba(224,16,16,0.15)", border: "1px solid rgba(224,16,16,0.4)", borderRadius: 6, color: COLORS.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Update Position</button>
+        {cls.currentLessonId && <span style={{ fontSize: 11, color: COLORS.success }}>Currently: Book {cls.currentBookId} · {cls.currentLessonId}</span>}
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase" }}>Learners ({(cls.learnerKeys ?? []).length})</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+        {(cls.learnerKeys ?? []).map(key => (
+          <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: COLORS.text, padding: "3px 0" }}>
+            <span>{key}</span>
+            <button onClick={() => onRemoveLearner(cls.classId, key)} style={{ background: "none", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 11 }}>remove</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input value={newUid} onChange={e => setNewUid(e.target.value)} placeholder="learner uid" style={{ flex: 1, padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
+        <input value={newProfileId} onChange={e => setNewProfileId(e.target.value)} placeholder="profile id (default: self)" style={{ flex: 1, padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
+        <button onClick={() => { onAddLearner(cls.classId, newUid, newProfileId); setNewUid(""); setNewProfileId(""); }} style={{ padding: "5px 12px", background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12, cursor: "pointer" }}>+ Add</button>
+      </div>
     </div>
   );
 }

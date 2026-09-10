@@ -12,7 +12,7 @@
 // eight specific required behaviours for a product children will use
 // directly and repeatedly, not just occasionally reach via a shared
 // subscription bundle.
-import { getActivity } from "./content";
+import { getActivity } from "./content.js";
 
 export const FAMILY_CHILD_SAFETY_RULE = `You are talking with a child in HSD Family. Follow these rules exactly, every turn:
 - Never ask for the child's full name, address, school name, phone number, photos, or any other identifying personal information. If they offer it, don't repeat it back or ask for more — gently move on.
@@ -36,8 +36,17 @@ const AGE_BAND_VOICE = {
  * "Create" conversation activity. Confidence-before-correctness (same
  * philosophy as CONFIDENCE_FIRST_RULE elsewhere) + the mandatory Family
  * child-safety rule + activity-specific framing.
+ *
+ * PRIVACY CORRECTION (Phase A/B review, 2026-09-10): this function no
+ * longer accepts or interpolates the child's real first name into the
+ * prompt sent to Gemini. It never did anything the pedagogy actually
+ * needed a name for — warm generic address ("friend"/"champion") serves
+ * the same coaching purpose without sending an identifying detail to a
+ * third-party model on every single turn. If a caller still passes a name
+ * (old call sites, before this fix), it is deliberately ignored, not just
+ * defaulted — see the (still-accepted-but-unused) parameter below.
  */
-export function buildFamilyJonaPrompt({ activityId, profileName, ageBand }) {
+export function buildFamilyJonaPrompt({ activityId, ageBand }) {
   const activity = getActivity(activityId);
   const voice = AGE_BAND_VOICE[ageBand] ?? AGE_BAND_VOICE.elementary;
 
@@ -45,7 +54,7 @@ export function buildFamilyJonaPrompt({ activityId, profileName, ageBand }) {
 
 ${voice}
 
-The child's name is ${profileName || "your friend"}. Today's activity: "${activity?.title ?? "a conversation"}" (${activity?.curriculum?.source ?? "HSD Family"}).
+Address the child warmly without using a personal name — use "friend", "champion", or similar. Never ask for or use their real name. Today's activity: "${activity?.title ?? "a conversation"}" (${activity?.curriculum?.source ?? "HSD Family"}).
 
 Conversation rules:
 - Keep every reply to 1-3 short sentences — this is a spoken conversation, not an essay.

@@ -28,15 +28,55 @@ class EikenBoundary extends Component {
 }
 
 
-function buildIframeSrc(url, uid, idToken) {
+// Security correction (Phase A/B review, 2026-09-10) — Firebase bearer
+// tokens no longer travel in the URL for apps that implement the secure
+// postMessage handshake (app.usesSecureHandshake: true, currently only
+// Monkey Yoga V2). Those apps receive identity exclusively via the
+// HSD_OS_READY -> HSD_OS_AUTH exchange below. Every other app keeps its
+// existing sso_token/id_token-in-URL behavior completely unchanged — this
+// is opt-in per app specifically so apps we haven't audited/updated can't
+// be silently broken by this change.
+//
+// curriculumTarget (optional) lets a caller route straight to a specific
+// Book/Lesson/section inside a sub-app instead of just its home screen —
+// e.g. HSD Family opening Monkey Yoga V2 at the learner's actual curriculum
+// position. profileId is the HSD Family learner profile ("self" or a
+// familyMembers/{id}) — distinct from uid, and is a ROUTING HINT only,
+// never treated as proof of authorization by anything that receives it.
+function buildIframeSrc(url, uid, idToken, profileId, curriculumTarget, secure) {
   if (!url || !uid) return url;
   const u = new URL(url);
-  u.searchParams.set("sso_token", uid);
-  if (idToken) u.searchParams.set("id_token", idToken);
+  if (!secure) {
+    u.searchParams.set("sso_token", uid);
+    if (idToken) u.searchParams.set("id_token", idToken);
+  }
+  if (profileId) u.searchParams.set("profile_id", profileId);
+  if (curriculumTarget?.bookId) u.searchParams.set("book", String(curriculumTarget.bookId));
+  if (curriculumTarget?.lessonId) u.searchParams.set("lesson", curriculumTarget.lessonId);
+  if (curriculumTarget?.section) u.searchParams.set("section", curriculumTarget.section);
   return u.toString();
 }
 
-export default function AppModal({ app, onClose, user, activeMember }) {
+// Field-shape validation for an incoming HSD_OS_PROGRESS payload — rejects
+// anything that doesn't look like a real progress event before it ever
+// reaches processAppEvent()/Firestore. Deliberately permissive on which
+// fields may be PRESENT (other apps send different shapes) but strict on
+// the TYPE of whichever fields are present.
+function isPlausibleProgressPayload(data) {
+  if (!data || typeof data !== "object") return false;
+  if (data.module !== undefined && typeof data.module !== "string") return false;
+  if (data.profileId !== undefined && data.profileId !== null && typeof data.profileId !== "string") return false;
+  if (data.lessonId !== undefined && typeof data.lessonId !== "string") return false;
+  if (data.curriculumId !== undefined && typeof data.curriculumId !== "string") return false;
+  return true;
+}
+
+export default function AppModal({ app, onClose, user, activeMember, curriculumTarget }) {
+  // SELF_PROFILE_ID ("self") mirrors src/lib/profiles.js's convention —
+  // activeMember is null for the account owner's own (virtual) profile, so
+  // without this fallback the owner's phonics progress would have no
+  // profile_id at all and collide with nothing/be unattributable.
+  const profileId = activeMember?.id ?? "self";
   const { isUnlocked } = useSubscription();
   const { t } = useLang();
   const navigate = useNavigate();
@@ -84,14 +124,14 @@ export default function AppModal({ app, onClose, user, activeMember }) {
 
     if (idToken) {
       externalOpenedRef.current = app.id;
-      window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken), "_blank", "noopener,noreferrer");
+      window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken, profileId, curriculumTarget, app?.usesSecureHandshake), "_blank", "noopener,noreferrer");
       onClose();
     } else {
       // Give the fresh-ID-token fetch a moment before opening without it.
       const timer = setTimeout(() => {
         if (externalOpenedRef.current === app.id) return;
         externalOpenedRef.current = app.id;
-        window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken), "_blank", "noopener,noreferrer");
+        window.open(buildIframeSrc(app.iframeUrl, user.uid, idToken, profileId, curriculumTarget, app?.usesSecureHandshake), "_blank", "noopener,noreferrer");
         onClose();
       }, 1500);
       return () => clearTimeout(timer);
@@ -113,25 +153,43 @@ export default function AppModal({ app, onClose, user, activeMember }) {
     return () => clearTimeout(timer);
   }, [app?.id, app?.iframeUrl, iframeLoaded]);
 
-  // postMessage bridge
+  // postMessage bridge. Security correction (Phase A/B review): every
+  // incoming message is now checked against the sub-app's own origin AND
+  // must actually originate from this modal's own iframe window — a page
+  // from any other origin, or a message merely claiming to be from the
+  // iframe, is silently dropped before its type/fields are even inspected.
+  // Every reply goes to that exact origin — "*" is never used for anything
+  // that carries auth data.
   useEffect(() => {
     if (!app || !app.iframeUrl) return;
     const unlocked = isUnlocked(app.id);
     if (!unlocked) return;
 
+    let expectedOrigin = null;
+    try { expectedOrigin = new URL(app.iframeUrl).origin; } catch { /* malformed iframeUrl — no messages will validate, safe default */ }
+
     const handleMessage = async (e) => {
+      if (!expectedOrigin || e.origin !== expectedOrigin) return;
+      if (e.source !== iframeRef.current?.contentWindow) return;
+
       const data = e.data;
-      if (!data?.type) return;
+      if (!data || typeof data !== "object" || typeof data.type !== "string") return;
+      if (data.type !== "HSD_OS_READY" && data.type !== "HSD_OS_PROGRESS") return; // reject unknown message types
 
       if (data.type === "HSD_OS_READY") {
-        iframeRef.current?.contentWindow?.postMessage({
+        const authPayload = {
           type:      "HSD_OS_AUTH",
           token:     user?.uid ?? "",
           studentId: user?.uid ?? "",
-        }, "*");
+          profileId,
+        };
+        // Secure-handshake apps (Monkey Yoga V2) receive the real ID token
+        // here instead of via the URL — see buildIframeSrc above.
+        if (app?.usesSecureHandshake && idToken) authPayload.idToken = idToken;
+        iframeRef.current?.contentWindow?.postMessage(authPayload, expectedOrigin);
       }
 
-      if (data.type === "HSD_OS_PROGRESS" && user?.uid) {
+      if (data.type === "HSD_OS_PROGRESS" && user?.uid && isPlausibleProgressPayload(data)) {
         try {
           // Write basic progress record
           await setDoc(
@@ -143,15 +201,17 @@ export default function AppModal({ app, onClose, user, activeMember }) {
             },
             { merge: true }
           );
-          // Write enriched learning data to learner profile
-          await processAppEvent(user.uid, { ...data, module: data.module ?? app.id });
+          // Write enriched learning data to learner profile. Fall back to
+          // this modal's own profileId if the sub-app didn't echo one back —
+          // never leave a progress event unattributed to a specific child.
+          await processAppEvent(user.uid, { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId });
         } catch {}
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [app?.id, app?.iframeUrl, user?.uid]);
+  }, [app?.id, app?.iframeUrl, user?.uid, profileId, idToken]);
 
   if (!app || app.id === "career-ready" || app.id === "global-ready" || app.id === "speak-ready" || app.launchMode === "external") return null;
 
@@ -242,7 +302,7 @@ export default function AppModal({ app, onClose, user, activeMember }) {
                     {t("app_best_in_window")}
                   </div>
                   <a
-                    href={buildIframeSrc(app.iframeUrl, user?.uid, idToken)}
+                    href={buildIframeSrc(app.iframeUrl, user?.uid, idToken, profileId, curriculumTarget, app?.usesSecureHandshake)}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -257,7 +317,7 @@ export default function AppModal({ app, onClose, user, activeMember }) {
               ) : idToken ? (
                 <iframe
                   ref={iframeRef}
-                  src={buildIframeSrc(app.iframeUrl, user?.uid, idToken)}
+                  src={buildIframeSrc(app.iframeUrl, user?.uid, idToken, profileId, curriculumTarget, app?.usesSecureHandshake)}
                   title={app.name}
                   onLoad={() => setIframeLoaded(true)}
                   style={{ width: "100%", height: "100%", border: "none", background: "#0a0a0a", display: "block" }}

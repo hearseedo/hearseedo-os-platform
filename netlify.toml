@@ -62,6 +62,16 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/get-classroom-position"
+  to     = "/.netlify/functions/get-classroom-position"
+  status = 200
+
+[[redirects]]
+  from   = "/api/record-curriculum-progress"
+  to     = "/.netlify/functions/record-curriculum-progress"
+  status = 200
+
+[[redirects]]
   from   = "/api/coaching-card"
   to     = "/.netlify/functions/coaching-card"
   status = 200

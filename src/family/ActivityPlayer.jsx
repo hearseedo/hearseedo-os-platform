@@ -17,6 +17,7 @@ import FamilyError from "./FamilyError";
 import FamilyLoading from "./FamilyLoading";
 import { subscribeToFamilyFlags, DEFAULT_FLAGS } from "./familyFlags";
 import ConfidenceCheckIn from "./ConfidenceCheckIn";
+import { getCurriculumState, resolveRouteTarget, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
 
 export default function ActivityPlayer() {
   const { activityId } = useParams();
@@ -142,10 +143,32 @@ function InstructionsPlayer({ activity, lang, onComplete, t }) {
   );
 }
 
+// Curriculum-aware sub-apps get routed to the learner's actual position
+// instead of always opening at their home screen (item 5/6 of the V2
+// integration). Only Monkey Yoga has a real curriculum today — every other
+// iframe_app activity behaves exactly as before (curriculumTarget stays
+// null, AppModal opens the app's plain home screen).
+const CURRICULUM_BY_APP_ID = { phonics: MONKEY_YOGA_CURRICULUM_ID };
+
 function IframeAppPlayer({ activity, user, currentProfile, onComplete, t }) {
   const app = APPS.find(a => a.id === activity.media.appId);
   const [open, setOpen] = useState(true);
+  const curriculumId = CURRICULUM_BY_APP_ID[activity.media.appId];
+  const profileId = currentProfile?.isVirtual ? SELF_PROFILE_ID : (currentProfile?.id ?? SELF_PROFILE_ID);
+  const [curriculumTarget, setCurriculumTarget] = useState(undefined); // undefined = still resolving
+
+  useEffect(() => {
+    if (!curriculumId || !user?.uid) { setCurriculumTarget(null); return; }
+    let cancelled = false;
+    getCurriculumState(user.uid, profileId, curriculumId)
+      .then(state => { if (!cancelled) setCurriculumTarget(resolveRouteTarget(state)); })
+      .catch(() => { if (!cancelled) setCurriculumTarget(null); });
+    return () => { cancelled = true; };
+  }, [curriculumId, user?.uid, profileId]);
+
   if (!app) return <FamilyError kind="unavailable" />;
+  if (curriculumId && curriculumTarget === undefined) return <FamilyLoading />;
+
   return (
     <div>
       {open && (
@@ -153,6 +176,7 @@ function IframeAppPlayer({ activity, user, currentProfile, onComplete, t }) {
           app={app}
           user={user}
           activeMember={currentProfile?.isVirtual ? null : currentProfile}
+          curriculumTarget={curriculumTarget}
           onClose={() => { setOpen(false); onComplete(); }}
         />
       )}
@@ -178,7 +202,9 @@ function JonaPlayer({ activity, profile, user, onError, onComplete, t, lang }) {
     setLoading(true);
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const system = buildFamilyJonaPrompt({ activityId: activity.activityId, profileName: profile?.name, ageBand: profile?.ageBand });
+      // Privacy correction — the child's real name is deliberately never
+      // passed to the prompt builder; see jonaFamily.js.
+      const system = buildFamilyJonaPrompt({ activityId: activity.activityId, ageBand: profile?.ageBand });
       const userMsg = history.length === 0 ? buildFamilyOpeningMessage(activity.activityId) : history[history.length - 1].text;
       const res = await fetch("/api/chat", {
         method: "POST",

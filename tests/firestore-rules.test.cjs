@@ -303,3 +303,113 @@ test("familyFlags (kill switch): delete is never allowed, even for the admin (ma
   await adminDb.doc("familyFlags/current").set({ familyEnabled: true });
   await assertFails(adminDb.doc("familyFlags/current").delete());
 });
+
+// ── Phase 5 — Monkey Yoga V2 integration: curriculumProgress + classes ──────
+// SECURITY CORRECTION (2026-09-10): curriculumProgress writes moved
+// server-side (netlify/functions/record-curriculum-progress.js, using the
+// service account) — the client SDK can no longer write this collection at
+// all, even for the account's own owner. classes moved from
+// "any authenticated user can read" to admin-only both ways — non-admin
+// lookups go through netlify/functions/get-classroom-position.js instead.
+// withSecurityRulesDisabled() seeds data the way the service
+// account/admin SDK actually would in production (bypassing rules
+// entirely), so these tests seed state the same way the real write path
+// does rather than pretending the client SDK can do it.
+
+test("curriculumProgress: the client SDK cannot write it AT ALL, even for the account's own owner — writes are server-only now", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics").set({ lastBookId: 1, lastLessonId: "b1-s" })
+  );
+});
+
+test("curriculumProgress: owner CAN still read their own self-profile curriculum position (server-written, client-read is unchanged/safe)", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics").set({ lastBookId: 1, lastLessonId: "b1-s" });
+  });
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertSucceeds(alice.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics").get());
+});
+
+test("curriculumProgress: a user cannot read another account's curriculum position", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics").set({ lastBookId: 1, lastLessonId: "b1-s" });
+  });
+  const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" });
+  await assertFails(bob.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics").get());
+});
+
+test("curriculumProgress: the client SDK cannot write a child profile's curriculum position either", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("users/alice/familyMembers/child1/curriculumProgress/monkey-yoga-phonics").set({ lastBookId: 2, lastLessonId: "b2-h" })
+  );
+});
+
+test("curriculumProgress: homePracticeLog is also server-write-only, client read-only for the owner", async () => {
+  const aliceDb = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
+  await assertFails(
+    aliceDb.doc("users/alice/curriculumProgress/monkey-yoga-phonics/homePracticeLog/entry1").set({ lessonId: "b1-s", completed: true })
+  );
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics/homePracticeLog/entry1").set({ lessonId: "b1-s", completed: true });
+  });
+  await assertSucceeds(aliceDb.doc("users/alice/curriculumProgress/monkey-yoga-phonics/homePracticeLog/entry1").get());
+});
+
+test("curriculumProgress: a user cannot read another account's homePracticeLog", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics/homePracticeLog/entry1").set({ lessonId: "b1-s", completed: true });
+  });
+  const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" });
+  await assertFails(bob.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics/homePracticeLog/entry1").get());
+});
+
+test("curriculumProgress: processedEvents (idempotency markers) are never readable or writable client-side, even by the owner", async () => {
+  const aliceDb = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
+  await assertFails(
+    aliceDb.doc("users/alice/curriculumProgress/monkey-yoga-phonics/processedEvents/evt1").set({ recordedAt: "now" })
+  );
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/alice/curriculumProgress/monkey-yoga-phonics/processedEvents/evt1").set({ recordedAt: "now" });
+  });
+  await assertFails(aliceDb.doc("users/alice/curriculumProgress/monkey-yoga-phonics/processedEvents/evt1").get());
+});
+
+test("classes: an unrelated signed-in user cannot read a class (security correction — was previously any-authenticated-read, now admin-only)", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("classes/class1").set({ name: "Test Class", currentBookId: 1, currentLessonId: "b1-s", learnerKeys: ["alice:self"] });
+  });
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(alice.firestore().doc("classes/class1").get());
+});
+
+test("classes: unauthenticated read is denied", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("classes/class1").set({ name: "Test Class" });
+  });
+  const anonDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(anonDb.doc("classes/class1").get());
+});
+
+test("classes: a normal (non-admin) authenticated user cannot create a class", async () => {
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(alice.firestore().doc("classes/class1").set({ name: "Test Class" }));
+});
+
+test("classes: a normal user cannot modify classroom position even for a class they belong to — one parent cannot obtain or alter another family's information, and cannot alter their own class's authoritative position either", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("classes/class1").set({ name: "Test Class", currentBookId: 1, currentLessonId: "b1-s", learnerKeys: ["alice:self"] });
+  });
+  const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" });
+  await assertFails(
+    alice.firestore().doc("classes/class1").set({ currentBookId: 4, currentLessonId: "b4-l18" }, { merge: true })
+  );
+});
+
+test("classes: the admin CAN create, read, and update a class's curriculum position (the one role currently allowed to manage classrooms — no separate 'teacher' auth role exists yet)", async () => {
+  const adminDb = testEnv.authenticatedContext("admin-uid", { email: ADMIN_EMAIL }).firestore();
+  await assertSucceeds(adminDb.doc("classes/class1").set({ name: "Test Class", currentBookId: 1, currentLessonId: "b1-s", learnerKeys: [] }));
+  await assertSucceeds(adminDb.doc("classes/class1").get());
+  await assertSucceeds(adminDb.doc("classes/class1").update({ currentBookId: 2, currentLessonId: "b2-h" }));
+});

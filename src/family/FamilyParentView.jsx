@@ -16,6 +16,7 @@ import { CATEGORIES } from "./content";
 import { db } from "../lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import FamilyLoading from "./FamilyLoading";
+import { getCurriculumState, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
 
 export default function FamilyParentView() {
   const { user, profiles, currentProfile } = useAuth();
@@ -23,6 +24,7 @@ export default function FamilyParentView() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(currentProfile?.id ?? SELF_PROFILE_ID);
   const [progress, setProgress] = useState(null);
+  const [curriculumState, setCurriculumState] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [feedbackKind, setFeedbackKind] = useState("general");
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -30,6 +32,7 @@ export default function FamilyParentView() {
   useEffect(() => {
     if (!user?.uid || !selectedId) return;
     getActivityProgress(user.uid, selectedId).then(setProgress).catch(() => setProgress({}));
+    getCurriculumState(user.uid, selectedId, MONKEY_YOGA_CURRICULUM_ID).then(setCurriculumState).catch(() => setCurriculumState(null));
   }, [user?.uid, selectedId]);
 
   async function sendFeedback() {
@@ -94,6 +97,28 @@ export default function FamilyParentView() {
             </div>
           )}
         </div>
+
+        {/* Monkey Yoga V2 integration — reflects the learner's actual
+            curriculum position instead of just an activity count (item:
+            "Family reflects the updated learner state"). Curriculum-aware,
+            not a raw score — shows the manual's own Emerging/Developing/
+            Confident language where available. */}
+        {curriculumState?.individualPosition?.lastLessonId && (
+          <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 8 }}>Monkey Yoga Phonics</div>
+            <div style={{ fontSize: 13, color: FAMILY_COLORS.text, lineHeight: 1.6 }}>
+              Currently at <strong>Book {curriculumState.individualPosition.lastBookId} · {curriculumState.individualPosition.lastLessonId}</strong>
+              {curriculumState.individualPosition.lastConfidenceSignal && (
+                <> — {curriculumState.individualPosition.lastConfidenceSignal}</>
+              )}
+            </div>
+            {curriculumState.classroomPosition?.lessonId && (
+              <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginTop: 4 }}>
+                Class ({curriculumState.classroomPosition.className}) is on Book {curriculumState.classroomPosition.bookId} · {curriculumState.classroomPosition.lessonId}
+              </div>
+            )}
+          </div>
+        )}
 
         <h2 style={{ fontSize: 15, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 12 }}>{t("fam_parent_progress")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 24 }}>

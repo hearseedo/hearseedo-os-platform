@@ -111,3 +111,116 @@ test("redeem-beta-invite: rejects non-POST methods", async () => {
   const res = await handler({ httpMethod: "GET" });
   assert.equal(res.statusCode, 405);
 });
+
+// Phase A/B security corrections (2026-09-10) — Monkey Yoga V2 integration.
+// Classroom position and curriculum-progress writes must never be
+// obtainable/writable without a verified identity, same class of check as
+// every other endpoint above.
+test("get-classroom-position: rejects a request with no idToken (401)", async () => {
+  const { handler } = require("../get-classroom-position.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ profileId: "self" }),
+  });
+  assert.equal(res.statusCode, 401);
+});
+
+test("get-classroom-position: rejects a request with no profileId (400)", async () => {
+  const { handler } = require("../get-classroom-position.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "irrelevant-invalid-token" }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("get-classroom-position: rejects non-POST methods", async () => {
+  const { handler } = require("../get-classroom-position.js");
+  const res = await handler({ httpMethod: "GET" });
+  assert.equal(res.statusCode, 405);
+});
+
+test("record-curriculum-progress: rejects a request with no idToken (401) even with otherwise-valid fields", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b1-s", eventId: "b1-s:hear:1" }),
+  });
+  assert.equal(res.statusCode, 401);
+});
+
+test("record-curriculum-progress: rejects an invalid/unrecognized lessonId even with a real idToken shape (400, before any Firestore call)", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "irrelevant-invalid-token", profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "not-a-real-lesson", eventId: "x:hear:1" }),
+  });
+  assert.equal(res.statusCode, 400);
+  const body = JSON.parse(res.body);
+  assert.ok(body.fields.includes("lessonId"));
+});
+
+test("record-curriculum-progress: rejects an unrecognized curriculumId (validation runs before auth verification, so this never even reaches the token check)", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "irrelevant-invalid-token", profileId: "self", curriculumId: "some-other-app", lessonId: "b1-s", eventId: "x:hear:1" }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("record-curriculum-progress: rejects an oversized skillsPracticed array", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({
+      idToken: "irrelevant-invalid-token", profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b1-s", eventId: "x:hear:1",
+      skillsPracticed: ["listening", "movement", "visual_recognition", "blending", "writing", "application", "phonics", "sight_words", "one-too-many"],
+    }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("record-curriculum-progress: rejects an unrecognized skill value", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "x", profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b1-s", eventId: "x:hear:1", skillsPracticed: ["made_up_skill"] }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("record-curriculum-progress: rejects an invalid confidenceSignal (not one of the manual's Emerging/Developing/Confident values — never a raw score)", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "x", profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b1-s", eventId: "x:hear:1", confidenceSignal: "95%" }),
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("record-curriculum-progress: rejects a missing eventId (dedup key is required, not optional)", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ idToken: "x", profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b1-s" }),
+  });
+  assert.equal(res.statusCode, 400);
+  const body = JSON.parse(res.body);
+  assert.ok(body.fields.includes("eventId"));
+});
+
+test("record-curriculum-progress: a fully valid payload passes field validation (fails later only on the unverifiable token, proving validation and auth are checked independently)", async () => {
+  const { validateEvent } = require("../record-curriculum-progress.js");
+  const errors = validateEvent({
+    profileId: "self", curriculumId: "monkey-yoga-phonics", lessonId: "b2-h", section: "hear",
+    completed: true, skillsPracticed: ["listening", "phonics"], confidenceSignal: "confident", eventId: "b2-h:hear:12345",
+  });
+  assert.deepEqual(errors, []);
+});
+
+test("record-curriculum-progress: rejects non-POST methods", async () => {
+  const { handler } = require("../record-curriculum-progress.js");
+  const res = await handler({ httpMethod: "GET" });
+  assert.equal(res.statusCode, 405);
+});

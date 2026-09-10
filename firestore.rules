@@ -138,6 +138,32 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
+      // Monkey Yoga V2 integration (2026-09-10) — this learner's own
+      // curriculum position (individualPosition) and home-practice history.
+      // Security correction: WRITE moved server-side (see
+      // netlify/functions/record-curriculum-progress.js) so every field is
+      // validated against V2's real curriculum ids before it reaches
+      // Firestore — the service account bypasses this write:false. READ
+      // stays owner-only client-side (unchanged, always was safe). Never
+      // written by anyone but the server on the account's own behalf —
+      // classroomPosition lives entirely in /classes below and this doc has
+      // no path that can touch it.
+      match /curriculumProgress/{curriculumId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+
+        match /homePracticeLog/{entryId} {
+          allow read: if request.auth != null && request.auth.uid == uid;
+          allow write: if false;
+        }
+
+        // Idempotency markers (correction #5) — server-internal only, no
+        // client ever needs to read or write these directly.
+        match /processedEvents/{eventId} {
+          allow read, write: if false;
+        }
+      }
+
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
 
@@ -151,6 +177,22 @@ service cloud.firestore {
         // here happen through the parent's authenticated session.
         match /activityProgress/{activityId} {
           allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+
+        // Same curriculum-progress shape as the self-profile version above —
+        // read owner-only client-side, write server-only.
+        match /curriculumProgress/{curriculumId} {
+          allow read: if request.auth != null && request.auth.uid == uid;
+          allow write: if false;
+
+          match /homePracticeLog/{entryId} {
+            allow read: if request.auth != null && request.auth.uid == uid;
+            allow write: if false;
+          }
+
+          match /processedEvents/{eventId} {
+            allow read, write: if false;
+          }
         }
       }
 
@@ -266,6 +308,31 @@ service cloud.firestore {
       allow read:           if true;
       allow create, update: if isAdminEmail();
       allow delete:          if false;
+    }
+
+    // ── Minimal classroom connection (2026-09-10) — NOT an LMS: the only
+    // capability is "a teacher/admin sets which book/lesson a class is
+    // currently on". No assignments, grading, attendance, or per-student
+    // records live here — those stay in curriculumProgress above, owned by
+    // each learner's own account. Read is open to any authenticated user
+    // (not just admin) because HSD Family's routing (any signed-in parent)
+    // needs to look up their own child's classroom position by querying
+    // learnerKeys — the doc contains no PII, only curriculum-position
+    // metadata, so broad authenticated read is an acceptable, minimal-risk
+    // trade-off rather than an unenumerable per-child security-rule query.
+    // Write (creating a class, changing its book/lesson, roster changes)
+    // stays admin-only, same as every other admin-managed collection here.
+    // Security correction (Phase A/B review) — broad authenticated read was
+    // wrong: uid/profileId values in learnerKeys are user-linked
+    // identifiers, and any signed-in stranger could otherwise enumerate
+    // every family's class membership, teacher uid, and curriculum pace.
+    // Admin-only now on both sides. A parent/learner resolves their OWN
+    // classroom position exclusively through the server-authenticated
+    // netlify/functions/get-classroom-position.js, which verifies their
+    // identity and returns only their own learner's position — never the
+    // full document, never the roster.
+    match /classes/{classId} {
+      allow read, write: if isAdminEmail();
     }
 
     // ── Pathway/profile analytics (Phase 1, 2026-09-09) — same append-only
