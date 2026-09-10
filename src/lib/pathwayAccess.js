@@ -106,3 +106,34 @@ export function getPathwayState(pathwayId, { accessible, visitedPathways = [] })
   if (!accessible) return PATHWAY_STATES.LOCKED;
   return visitedPathways.includes(pathwayId) ? PATHWAY_STATES.AVAILABLE : PATHWAY_STATES.ELIGIBLE;
 }
+
+// ── Pathway routing cutover (2026-09-10) ────────────────────────────────────
+// Extracted from useAuth.jsx's inline logic (no behavior change) so it's a
+// pure, unit-testable function — same reasoning as everything above: ONE
+// place answers this question, shared by useAuth (computes `currentPathway`
+// for every consumer), Blueprint.jsx (first entry after sign-in) and
+// App.jsx's DashboardEntry (guards direct /dashboard visits), rather than
+// three independent inline implementations that could drift.
+
+/**
+ * Resolves `lastUsedPathway` into the one this account can actually use
+ * right now — null unless it's both set AND still in accessiblePathways
+ * (covers "never chosen one", "invalid/unrecognized id", and "access since
+ * revoked" in a single check). Deliberately NOT auto-selected otherwise —
+ * an account with no valid current pathway must go through the selector.
+ */
+export function resolveCurrentPathway(account, accessiblePathways) {
+  if (!account?.lastUsedPathway) return null;
+  return accessiblePathways.includes(account.lastUsedPathway) ? account.lastUsedPathway : null;
+}
+
+/**
+ * Where an authenticated account should land given its resolved
+ * currentPathway. A pathway that's since become disabled/coming-soon isn't
+ * special-cased here — routing into it is handled for free by
+ * PathwayRoute's existing LOCKED/COMING_SOON guard, which bounces back to
+ * /choose-path on its own.
+ */
+export function resolvePathwayDestination(currentPathway) {
+  return currentPathway ? PATHWAYS[currentPathway].route : "/choose-path";
+}

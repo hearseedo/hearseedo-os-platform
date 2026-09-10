@@ -3,7 +3,10 @@
 //   node --test tests/pathway-access.test.js
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getAccessiblePathways, inferLegacyPathways, hasPathwayAccess, getPathwayState, PATHWAY_STATES } from "../src/lib/pathwayAccess.js";
+import {
+  getAccessiblePathways, inferLegacyPathways, hasPathwayAccess, getPathwayState, PATHWAY_STATES,
+  resolveCurrentPathway, resolvePathwayDestination,
+} from "../src/lib/pathwayAccess.js";
 import { PATHWAY_IDS } from "../src/constants/pathways.js";
 
 test("admin gets every pathway regardless of account data", () => {
@@ -88,4 +91,81 @@ test("an accessible, previously-visited pathway is AVAILABLE (continue)", () => 
 
 test("LOCKED takes priority over visited history (access can be revoked)", () => {
   assert.equal(getPathwayState("family", { accessible: false, visitedPathways: ["family"] }), PATHWAY_STATES.LOCKED);
+});
+
+// ── Pathway routing cutover (2026-09-10) ────────────────────────────────────
+// resolveCurrentPathway / resolvePathwayDestination / shouldShowClassicDashboard
+// — the shared logic behind Blueprint.jsx's post-sign-in resolution and
+// App.jsx's DashboardEntry guard. Scenarios requested in the routing audit.
+
+test("routing: new account with no pathway ever chosen -> /choose-path", () => {
+  const account = { lastUsedPathway: null };
+  const accessible = getAccessiblePathways(account, false);
+  const current = resolveCurrentPathway(account, accessible);
+  assert.equal(current, null);
+  assert.equal(resolvePathwayDestination(current), "/choose-path");
+});
+
+test("routing: family lastUsedPathway -> /family", () => {
+  const account = { pathwayAccess: { family: { source: "beta" } }, lastUsedPathway: "family" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, "family");
+  assert.equal(resolvePathwayDestination(current), "/family");
+});
+
+test("routing: student lastUsedPathway -> /student", () => {
+  const account = { subscriptions: ["career-ready"], lastUsedPathway: "student" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, "student");
+  assert.equal(resolvePathwayDestination(current), "/student");
+});
+
+test("routing: adult lastUsedPathway -> /adult", () => {
+  const account = { subscriptions: ["innerkey"], lastUsedPathway: "adult" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, "adult");
+  assert.equal(resolvePathwayDestination(current), "/adult");
+});
+
+test("routing: educator lastUsedPathway resolves to /educator, but PathwayRoute (not this module) bounces it to /choose-path since it's disabled", () => {
+  // Only an explicit grant (never inference) can even produce "educator" here —
+  // entitlement and release-stage (`enabled`) are deliberately separate checks.
+  const account = { pathwayAccess: { educator: { source: "admin_grant" } }, lastUsedPathway: "educator" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, "educator");
+  assert.equal(resolvePathwayDestination(current), "/educator");
+  assert.equal(getPathwayState("educator", { accessible: true, visitedPathways: ["educator"] }), PATHWAY_STATES.COMING_SOON);
+});
+
+test("routing: invalid/unrecognized lastUsedPathway string -> /choose-path", () => {
+  const account = { subscriptions: [], lastUsedPathway: "not-a-real-pathway" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, null);
+  assert.equal(resolvePathwayDestination(current), "/choose-path");
+});
+
+test("routing: lastUsedPathway set but access has since been revoked -> /choose-path", () => {
+  const account = { pathwayAccess: { family: null, student: null, adult: null, educator: null }, lastUsedPathway: "family" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  // empty explicit map falls back to inference (existing behavior), and this
+  // account has no inferrable signal either -> genuinely no access
+  assert.equal(getAccessiblePathways(account, false).includes("family"), false);
+  assert.equal(current, null);
+  assert.equal(resolvePathwayDestination(current), "/choose-path");
+});
+
+test("routing: multi-path account -> lands on its last-used one, not the others", () => {
+  const account = { subscriptions: ["innerkey", "career-ready"], lastUsedPathway: "student" };
+  const accessible = getAccessiblePathways(account, false);
+  assert.ok(accessible.includes("student") && accessible.includes("adult"), "account should have multiple accessible pathways");
+  const current = resolveCurrentPathway(account, accessible);
+  assert.equal(current, "student");
+  assert.equal(resolvePathwayDestination(current), "/student");
+});
+
+test("routing: existing legacy account (pre-Phase-1, no pathwayAccess field) infers a pathway and routes there", () => {
+  const account = { subscriptions: ["phonics"], lastUsedPathway: "family" };
+  const current = resolveCurrentPathway(account, getAccessiblePathways(account, false));
+  assert.equal(current, "family");
+  assert.equal(resolvePathwayDestination(current), "/family");
 });

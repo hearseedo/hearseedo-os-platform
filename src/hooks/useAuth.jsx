@@ -3,7 +3,7 @@ import { onAuthChange, touchLastLogin, checkAndUpdateStreak, auth } from "../lib
 import { initLearnerProfile } from "../lib/learnerProfile";
 import { db } from "../lib/firebase";
 import { doc, getDoc, onSnapshot, setDoc, arrayUnion } from "firebase/firestore";
-import { getAccessiblePathways, getPathwayState } from "../lib/pathwayAccess";
+import { getAccessiblePathways, getPathwayState, resolveCurrentPathway } from "../lib/pathwayAccess";
 import { PATHWAY_IDS } from "../constants/pathways";
 import { subscribeToFamilyMembers, getProfiles, SELF_PROFILE_ID } from "../lib/profiles";
 import { isValidPathwayId } from "../constants/pathways";
@@ -198,10 +198,10 @@ export function AuthProvider({ children }) {
   // until the user (or a later phase's pathway selector UI) explicitly
   // chooses one, even if lastUsedPathway was previously set, in case access
   // to that pathway has since changed.
-  const currentPathway = useMemo(() => {
-    if (!user?.lastUsedPathway) return null;
-    return accessiblePathways.includes(user.lastUsedPathway) ? user.lastUsedPathway : null;
-  }, [user?.lastUsedPathway, accessiblePathways]);
+  const currentPathway = useMemo(
+    () => resolveCurrentPathway(user, accessiblePathways),
+    [user?.lastUsedPathway, accessiblePathways]
+  );
 
   // Phase 2 — state (available/eligible/locked/coming_soon) per pathway,
   // computed once here so the selector, cards, and route guards all agree.

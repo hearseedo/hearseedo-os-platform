@@ -183,6 +183,21 @@ function LivingBlueprintMoreGate() {
 // SignIn.jsx, JoinFlow.jsx) pick up the new experience automatically.
 function DashboardEntry() {
   const { user } = useAuth();
+  // NOTE (routing cutover, 2026-09-10): /dashboard is intentionally NOT
+  // gated here. Two dozen+ already-shipped call sites across the platform
+  // (SpeakReady, CareerReady, GlobalReady, WonderCamp, Assessment,
+  // OnboardingV2, AccessCode, Admin, SipSpeakLearn, LivingBlueprint preview
+  // pages) navigate to plain "/dashboard" as their normal, working exit
+  // action — a route-level guard can't distinguish "a stale bookmark" from
+  // "SpeakReady's own back button", so gating this route would silently
+  // break all of those for any account that has ever used the new pathway
+  // selector. Retiring /dashboard as the DEFAULT destination is instead
+  // handled entirely at the one real chokepoint: Blueprint.jsx's
+  // handleEnter, which now resolves lastUsedPathway via
+  // resolvePathwayDestination() instead of sending every returning account
+  // here unconditionally. See the routing-cutover report for the full
+  // reasoning — widening this to a route guard is a separate, larger piece
+  // of work (updating every one of those call sites) that wasn't done here.
   return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <AppShell><Dashboard /></AppShell>;
 }
 
