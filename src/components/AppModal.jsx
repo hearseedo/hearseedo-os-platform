@@ -7,6 +7,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { processAppEvent } from "../lib/appEvents";
 import { recordCurriculumProgressEvent } from "../family/curriculumProgress";
+import { isPlausibleProgressPayload, handleProgressMessage } from "../lib/progressMessageHandler";
 
 const EikenApp = lazy(() => import("../pages/EikenApp"));
 
@@ -56,20 +57,6 @@ function buildIframeSrc(url, uid, idToken, profileId, curriculumTarget, secure) 
   if (curriculumTarget?.lessonId) u.searchParams.set("lesson", curriculumTarget.lessonId);
   if (curriculumTarget?.section) u.searchParams.set("section", curriculumTarget.section);
   return u.toString();
-}
-
-// Field-shape validation for an incoming HSD_OS_PROGRESS payload — rejects
-// anything that doesn't look like a real progress event before it ever
-// reaches processAppEvent()/Firestore. Deliberately permissive on which
-// fields may be PRESENT (other apps send different shapes) but strict on
-// the TYPE of whichever fields are present.
-function isPlausibleProgressPayload(data) {
-  if (!data || typeof data !== "object") return false;
-  if (data.module !== undefined && typeof data.module !== "string") return false;
-  if (data.profileId !== undefined && data.profileId !== null && typeof data.profileId !== "string") return false;
-  if (data.lessonId !== undefined && typeof data.lessonId !== "string") return false;
-  if (data.curriculumId !== undefined && typeof data.curriculumId !== "string") return false;
-  return true;
 }
 
 export default function AppModal({ app, onClose, user, activeMember, curriculumTarget }) {
@@ -163,22 +150,29 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
   }, [app?.id, app?.iframeUrl, iframeLoaded]);
 
   // Reacts to recordCurriculumProgressEvent()'s honest result (correction,
-  // 2026-09-10) — never assumes success. `ok:true` (fresh write OR a
-  // confirmed duplicate) clears any prior warning: FamilyParentView already
-  // only ever shows what's actually in Firestore, so there's nothing
-  // optimistic to correct here, just the warning banner itself. A
-  // non-retryable failure is a real bug (bad data, auth/permission issue) —
-  // nothing the family can do fixes it, so it's logged, not shown. Only a
-  // `recoverable: true` result — every automatic retry exhausted — surfaces
-  // to the family, with the exact original event kept for a manual retry.
+  // 2026-09-10, refined 2026-09-10 staging fix). Never assumes success.
+  // `ok:true` (fresh write OR a confirmed duplicate) clears any prior
+  // warning — FamilyParentView already only ever shows what's actually in
+  // Firestore, so there's nothing optimistic to correct here, just the
+  // banner. A `recoverable:true` result (every automatic retry exhausted)
+  // shows the "still saving" banner with a manual retry. A non-retryable
+  // failure (bad data, auth/permission/server bug — nothing a retry could
+  // fix) is never silently discarded either: it shows a restrained,
+  // non-actionable failure message instead, and is logged without the
+  // event's own contents (no uid/profileId/lessonId in the console).
   function syncCurriculumStatus(eventData, curriculumSync) {
     if (!curriculumSync) return; // not a curriculum-aware event — nothing to report
-    if (curriculumSync.ok) { setSyncIssue(null); return; }
+    if (curriculumSync.ok) { setSyncIssue(null); return; } // fresh write OR confirmed duplicate — both are "synchronized"
     if (!curriculumSync.recoverable) {
-      console.error("Curriculum progress sync failed (non-recoverable):", eventData);
+      // Non-retryable failure (validation/auth/permission/server bug) — never
+      // silently discarded, but never logged with the event's own contents
+      // (lessonId/profileId/etc.) either; a category-only note is enough for
+      // a developer to notice without exposing anything sensitive.
+      console.warn("[curriculum-sync] non-retryable failure — see server logs for detail");
+      setSyncIssue({ data: eventData, kind: "failed" });
       return;
     }
-    setSyncIssue({ data: eventData });
+    setSyncIssue({ data: eventData, kind: "recoverable" });
   }
 
   // Manual retry (item 3: "allow the user to retry without losing the
@@ -231,9 +225,26 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
       }
 
       if (data.type === "HSD_OS_PROGRESS" && user?.uid && isPlausibleProgressPayload(data)) {
-        try {
-          // Write basic progress record
-          await setDoc(
+        // Bug fix (staging correction, 2026-09-10): the legacy appProgress
+        // write and processAppEvent() used to share one try/catch.
+        // firestore.rules has no allow-rule for
+        // users/{uid}/appProgress/{module} at all (default-deny), so that
+        // write always threw permission-denied — and the empty catch was
+        // silently swallowing that AND skipping processAppEvent() entirely,
+        // meaning curriculum-progress was never recorded for ANY iframe_app
+        // activity. handleProgressMessage() (src/lib/progressMessageHandler.js,
+        // unit-tested) isolates the legacy write so its failure can never
+        // block the curriculum-progress path. Deliberately NOT given a
+        // Firestore rule here — this legacy collection's continued purpose
+        // needs an audit before deciding whether to grant it real write
+        // access or remove it outright.
+        //
+        // Fall back to this modal's own profileId if the sub-app didn't
+        // echo one back — never leave a progress event unattributed to a
+        // specific child.
+        const enrichedEvent = { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId };
+        const result = await handleProgressMessage({
+          legacyWrite: () => setDoc(
             doc(db, "users", user.uid, "appProgress", data.module ?? app.id),
             {
               module:       data.module ?? app.id,
@@ -241,14 +252,10 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
               updatedAt:    new Date().toISOString(),
             },
             { merge: true }
-          );
-          // Write enriched learning data to learner profile. Fall back to
-          // this modal's own profileId if the sub-app didn't echo one back —
-          // never leave a progress event unattributed to a specific child.
-          const enrichedEvent = { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId };
-          const result = await processAppEvent(user.uid, enrichedEvent);
-          syncCurriculumStatus(enrichedEvent, result?.curriculumSync);
-        } catch {}
+          ),
+          processEvent: () => processAppEvent(user.uid, enrichedEvent),
+        });
+        syncCurriculumStatus(enrichedEvent, result?.curriculumSync);
       }
     };
 
@@ -367,12 +374,16 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
                   allow="microphone; camera; autoplay; fullscreen; storage-access"
                 />
               ) : null}
-              {/* Recoverable curriculum-progress sync failure (correction,
-                  2026-09-10) — non-blocking: the child keeps playing, the
-                  family sees an honest status instead of a silent gap, and
-                  can retry the exact same attempt without losing it. Never
-                  shown for a confirmed duplicate (that's a success) or a
-                  non-retryable failure (nothing the family can do about it). */}
+              {/* Curriculum-progress sync status (correction, 2026-09-10,
+                  refined in the staging fix) — non-blocking: the child keeps
+                  playing either way. Never shown for a confirmed duplicate
+                  (that's a success). Two distinct, honest states:
+                  "recoverable" — every automatic retry exhausted, offers a
+                  manual retry of the exact same event; "failed" — a
+                  non-retryable failure (validation/auth/permission/server
+                  bug) that a retry cannot fix, shown as a restrained
+                  message with no retry affordance, so the family isn't
+                  invited to retry something that will only fail again. */}
               {syncIssue && (
                 <div style={{
                   position: "absolute", left: 12, right: 12, bottom: 12, zIndex: 2,
@@ -381,14 +392,18 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
                   display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
                 }}>
                   <span style={{ fontSize: 13, color: "#fff", flex: 1 }}>
-                    {t("progress_sync_pending") || "Still saving progress — we'll keep trying."}
+                    {syncIssue.kind === "failed"
+                      ? (t("progress_sync_failed") || "Progress could not be saved. Please reopen the activity or contact support.")
+                      : (t("progress_sync_pending") || "Still saving progress — we'll keep trying.")}
                   </span>
-                  <button
-                    onClick={retrySync}
-                    style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {t("retry") || "Retry now"}
-                  </button>
+                  {syncIssue.kind !== "failed" && (
+                    <button
+                      onClick={retrySync}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      {t("retry") || "Retry now"}
+                    </button>
+                  )}
                   <button
                     onClick={() => setSyncIssue(null)}
                     style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#ccc", fontSize: 12, cursor: "pointer" }}
