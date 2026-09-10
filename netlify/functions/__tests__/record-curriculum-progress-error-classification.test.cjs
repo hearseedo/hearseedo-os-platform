@@ -14,6 +14,14 @@
 // returns realistic Firestore REST error bodies, so the fix is verified
 // against the actual response shape Firestore sends, not just status codes.
 //
+// Empirically verified against the live staging Firestore project
+// (monkey-see-c4c28, isolated from production) on 2026-09-10: submitting a
+// :commit whose only precondition is `currentDocument: { exists: false }`
+// on an already-existing document returns HTTP 409 with
+// `error.status: "ALREADY_EXISTS"` — exactly the shape this classifier and
+// the mocks below assume. See the "real observed response shape" test at
+// the bottom of this file.
+//
 // Run with: node --test netlify/functions/__tests__/record-curriculum-progress-error-classification.test.cjs
 
 const test = require("node:test");
@@ -275,4 +283,23 @@ test("handler: no sensitive Firestore error details (project id, document path, 
   assert.ok(!raw.includes("firebase-adminsdk"), "must not leak the service-account email");
   assert.ok(!raw.includes("abc123"), "must not leak a document path / uid segment");
   assert.ok(!raw.includes("token signature invalid"), "must not leak the raw Firestore error message");
+});
+
+test("handler: the real observed staging-Firestore response shape (HTTP 409, error.status ALREADY_EXISTS) classifies as duplicate", async () => {
+  // This exact {code:409, status:"ALREADY_EXISTS"} shape was reproduced
+  // live against the isolated staging Firestore project (monkey-see-c4c28)
+  // on 2026-09-10 by submitting a :commit with the same
+  // currentDocument:{exists:false} precondition this handler uses, against
+  // an already-processed eventId — see the file header for details. This
+  // test pins that observed shape so a future Firestore API change would
+  // fail it rather than silently drift from reality.
+  const { handler } = freshHandler({
+    verifyIdToken: fakeUidResolver("user-1"),
+    firestoreFetch: async (path) => (path === ":commit" ? firestoreErrorResponse(409, "ALREADY_EXISTS", "Document already exists: projects/.../processedEvents/...") : { ok: true, status: 200 }),
+  });
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify(validBody()) });
+  assert.equal(res.statusCode, 200);
+  const body = JSON.parse(res.body);
+  assert.equal(body.success, true);
+  assert.equal(body.duplicate, true);
 });
