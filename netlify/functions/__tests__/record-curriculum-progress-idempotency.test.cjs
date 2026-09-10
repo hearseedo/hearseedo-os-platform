@@ -47,7 +47,12 @@ function makeMockFirestore({ familyMembersExist = true } = {}) {
       commitCalls.push(body);
       for (const w of body.writes) {
         if (w.currentDocument && w.currentDocument.exists === false && docs.has(w.update.name)) {
-          return { ok: false, status: 409, text: async () => "ALREADY_EXISTS" };
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({ error: { code: 409, status: "ALREADY_EXISTS", message: "Document already exists." } }),
+            text: async () => "ALREADY_EXISTS",
+          };
         }
       }
       for (const w of body.writes) docs.add(w.update.name);

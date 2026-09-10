@@ -10,6 +10,7 @@
     "test:functions": "node --test netlify/functions/__tests__/*.test.cjs",
     "test:pathways": "node --test tests/pathway-access.test.js",
     "test:curriculum": "node --test tests/curriculum-routing.test.js",
+    "test:sync": "node --test tests/curriculum-progress-sync.test.js",
     "test:jona-privacy": "node --test tests/jona-family-privacy.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },

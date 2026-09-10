@@ -29,6 +29,7 @@ import { db, auth } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import { MONKEY_YOGA_CURRICULUM_ID, resolveRouteTarget, isValidProgressEvent } from "../lib/curriculumRouting";
+import { sendCurriculumProgressWithRetry } from "../lib/curriculumProgressSync";
 
 export { MONKEY_YOGA_CURRICULUM_ID, resolveRouteTarget, isValidProgressEvent };
 
@@ -44,8 +45,8 @@ async function callFunction(path, payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) return null;
-  return res.json().catch(() => null);
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
 }
 
 /**
@@ -62,7 +63,7 @@ export async function getCurriculumState(uid, profileId, curriculumId = MONKEY_Y
     idToken ? callFunction("/api/get-classroom-position", { idToken, profileId }).catch(() => null) : Promise.resolve(null),
   ]);
   const individualPosition = snap?.exists() ? snap.data() : null;
-  const classroomPosition = classroomResult?.classroomPosition ?? null;
+  const classroomPosition = classroomResult?.body?.classroomPosition ?? null;
   return { classroomPosition, individualPosition };
 }
 
@@ -70,11 +71,25 @@ export async function getCurriculumState(uid, profileId, curriculumId = MONKEY_Y
  * Sends one HSD_OS_PROGRESS event from Monkey Yoga V2 to the server-
  * authenticated recorder. Validation, profile-ownership checks, and the
  * actual Firestore write all happen server-side now — this function is
- * just the authenticated transport.
+ * just the authenticated transport, with automatic retry (correction,
+ * 2026-09-10) for a failure the server itself classified as retryable
+ * (see record-curriculum-progress.js's error classification) — always
+ * resending this exact `event` object, never generating a new eventId for
+ * a transport retry.
+ *
+ * Returns an honest status instead of swallowing the result:
+ *   { ok: true, duplicate }           — server confirmed the write (or that it was a confirmed replay)
+ *   { ok: false, recoverable: false } — a real failure; retrying this exact request cannot help
+ *   { ok: false, recoverable: true }  — every automatic retry was exhausted; the caller may offer
+ *                                        the family a manual retry using this same event, but must
+ *                                        NOT treat the attempt as saved.
  */
 export async function recordCurriculumProgressEvent(uid, profileId, event) {
-  if (!uid || !profileId || !isValidProgressEvent(event)) return;
+  if (!uid || !profileId || !isValidProgressEvent(event)) return { ok: false, recoverable: false };
   const idToken = await auth.currentUser?.getIdToken().catch(() => null);
-  if (!idToken) return;
-  await callFunction("/api/record-curriculum-progress", { idToken, profileId, ...event }).catch(() => null);
+  if (!idToken) return { ok: false, recoverable: false };
+  return sendCurriculumProgressWithRetry(
+    (payload) => callFunction("/api/record-curriculum-progress", payload),
+    { idToken, profileId, ...event },
+  );
 }

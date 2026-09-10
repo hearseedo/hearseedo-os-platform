@@ -6,7 +6,7 @@
 // firestore.rules — write: if false there now); every write goes through
 // this function instead, so every field is validated against V2's real
 // curriculum ids (_curriculumIds.js) before anything reaches Firestore.
-const { verifyIdToken, firestoreFetch, PROJECT_ID, toFirestoreValue, fromFirestoreFields } = require("./_firebaseAdmin");
+const { verifyIdToken, firestoreFetch, PROJECT_ID, toFirestoreValue, fromFirestoreFields, FirestoreConfigError } = require("./_firebaseAdmin");
 const { VALID_CURRICULUM_IDS, VALID_SECTIONS, VALID_CONFIDENCE_SIGNALS, VALID_SKILLS, isValidLessonId, bookIdForLesson } = require("./_curriculumIds");
 
 const CORS = {
@@ -33,6 +33,88 @@ const EVENT_ID_PATTERN = /^[a-zA-Z0-9-]{8,64}$/;
 
 function isValidEventId(v) {
   return typeof v === "string" && EVENT_ID_PATTERN.test(v);
+}
+
+// ── Firestore commit error classification (correction, 2026-09-10) ─────────
+//
+// A generic HTTP 400 or 409 from Firestore's :commit endpoint is NOT proof
+// of a duplicate — Firestore maps several unrelated google.rpc.Code values
+// onto those same HTTP statuses (ALREADY_EXISTS -> 409, but so does the
+// unrelated ABORTED transaction-conflict code; INVALID_ARGUMENT and
+// FAILED_PRECONDITION both -> 400). Treating "any 409" as "duplicate" would
+// have silently swallowed real transaction conflicts and reported false
+// success. The commit response body's own `error.status` field (the
+// canonical google.rpc.Code name, e.g. "ALREADY_EXISTS") is the only
+// reliable signal — this function classifies on that, falling back to the
+// bare HTTP status only when no parseable status is present, and NEVER
+// defaults an unrecognized failure to "duplicate".
+//
+// Because this request's `writes` array sets exactly one precondition
+// (`currentDocument: { exists: false }` on the processedEvents marker),
+// an ALREADY_EXISTS response can only refer to that one precondition —
+// there is no ambiguity about which write it names.
+const RETRYABLE_GOOGLE_STATUSES = new Set([
+  "ABORTED",           // transaction/contention conflict
+  "RESOURCE_EXHAUSTED", // rate limiting / quota
+  "UNAVAILABLE",        // transient Firestore outage
+  "DEADLINE_EXCEEDED",  // timeout
+  "INTERNAL",           // Firestore 500-series
+  "UNKNOWN",            // Firestore 500-series, unclassified
+  "DATA_LOSS",
+]);
+
+/**
+ * Classifies a failed :commit response into one of a fixed set of
+ * categories the client can act on honestly. Exported for direct unit
+ * testing against synthetic Firestore error bodies, without a live
+ * Firestore call.
+ */
+function classifyCommitFailure(httpStatus, googleStatus) {
+  if (googleStatus === "ALREADY_EXISTS") return "duplicate";
+  if (googleStatus === "UNAUTHENTICATED") return "authentication_error";
+  if (googleStatus === "PERMISSION_DENIED") return "permission_error";
+  if (RETRYABLE_GOOGLE_STATUSES.has(googleStatus)) return "retryable";
+  if (googleStatus === "INVALID_ARGUMENT" || googleStatus === "FAILED_PRECONDITION" || googleStatus === "NOT_FOUND" || googleStatus === "OUT_OF_RANGE") {
+    return "server_error";
+  }
+  // No parseable google.rpc.Code (unexpected response shape, or a non-JSON
+  // body) — fall back to coarse HTTP-status buckets, but a bare 400/409
+  // here is deliberately NOT treated as a duplicate; it's an unexpected
+  // response, reported as a server error rather than assumed successful.
+  if (httpStatus >= 500) return "retryable";
+  if (httpStatus === 401) return "authentication_error";
+  if (httpStatus === 403) return "permission_error";
+  if (httpStatus === 429) return "retryable";
+  return "server_error";
+}
+
+// Client-facing responses for each category — deliberately generic. No
+// Firestore internals, document paths, project ids, or raw error text ever
+// reach the browser; the full detail is only ever console.error'd
+// server-side (Netlify function logs), never included in a response body.
+const ERROR_RESPONSES = {
+  server_error:               { statusCode: 500, body: { success: false, error: "Failed to record progress." } },
+  authentication_error:       { statusCode: 401, body: { success: false, error: "Authentication failed." } },
+  permission_error:           { statusCode: 403, body: { success: false, error: "Permission denied." } },
+  server_configuration_error: { statusCode: 500, body: { success: false, error: "Server temporarily unavailable." } },
+  retryable:                  { statusCode: 503, body: { success: false, error: "Temporary failure — please retry.", retryable: true } },
+};
+
+function errorResponse(category) {
+  const resp = ERROR_RESPONSES[category] ?? ERROR_RESPONSES.server_error;
+  return { statusCode: resp.statusCode, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify(resp.body) };
+}
+
+// Distinguishes a network-level failure (the request never reached
+// Firestore at all — offline, DNS failure, connection reset, timeout) from
+// a genuine application error. Node's fetch throws a TypeError for these;
+// undici also attaches a `cause`. Checked defensively by message pattern
+// too, since not every runtime/polyfill throws the same error subclass.
+function isNetworkError(err) {
+  if (!err) return false;
+  if (err instanceof TypeError) return true;
+  if (err.cause) return true;
+  return typeof err.message === "string" && /fetch failed|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|network/i.test(err.message);
 }
 
 /**
@@ -176,24 +258,50 @@ exports.handler = async (event) => {
     });
 
     if (!commitRes.ok) {
-      // A failed-precondition here means the processedEvents marker already
-      // existed — i.e. this exact eventId was already processed (either a
-      // genuine prior success, or we lost a race to a concurrent identical
-      // request). Either way the correct response is the same: report the
-      // duplicate, write nothing further. Any other failure is a real error.
-      if (commitRes.status === 409 || commitRes.status === 400) {
+      // Parse the actual google.rpc.Code out of the response body — never
+      // classify from the bare HTTP status alone (see classifyCommitFailure
+      // above for exactly why a 400/409 is ambiguous on its own).
+      let googleStatus = null;
+      try {
+        const errJson = await commitRes.json();
+        googleStatus = errJson?.error?.status ?? null;
+      } catch {
+        // Body wasn't parseable JSON — classifyCommitFailure falls back to
+        // the HTTP status bucket, still never defaulting to "duplicate".
+      }
+
+      const category = classifyCommitFailure(commitRes.status, googleStatus);
+      // Full detail server-side only — never forwarded to the client.
+      console.error(`record-curriculum-progress commit failed: httpStatus=${commitRes.status} googleStatus=${googleStatus ?? "unknown"} category=${category}`);
+
+      if (category === "duplicate") {
+        // Confirmed by Firestore itself: the processedEvents/{eventId}
+        // precondition failed because that exact event was already
+        // processed. Treated as a successful sync — no further writes, no
+        // error shown to the family.
         return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ success: true, duplicate: true }) };
       }
-      const errText = await commitRes.text().catch(() => "");
-      throw new Error(`Firestore commit failed (${commitRes.status}): ${errText}`);
+      return errorResponse(category);
     }
 
     return { statusCode: 200, headers: { ...CORS, "Content-Type": "application/json" }, body: JSON.stringify({ success: true, duplicate: false }) };
   } catch (err) {
+    if (err instanceof FirestoreConfigError) {
+      console.error("record-curriculum-progress config error:", err.message);
+      return errorResponse("server_configuration_error");
+    }
+    if (isNetworkError(err)) {
+      console.error("record-curriculum-progress network error:", err.message);
+      return errorResponse("retryable");
+    }
+    // Anything else is an unexpected/unclassified failure — never told to
+    // the client as "saved", never leaking err.message/stack to the browser.
     console.error("record-curriculum-progress error:", err.message);
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Failed to record progress." }) };
+    return errorResponse("server_error");
   }
 };
 
 module.exports.validateEvent = validateEvent;
 module.exports.isValidEventId = isValidEventId;
+module.exports.classifyCommitFailure = classifyCommitFailure;
+module.exports.isNetworkError = isNetworkError;

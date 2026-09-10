@@ -6,6 +6,7 @@ import { useLang } from "../hooks/useLang";
 import { doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { processAppEvent } from "../lib/appEvents";
+import { recordCurriculumProgressEvent } from "../family/curriculumProgress";
 
 const EikenApp = lazy(() => import("../pages/EikenApp"));
 
@@ -94,9 +95,17 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
     auth.currentUser.getIdToken().then(setIdToken).catch(() => {});
   }, [app?.id]);
   const [iframeBlocked, setIframeBlocked] = useState(false);
+  // Curriculum-progress sync status (correction, 2026-09-10). null = nothing
+  // to report; { data } = the exact HSD_OS_PROGRESS payload (same eventId)
+  // whose automatic retries were all exhausted — kept so "Retry now" can
+  // resend the identical event rather than losing or re-deriving it. This
+  // never reflects a confirmed duplicate (that's a successful sync) or a
+  // non-retryable failure (nothing the family can do would fix it, so
+  // nothing actionable is shown — it's logged for us to investigate).
+  const [syncIssue, setSyncIssue] = useState(null);
 
   // Reset loader when app changes — all hooks must be before any early return
-  useEffect(() => { setIframeLoaded(false); setIframeBlocked(false); }, [app?.id]);
+  useEffect(() => { setIframeLoaded(false); setIframeBlocked(false); setSyncIssue(null); }, [app?.id]);
 
   // Career Ready, Global Ready, and Speak Ready are native in-app pages, not iframe sub-apps — redirect instead of rendering the modal
   useEffect(() => {
@@ -153,6 +162,38 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
     return () => clearTimeout(timer);
   }, [app?.id, app?.iframeUrl, iframeLoaded]);
 
+  // Reacts to recordCurriculumProgressEvent()'s honest result (correction,
+  // 2026-09-10) — never assumes success. `ok:true` (fresh write OR a
+  // confirmed duplicate) clears any prior warning: FamilyParentView already
+  // only ever shows what's actually in Firestore, so there's nothing
+  // optimistic to correct here, just the warning banner itself. A
+  // non-retryable failure is a real bug (bad data, auth/permission issue) —
+  // nothing the family can do fixes it, so it's logged, not shown. Only a
+  // `recoverable: true` result — every automatic retry exhausted — surfaces
+  // to the family, with the exact original event kept for a manual retry.
+  function syncCurriculumStatus(eventData, curriculumSync) {
+    if (!curriculumSync) return; // not a curriculum-aware event — nothing to report
+    if (curriculumSync.ok) { setSyncIssue(null); return; }
+    if (!curriculumSync.recoverable) {
+      console.error("Curriculum progress sync failed (non-recoverable):", eventData);
+      return;
+    }
+    setSyncIssue({ data: eventData });
+  }
+
+  // Manual retry (item 3: "allow the user to retry without losing the
+  // attempt") — resends the EXACT SAME event object kept in syncIssue via
+  // recordCurriculumProgressEvent() directly, NOT processAppEvent(). Only
+  // the curriculum-progress write is idempotent (guarded by eventId) —
+  // going back through processAppEvent() would also re-run the generic
+  // learnerProfiles XP/engagement/skill update, which is NOT idempotent and
+  // would double-count on every retry.
+  async function retrySync() {
+    if (!syncIssue || !user?.uid) return;
+    const result = await recordCurriculumProgressEvent(user.uid, syncIssue.data.profileId ?? profileId, syncIssue.data);
+    syncCurriculumStatus(syncIssue.data, result);
+  }
+
   // postMessage bridge. Security correction (Phase A/B review): every
   // incoming message is now checked against the sub-app's own origin AND
   // must actually originate from this modal's own iframe window — a page
@@ -204,7 +245,9 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
           // Write enriched learning data to learner profile. Fall back to
           // this modal's own profileId if the sub-app didn't echo one back —
           // never leave a progress event unattributed to a specific child.
-          await processAppEvent(user.uid, { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId });
+          const enrichedEvent = { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId };
+          const result = await processAppEvent(user.uid, enrichedEvent);
+          syncCurriculumStatus(enrichedEvent, result?.curriculumSync);
         } catch {}
       }
     };
@@ -324,6 +367,36 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
                   allow="microphone; camera; autoplay; fullscreen; storage-access"
                 />
               ) : null}
+              {/* Recoverable curriculum-progress sync failure (correction,
+                  2026-09-10) — non-blocking: the child keeps playing, the
+                  family sees an honest status instead of a silent gap, and
+                  can retry the exact same attempt without losing it. Never
+                  shown for a confirmed duplicate (that's a success) or a
+                  non-retryable failure (nothing the family can do about it). */}
+              {syncIssue && (
+                <div style={{
+                  position: "absolute", left: 12, right: 12, bottom: 12, zIndex: 2,
+                  background: "rgba(20,20,20,0.92)", border: `1px solid ${accent}55`,
+                  borderRadius: 10, padding: "10px 14px",
+                  display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                }}>
+                  <span style={{ fontSize: 13, color: "#fff", flex: 1 }}>
+                    {t("progress_sync_pending") || "Still saving progress — we'll keep trying."}
+                  </span>
+                  <button
+                    onClick={retrySync}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    {t("retry") || "Retry now"}
+                  </button>
+                  <button
+                    onClick={() => setSyncIssue(null)}
+                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#ccc", fontSize: 12, cursor: "pointer" }}
+                  >
+                    {t("dismiss") || "Dismiss"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <ComingSoon app={app} accent={accent} t={t} />

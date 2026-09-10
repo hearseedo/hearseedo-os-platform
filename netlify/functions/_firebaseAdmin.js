@@ -17,8 +17,29 @@ const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/d
 
 let cachedToken = null; // { token, expiresAt } — Netlify reuses warm containers
 
+// Thrown when the service account itself isn't usable — missing/malformed
+// FIREBASE_SA_KEY_A/B, or Google rejecting the JWT-bearer exchange. This is
+// never the calling user's fault and never something a client retry can fix
+// on its own; callers (record-curriculum-progress.js) check `err.name` to
+// route it to a distinct "server configuration" response instead of lumping
+// it in with a generic 500 or, worse, a transient/retryable one.
+class FirestoreConfigError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "FirestoreConfigError";
+  }
+}
+
 async function getAccessToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60000) return cachedToken.token;
+
+  // Empty/short SA_KEY_B64 (env vars unset or truncated) would otherwise
+  // surface as an opaque Node crypto exception from sign.sign() below —
+  // catch the missing-config case explicitly instead of guessing at a
+  // crypto error's message shape.
+  if (!SA_KEY_B64 || SA_KEY_B64.length < 100) {
+    throw new FirestoreConfigError("Firebase service-account credentials are not configured.");
+  }
 
   const privateKey = Buffer.from(SA_KEY_B64, "base64").toString("utf8");
   const now   = Math.floor(Date.now() / 1000);
@@ -33,17 +54,29 @@ async function getAccessToken() {
   const payload = Buffer.from(JSON.stringify(claim)).toString("base64url");
   const toSign  = `${header}.${payload}`;
 
-  const sign = crypto.createSign("RSA-SHA256");
-  sign.update(toSign);
-  const signature = sign.sign(privateKey, "base64url");
-  const jwt = `${toSign}.${signature}`;
+  let jwt;
+  try {
+    const sign = crypto.createSign("RSA-SHA256");
+    sign.update(toSign);
+    const signature = sign.sign(privateKey, "base64url");
+    jwt = `${toSign}.${signature}`;
+  } catch (err) {
+    // A malformed (but present) key fails signing, not the length check
+    // above — still a configuration problem, not a transient one.
+    throw new FirestoreConfigError(`Service-account key is malformed: ${err.message}`);
+  }
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
-  if (!res.ok) throw new Error(`Token exchange failed: ${await res.text()}`);
+  if (!res.ok) {
+    // Google rejected the credentials (revoked/disabled service account,
+    // clock skew, wrong audience, etc.) — a real config problem on our
+    // side, never something the calling family can retry their way past.
+    throw new FirestoreConfigError(`Token exchange rejected (${res.status}).`);
+  }
   const data = await res.json();
 
   cachedToken = { token: data.access_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 };
@@ -140,4 +173,5 @@ function fromFirestoreFields(fields) {
 module.exports = {
   PROJECT_ID, FS_BASE, firestoreFetch, verifyIdToken, incrementField,
   toFirestoreValue, toFirestoreFields, fromFirestoreValue, fromFirestoreFields,
+  FirestoreConfigError,
 };

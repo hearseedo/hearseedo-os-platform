@@ -21,9 +21,15 @@ const SKILL_MAP = {
   "monkeys-unlock": ["speaking", "listening", "vocabulary"],
 };
 
-// Called whenever an app sends HSD_OS_PROGRESS (via postMessage or REST)
+// Called whenever an app sends HSD_OS_PROGRESS (via postMessage or REST).
+// Returns { ok, totalInteractions, newEngagement, curriculumSync } on the
+// generic-profile path, or just { curriculumSync } when that path can't run
+// (no uid, or profile not yet initialised) — curriculumSync (correction,
+// 2026-09-10) is recordCurriculumProgressEvent()'s own honest status, never
+// swallowed, so a caller that cares (AppModal.jsx) can tell the family when
+// a curriculum-progress write genuinely failed instead of assuming success.
 export async function processAppEvent(uid, event) {
-  if (!uid) return;
+  if (!uid) return { curriculumSync: null };
 
   const {
     module: appId = "unknown",
@@ -38,15 +44,17 @@ export async function processAppEvent(uid, event) {
   // the profile-scoped curriculum state (src/family/curriculumProgress.js)
   // alongside the existing generic learnerProfiles/{uid} write below, which
   // every other app (eiken, speak, etc.) still uses unchanged.
+  let curriculumSync = null;
   if (event.curriculumId) {
-    await recordCurriculumProgressEvent(uid, event.profileId || SELF_PROFILE_ID, event).catch(() => {});
+    curriculumSync = await recordCurriculumProgressEvent(uid, event.profileId || SELF_PROFILE_ID, event)
+      .catch(() => ({ ok: false, recoverable: true }));
   }
 
   try {
     const profileRef = doc(db, "learnerProfiles", uid);
     const snap       = await getDoc(profileRef);
 
-    if (!snap.exists()) return; // profile must be initialised first
+    if (!snap.exists()) return { curriculumSync }; // profile must be initialised first
 
     const profile            = snap.data();
     const totalInteractions  = (profile.totalInteractions ?? 0) + 1;
@@ -106,9 +114,9 @@ export async function processAppEvent(uid, event) {
       });
     }
 
-    return { ok: true, totalInteractions, newEngagement };
+    return { ok: true, totalInteractions, newEngagement, curriculumSync };
   } catch (err) {
     console.error("processAppEvent:", err);
-    return null;
+    return { curriculumSync };
   }
 }
