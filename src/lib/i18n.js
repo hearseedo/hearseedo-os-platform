@@ -556,6 +556,10 @@ export const STRINGS = {
     fam_attempts:          "Attempts",
     fam_communication:     "Communication",
     fam_confidence:        "Confidence",
+    progress_sync_pending: "Still saving your progress…",
+    progress_sync_failed:  "We couldn't save your progress.",
+    retry:                 "Retry now",
+    dismiss:               "Dismiss",
   },
 
   jp: {
@@ -1115,6 +1119,10 @@ export const STRINGS = {
     fam_attempts:          "挑戦回数",
     fam_communication:     "コミュニケーション",
     fam_confidence:        "自信度",
+    progress_sync_pending: "学習記録を保存しています…",
+    progress_sync_failed:  "学習記録を保存できませんでした。",
+    retry:                 "もう一度試す",
+    dismiss:               "閉じる",
   },
 };
 
