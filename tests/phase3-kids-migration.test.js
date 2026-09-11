@@ -37,9 +37,11 @@ test("Route parity: neither legacy nor canonical claims a dedicated internal rou
   // Legacy: apps.js has no `route` field at all — phonics only ever opens
   // via AppModal from a click, never a direct URL.
   assert.equal(legacyPhonics.route, undefined);
-  // Canonical: worlds.js tags phonics launch:"external", so getCanonicalApp
-  // correctly derives route: null rather than inventing one.
-  assert.equal(canonicalPhonics.route, null);
+  // Canonical: worlds.js tags phonics launch:"external", so
+  // launchDestination.route is null rather than an invented value, and its
+  // kind correctly reflects an iframe launch, not a native route.
+  assert.equal(canonicalPhonics.launchDestination.route, null);
+  assert.equal(canonicalPhonics.launchDestination.kind, "iframe");
 });
 
 test("Title parity: canonical name is read directly from the legacy name, not re-typed", () => {
@@ -77,24 +79,34 @@ test("Access requirements are unchanged: canonical entry does not add or remove 
   assert.equal(canonicalPhonics.requiresCredits, false); // phonics was never part of the AI-credits system
 });
 
-test("Pathway parity: canonical 'kids' corresponds to the existing 'family' pathway id phonics already maps to", () => {
+test("Audience-vs-surface parity (Phase 3.1 correction): 'kids' is the learner audience, 'family' is the launch surface — not the same field", () => {
+  // Phase 3.1 correction: these were never allowed to be asserted as
+  // interchangeable. audiencePaths answers "who is this for"; surfaces
+  // answers "which existing HSDOS pathway currently launches it".
   assert.deepEqual(canonicalPhonics.audiencePaths, ["kids"]);
-  assert.equal(APP_PATHWAY_MAP.phonics, "family");
+  assert.deepEqual(canonicalPhonics.surfaces, ["family"]);
+  assert.equal(APP_PATHWAY_MAP.phonics, "family"); // legacy's own name for this surface agrees
 });
 
 test("App launch destination parity: both point at the same iframe env var", () => {
-  assert.equal(canonicalPhonics.component, "iframe:VITE_APP_URL_PHONICS");
+  assert.equal(canonicalPhonics.launchDestination.kind, "iframe");
+  assert.equal(canonicalPhonics.launchDestination.envVar, "VITE_APP_URL_PHONICS");
   // legacyPhonics.iframeUrl is a resolved URL string at import time (env-
   // dependent); what matters for parity is that it's iframe-based (truthy
-  // string), matching the canonical component's "iframe:" prefix.
+  // string), matching the canonical launchDestination's iframe kind.
   assert.equal(typeof legacyPhonics.iframeUrl, "string");
   assert.ok(legacyPhonics.iframeUrl.length > 0);
 });
 
-test("Progress identity parity: canonical progressEvent and program match the real progress pipeline", () => {
+test("Progress identity parity: canonical progressEvent and the exact stable curriculumId match the real progress pipeline", () => {
   assert.equal(canonicalPhonics.progressEvent, "HSD_OS_PROGRESS");
+  // curriculumId (Phase 3.1: the exact stable progress identity, distinct
+  // from `programs`, a looser named-program-membership list) must equal
+  // MONKEY_YOGA_CURRICULUM_ID exactly — this is the value resolveCurriculumId()
+  // actually returns and the value get-classroom-position.js/
+  // record-curriculum-progress.js key their Firestore paths on.
+  assert.equal(canonicalPhonics.curriculumId, MONKEY_YOGA_CURRICULUM_ID);
   assert.deepEqual(canonicalPhonics.programs, ["monkey-yoga-phonics"]);
-  assert.equal(canonicalPhonics.programs[0], MONKEY_YOGA_CURRICULUM_ID);
 });
 
 test("Analytics identity parity: the app id used for tracking is unchanged", () => {

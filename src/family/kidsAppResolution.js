@@ -22,17 +22,18 @@ export const CURRICULUM_BY_APP_ID = { phonics: MONKEY_YOGA_CURRICULUM_ID };
  * `useCanonical` defaults to the real feature flag but takes an explicit
  * override so tests can exercise both states directly, without mocking
  * import.meta.env. Behind the flag, the answer comes from
- * canonicalRegistry.js's `programs` field instead of the hardcoded map
- * above; both are proven to agree for "phonics" — see
- * tests/phase3-kids-migration.test.js.
+ * canonicalRegistry.js's explicit `curriculumId` field (Phase 3.1
+ * correction — previously this read the `programs` array, which is a
+ * looser "named program membership" concept, not the exact stable
+ * progress-identity field) instead of the hardcoded map above; both are
+ * proven to agree for "phonics" — see tests/phase3-kids-migration.test.js.
  * @param {string} appId
  * @param {boolean} [useCanonical]
  * @returns {string|undefined}
  */
 export function resolveCurriculumId(appId, useCanonical = isCanonicalRegistryEnabled()) {
   if (useCanonical) {
-    const canonical = getCanonicalApp(appId);
-    return canonical?.programs?.includes("monkey-yoga-phonics") ? MONKEY_YOGA_CURRICULUM_ID : undefined;
+    return getCanonicalApp(appId)?.curriculumId ?? undefined;
   }
   return CURRICULUM_BY_APP_ID[appId];
 }

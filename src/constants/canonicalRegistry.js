@@ -1,16 +1,18 @@
 // Canonical App Registry (Phase 9, steps 1–2 of docs/HSD_FAMILY_PATHWAY_AUDIT_2026-09-11.md).
+// Schema corrected in Phase 3.1 (audience-vs-surface separation; explicit
+// legacy->canonical translation functions for status/visibility/launch
+// destination — see this file's function-level comments for what changed
+// and why).
 //
-// This is the shared source of truth the audit calls for — but it is a
-// COMPATIBILITY ADAPTER, not a replacement. Nothing reads from this file
-// yet (no route, no component). constants/apps.js, constants/appRegistry.js
-// and constants/worlds.js remain exactly as they are and keep powering
-// AppModal/AppOrbit/WorldLaunch/etc. unmodified. getCanonicalRegistry()
-// below derives one canonical view by merging those three existing
-// registries at call time, then layering the audit's confirmed pathway
-// corrections and new entries (Confidence First, Monkeys Talk & Unlock) on
-// top. When a future phase migrates a pathway's real UI onto this
-// registry, that pathway's entries can be hand-authored directly here
-// instead of derived — see PATHWAY-9 step order in the audit doc.
+// This is a COMPATIBILITY ADAPTER, not a replacement. Nothing outside this
+// file's own tests reads from it yet (no route, no component besides the
+// single flagged Phase 3 consumer, src/family/kidsAppResolution.js).
+// constants/apps.js, constants/appRegistry.js and constants/worlds.js
+// remain exactly as they are and keep powering AppModal/AppOrbit/
+// WorldLaunch/etc. unmodified. getCanonicalRegistry() below derives one
+// canonical view by merging those three existing registries at call time,
+// then layering the audit's confirmed pathway corrections and new entries
+// (Confidence First, Monkeys Talk & Unlock) on top.
 //
 // Do not delete apps.js/appRegistry.js/worlds.js. Per the audit's migration
 // approach: define schema (this file) -> compatibility layer (this file's
@@ -23,20 +25,35 @@ import { WORLDS_MAP } from "./worlds.js";
 
 /**
  * @typedef {"kids"|"teens"|"university"|"parents"|"adults"|"schools"} AudiencePath
+ * @typedef {"family"|"student"|"adult"|"educator"} Surface - the existing
+ *   4-pathway HSDOS product surface (constants/pathways.js's PATHWAY_IDS)
+ *   currently hosting/launching this app. DELIBERATELY SEPARATE from
+ *   `audiencePaths` (who the content is FOR). Phase 3.1 correction: Monkey
+ *   Yoga's learner audience is `kids`, but the HSDOS surface that currently
+ *   launches it is the existing `family` pathway/route tree — these are not
+ *   interchangeable and must never be asserted as equal.
  * @typedef {"speak"|"travel"|"work"} UniversityBranch
  * @typedef {"hear"|"see"|"do"|"talk"|"create"} ExperienceMode
  * @typedef {"book"|"workbook"|"workshop"|"presentation"|"keynote"} ContentType
  * @typedef {"child"|"parent"|"teen"|"university_student"|"adult"|"teacher"} ProfileType
  * @typedef {"active"|"beta"|"coming_soon"|"future"|"archived"} AppStatus
  * @typedef {"recommended"|"explore"|"hidden"} AppVisibility
+ * @typedef {"iframe"|"native"|"modal"|"external_tab"|"none"} LaunchKind
+ *
+ * @typedef {Object} LaunchDestination
+ * @property {LaunchKind} kind
+ * @property {string|null} route - an internal HSDOS route, if any
+ * @property {string|null} envVar - the VITE_APP_URL_* env var name backing an iframe/external launch, if any
  *
  * @typedef {Object} CanonicalApp
  * @property {string} id
  * @property {string} name
- * @property {string|null} route
- * @property {string|null} component        - file path, or "iframe:<ENV_VAR_NAME>" for external apps
- * @property {AudiencePath[]} audiencePaths
- * @property {string[]} programs
+ * @property {AudiencePath[]} audiencePaths - WHO the content is for (learner audience)
+ * @property {Surface[]} surfaces - WHERE it currently launches from today (existing HSDOS pathway/product surface)
+ * @property {string[]} programs - named curriculum/program(s) this app belongs to, if any
+ * @property {string|null} curriculumId - the exact stable progress-tracking identity
+ *   (matches lib/curriculumRouting.js's MONKEY_YOGA_CURRICULUM_ID for phonics); null if
+ *   this app has no server-tracked curriculum position
  * @property {"confidence-first"|null} methodology
  * @property {UniversityBranch[]} universityBranches
  * @property {ExperienceMode[]} experienceModes
@@ -52,8 +69,73 @@ import { WORLDS_MAP } from "./worlds.js";
  * @property {string|null} progressEvent
  * @property {AppStatus} status
  * @property {AppVisibility} visibility
+ * @property {LaunchDestination} launchDestination
  * @property {{ai: string[], tts: boolean, stripe: boolean, externalService: string|null}} dependencies
  */
+
+// ── Explicit legacy -> canonical translation functions ──────────────────
+// Phase 3.1 correction: the original adapter asserted legacy "visible" and
+// canonical "recommended" were equivalent inline, with no single place
+// that defined the translation and nothing testing it directly. These
+// three functions are that single place — each is unit-tested in
+// tests/canonical-schema-mapping.test.js.
+
+/**
+ * Legacy status/visibility signals come from two places that can disagree
+ * (constants/apps.js's `comingSoon` boolean vs constants/appRegistry.js's
+ * `status` string — the audit's original inventory found exactly one such
+ * disagreement, for monkeys-unlock). `comingSoon: true` wins when present,
+ * since it's the more specific, UI-enforced signal (AppOrbit/AppModal
+ * actually hide/disable on it); appRegistry's `status` is the fallback.
+ * @param {{comingSoon?: boolean}} legacyApp
+ * @param {{status?: string}|undefined} registryEntry
+ * @returns {AppStatus}
+ */
+export function mapLegacyStatus(legacyApp, registryEntry) {
+  if (legacyApp?.comingSoon) return "coming_soon";
+  if (registryEntry?.status === "active") return "active";
+  if (registryEntry?.status) return registryEntry.status;
+  return "active";
+}
+
+/**
+ * `comingSoon: true` -> hidden (not offered at all yet). Everything else
+ * legacy ever marked "live"/visible -> recommended, since none of the
+ * three legacy registries have a third "browsable but not pushed" state —
+ * that distinction (canonical "explore") does not exist in legacy data and
+ * is only ever set by a hand-authored NEW_ENTRIES/AUDIENCE_CORRECTIONS
+ * override, never inferred.
+ * @param {{comingSoon?: boolean}} legacyApp
+ * @returns {AppVisibility}
+ */
+export function mapLegacyVisibility(legacyApp) {
+  return legacyApp?.comingSoon ? "hidden" : "recommended";
+}
+
+/**
+ * Normalizes legacy launch information (an iframeUrl string that's either
+ * empty, a real URL, or absent) plus worlds.js's `launch` kind into one
+ * structured object, replacing the earlier ad-hoc `component:
+ * "iframe:VITE_APP_URL_X"` string-encoding trick.
+ * @param {{id: string, iframeUrl?: string}} legacyApp
+ * @param {{launch?: string, route?: string}|undefined} world
+ * @returns {LaunchDestination}
+ */
+export function buildLaunchDestination(legacyApp, world) {
+  const envVar = `VITE_APP_URL_${legacyApp.id.replace(/-/g, "_").toUpperCase()}`;
+  if (world?.launch === "internal") {
+    return { kind: "native", route: world.route ?? null, envVar: null };
+  }
+  if (legacyApp.iframeUrl === "") {
+    // e.g. eiken, career-ready — AppModal special-cases these as native
+    // components/redirects rather than a real iframe; see apps.js comments.
+    return { kind: "native", route: null, envVar: null };
+  }
+  if (typeof legacyApp.iframeUrl === "string" && legacyApp.iframeUrl.length > 0) {
+    return { kind: world?.launch === "external" || legacyApp.iframeUrl ? "iframe" : "iframe", route: null, envVar };
+  }
+  return { kind: "none", route: null, envVar: null };
+}
 
 // Per-app corrections confirmed in the audit (Sections 5–6) that the three
 // legacy registries don't (and shouldn't have to) encode. Keyed by app id.
@@ -62,25 +144,34 @@ import { WORLDS_MAP } from "./worlds.js";
 const AUDIENCE_CORRECTIONS = {
   eiken: {
     audiencePaths: ["teens"], // was "kids" in both legacy registries — audit Section 5
+    surfaces: [],             // no dedicated route/surface today — modal-only from Dashboard/WorldLaunch
     methodology: "confidence-first",
   },
   innerkey: {
     audiencePaths: ["parents"], // was "adult" — audit Section 5/6, explicit instruction
+    surfaces: ["adult"],        // legacy launch surface is still the adult/World modal today
     methodology: "confidence-first",
   },
   "monkeys-unlock": {
     audiencePaths: ["teens"], // was "family" — audit Section 5
+    surfaces: [],
     status: "future",         // resolves the comingSoon/active inconsistency between
     visibility: "hidden",     // apps.js and appRegistry.js — audit Section 8
     books: ["book1","book2","book3","book4","book5","book6","book7","book8"],
     methodology: "confidence-first",
   },
-  "career-ready": { universityBranches: ["work"] },
-  "global-ready": { universityBranches: ["travel"] }, // kept whole — audit Section 5, do not split
-  "speak-ready":  { universityBranches: ["speak"] },
+  "career-ready": { universityBranches: ["work"], surfaces: ["student"] },
+  "global-ready": { universityBranches: ["travel"], surfaces: ["student"] }, // kept whole — audit Section 5, do not split
+  "speak-ready":  { universityBranches: ["speak"], surfaces: ["student"] },
   phonics: {
+    // Phase 3.1 correction: phonics' LEARNER AUDIENCE is kids; the HSDOS
+    // SURFACE that currently launches it is the existing "family" pathway
+    // (src/family/ActivityPlayer.jsx -> AppModal). These are recorded as
+    // two separate fields on purpose — do not collapse them back into one.
     audiencePaths: ["kids"],
-    programs: ["monkey-yoga-phonics"], // must match lib/curriculumRouting.js's MONKEY_YOGA_CURRICULUM_ID
+    surfaces: ["family"],
+    programs: ["monkey-yoga-phonics"],
+    curriculumId: "monkey-yoga-phonics", // must match lib/curriculumRouting.js's MONKEY_YOGA_CURRICULUM_ID
     experienceModes: ["hear", "see", "do"],
     methodology: "confidence-first",
     progressEvent: "HSD_OS_PROGRESS",
@@ -91,19 +182,22 @@ const AUDIENCE_CORRECTIONS = {
     // constants/apps.js's "family" id is the EXTERNAL iframe app (audience "both"),
     // distinct from the native HSD Family beta below — keep it cross-pathway.
     audiencePaths: ["kids", "parents"],
+    surfaces: ["family"],
   },
 };
 
 // Entries that exist in the audit's confirmed architecture but have no
-// corresponding row in any legacy registry yet. Hand-authored in full.
+// corresponding row in any legacy registry yet. Hand-authored in full —
+// audiencePaths/surfaces are kept separate here too, per the same
+// Phase 3.1 correction.
 const NEW_ENTRIES = [
   {
     id: "hsd-family-native",
     name: "HSD Family",
-    route: "/family/home",
-    component: "src/family/FamilyHome.jsx",
     audiencePaths: ["kids", "parents"],
+    surfaces: ["family"],
     programs: ["monkey-yoga-phonics"],
+    curriculumId: null, // this is the Family home shell itself, not a curriculum-tracked activity
     methodology: "confidence-first",
     universityBranches: [],
     experienceModes: ["hear", "see", "do", "talk", "create"],
@@ -119,15 +213,16 @@ const NEW_ENTRIES = [
     progressEvent: "HSD_OS_PROGRESS",
     status: "beta",
     visibility: "recommended",
+    launchDestination: { kind: "native", route: "/family/home", envVar: null },
     dependencies: { ai: ["gemini"], tts: false, stripe: false, externalService: null },
   },
   {
     id: "wondercamp-native",
     name: "WonderCamp Lesson Library",
-    route: "/wondercamp",
-    component: "src/pages/WonderCamp.jsx",
     audiencePaths: ["schools"], // corrected from the "kids" tag its brand-sibling app carries — audit Section 5
+    surfaces: [], // no existing pathway surface hosts this yet — it's a standalone route
     programs: [],
+    curriculumId: null,
     methodology: "confidence-first",
     universityBranches: [],
     experienceModes: [],
@@ -143,15 +238,16 @@ const NEW_ENTRIES = [
     progressEvent: null,
     status: "active",
     visibility: "recommended",
+    launchDestination: { kind: "native", route: "/wondercamp", envVar: null },
     dependencies: { ai: [], tts: false, stripe: false, externalService: null },
   },
   {
     id: "sip-speak-learn",
     name: "Sip Speak Learn",
-    route: "/sip-speak-learn",
-    component: "src/pages/SipSpeakLearn.jsx",
     audiencePaths: ["adults"],
+    surfaces: ["adult"],
     programs: [],
+    curriculumId: null,
     methodology: "confidence-first",
     universityBranches: [],
     experienceModes: [],
@@ -167,15 +263,16 @@ const NEW_ENTRIES = [
     progressEvent: null,
     status: "beta", // built, feature-flagged off in production nav — audit Section 1/9 step 7
     visibility: "hidden",
+    launchDestination: { kind: "native", route: "/sip-speak-learn", envVar: null },
     dependencies: { ai: [], tts: false, stripe: false, externalService: null },
   },
   {
     id: "confidence-first",
     name: "Confidence First: Thriving in the Age of AI",
-    route: null,
-    component: null,
     audiencePaths: ["adults", "university", "parents", "schools"],
+    surfaces: ["adult", "student"],
     programs: ["confidence-first"],
+    curriculumId: null,
     methodology: "confidence-first",
     universityBranches: [],
     experienceModes: [],
@@ -191,15 +288,16 @@ const NEW_ENTRIES = [
     progressEvent: null,
     status: "future", // no code exists yet — audit Section 4
     visibility: "hidden",
+    launchDestination: { kind: "none", route: null, envVar: null },
     dependencies: { ai: [], tts: false, stripe: false, externalService: null },
   },
   {
     id: "monkeys-talk-unlock",
     name: "Monkeys Talk & Unlock™",
-    route: null,
-    component: null,
     audiencePaths: ["teens"],
+    surfaces: [],
     programs: ["monkeys-talk-unlock"],
+    curriculumId: null, // no curriculum/progress system exists yet — confirmed Future, not built this phase
     methodology: "confidence-first",
     universityBranches: [],
     experienceModes: [],
@@ -215,6 +313,7 @@ const NEW_ENTRIES = [
     progressEvent: null,
     status: "future", // confirmed: do not build during this integration phase
     visibility: "hidden",
+    launchDestination: { kind: "none", route: null, envVar: null },
     dependencies: { ai: ["gemini"], tts: false, stripe: false, externalService: null },
   },
 ];
@@ -226,12 +325,6 @@ const AUDIENCE_TAG_TO_PATHS = {
   both: ["kids", "parents"],
   university: ["university"],
 };
-
-function legacyComponentFor(app) {
-  if (!app.iframeUrl && app.iframeUrl !== "") return null;
-  if (app.iframeUrl === "") return "native"; // e.g. eiken, career-ready — see apps.js comments
-  return `iframe:VITE_APP_URL_${app.id.replace(/-/g, "_").toUpperCase()}`;
-}
 
 /**
  * Derives one canonical entry from the three legacy registries for a given
@@ -251,10 +344,10 @@ export function getCanonicalApp(id) {
   const base = {
     id,
     name: legacyApp.name,
-    route: world?.launch === "internal" ? world.route : null,
-    component: legacyComponentFor(legacyApp),
     audiencePaths: AUDIENCE_TAG_TO_PATHS[legacyApp.audience] || [],
+    surfaces: [],
     programs: [],
+    curriculumId: null,
     methodology: null,
     universityBranches: [],
     experienceModes: [],
@@ -268,8 +361,9 @@ export function getCanonicalApp(id) {
     requiresAI: false,
     requiresCredits: false,
     progressEvent: legacyApp.iframeUrl ? "HSD_OS_PROGRESS" : null,
-    status: legacyApp.comingSoon ? "coming_soon" : (registryEntry?.status || "active"),
-    visibility: legacyApp.comingSoon ? "hidden" : "recommended",
+    status: mapLegacyStatus(legacyApp, registryEntry),
+    visibility: mapLegacyVisibility(legacyApp),
+    launchDestination: buildLaunchDestination(legacyApp, world),
     dependencies: {
       ai: [],
       tts: false,
@@ -294,13 +388,27 @@ export function getCanonicalRegistry() {
 }
 
 /**
- * Filters the canonical registry to one audience pathway. An app with
- * multiple audiencePaths appears for each pathway it belongs to.
- * @param {AudiencePath} pathway
+ * Filters the canonical registry to one learner audience. An app with
+ * multiple audiencePaths appears for each audience it belongs to. This is
+ * NOT the same as filtering by surface — see getAppsForSurface below.
+ * @param {AudiencePath} audience
  * @returns {CanonicalApp[]}
  */
-export function getAppsForPathway(pathway) {
-  return getCanonicalRegistry().filter(app => app.audiencePaths.includes(pathway));
+export function getAppsForPathway(audience) {
+  return getCanonicalRegistry().filter(app => app.audiencePaths.includes(audience));
+}
+
+/**
+ * Filters the canonical registry to one existing HSDOS product surface
+ * (family/student/adult/educator) — i.e. "what currently launches from
+ * this pathway's UI today", independent of who the content's learner
+ * audience is. Phase 3.1 addition, kept separate from getAppsForPathway on
+ * purpose per the audience-vs-surface correction.
+ * @param {Surface} surface
+ * @returns {CanonicalApp[]}
+ */
+export function getAppsForSurface(surface) {
+  return getCanonicalRegistry().filter(app => app.surfaces.includes(surface));
 }
 
 /**

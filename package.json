@@ -16,6 +16,8 @@
     "test:jona-privacy": "node --test tests/jona-family-privacy.test.js",
     "test:canonical-registry": "node --test tests/canonical-registry.test.js",
     "test:phase3-kids": "node --test tests/phase3-kids-migration.test.js",
+    "test:canonical-schema": "node --test tests/canonical-schema-mapping.test.js",
+    "test:monkey-yoga-contract": "node --test tests/monkey-yoga-progress-contract.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },
   "dependencies": {
