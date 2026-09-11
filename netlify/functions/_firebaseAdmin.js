@@ -16,6 +16,7 @@
 // which fit this constraint.
 
 const crypto = require("crypto");
+const { normalizePem } = require("./_pemUtils");
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const SA_EMAIL   = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL || "firebase-adminsdk-fbsvc@hear-see-do-os-ai.iam.gserviceaccount.com";
@@ -23,16 +24,13 @@ const SA_KEY_B64 = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE
 const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 // Resolves the PEM private key from whichever source is configured.
-// FIREBASE_SA_PRIVATE_KEY takes priority (single-variable path); falls back
-// to the legacy base64-split A+B pair. `.replace(/\\n/g, "\n")` is a no-op
-// when the value already has real newlines (e.g. pasted from a textarea
-// that preserves them) and correctly un-escapes it when it doesn't (e.g.
-// copied verbatim out of the JSON file's quoted string, where newlines are
-// literal two-character `\n` sequences).
+// FIREBASE_SA_PRIVATE_KEY takes priority (single-variable path, normalized
+// via _pemUtils.js — see that file for the three real shapes handled);
+// falls back to the legacy base64-split A+B pair.
 function resolvePrivateKeyPem() {
   const single = process.env.FIREBASE_SA_PRIVATE_KEY;
   if (single && single.length > 100) {
-    return single.includes("\\n") ? single.replace(/\\n/g, "\n") : single;
+    return normalizePem(single);
   }
   if (!SA_KEY_B64 || SA_KEY_B64.length < 100) return null;
   return Buffer.from(SA_KEY_B64, "base64").toString("utf8");

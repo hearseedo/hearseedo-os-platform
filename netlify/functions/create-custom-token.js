@@ -15,6 +15,7 @@
 //   - Only real Firebase users of this project can get a custom token
 
 const crypto = require("crypto");
+const { normalizePem } = require("./_pemUtils");
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -75,7 +76,7 @@ exports.handler = async (event) => {
   const singleVarKey = process.env.FIREBASE_SA_PRIVATE_KEY;
   const rawKey = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
   const SERVICE_ACCOUNT_KEY = (singleVarKey && singleVarKey.length > 100)
-    ? (singleVarKey.includes("\\n") ? singleVarKey.replace(/\\n/g, "\n") : singleVarKey)
+    ? normalizePem(singleVarKey)
     : rawKey
       ? Buffer.from(rawKey, "base64").toString("utf8")
       : process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
