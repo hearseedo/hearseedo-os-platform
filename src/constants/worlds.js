@@ -16,7 +16,7 @@
 //                 grid via AppModal, not a standalone route yet. Flagged
 //                 rather than given a fake route.
 
-import { TOKENS } from "./tokens";
+import { TOKENS } from "./tokens.js";
 
 export const WORLDS = [
   {

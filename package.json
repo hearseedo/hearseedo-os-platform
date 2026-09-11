@@ -14,6 +14,7 @@
     "test:progress-handler": "node --test tests/progress-message-handler.test.js",
     "test:i18n": "node --test tests/sync-banner-i18n.test.js",
     "test:jona-privacy": "node --test tests/jona-family-privacy.test.js",
+    "test:canonical-registry": "node --test tests/canonical-registry.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },
   "dependencies": {

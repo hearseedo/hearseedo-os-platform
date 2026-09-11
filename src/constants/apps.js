@@ -18,7 +18,7 @@ export const APPS = [
     // to V2's real deployed URL before this repoint takes effect in
     // production — that's a deploy-time action, not something changed here.
     // The fallback below is what a fresh/unset env var resolves to now.
-    iframeUrl: import.meta.env.VITE_APP_URL_PHONICS || "https://hearseedo-monkey-yoga-phonics-v2.netlify.app",
+    iframeUrl: import.meta.env?.VITE_APP_URL_PHONICS || "https://hearseedo-monkey-yoga-phonics-v2.netlify.app",
     // Security correction (Phase A/B review) — V2 implements the secure
     // HSD_OS_READY -> HSD_OS_AUTH handshake, so its iframe URL never
     // carries sso_token/id_token. Every other app below is unchanged and
@@ -47,7 +47,7 @@ export const APPS = [
     accent: "#e01010",
     audience: "adult",
     price: 980,
-    iframeUrl: import.meta.env.VITE_APP_URL_SPEAK || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_SPEAK || "",
   },
   {
     id: "wondercamp",
@@ -59,7 +59,7 @@ export const APPS = [
     accent: "#e01010",
     audience: "kids",
     price: 1680,
-    iframeUrl: import.meta.env.VITE_APP_URL_WONDERCAMP || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_WONDERCAMP || "",
   },
   {
     id: "family",
@@ -73,7 +73,7 @@ export const APPS = [
     price: 680,
     free: true,
     badge: "FREE",
-    iframeUrl: import.meta.env.VITE_APP_URL_FAMILY || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_FAMILY || "",
   },
   {
     id: "music-album",
@@ -88,7 +88,7 @@ export const APPS = [
     free: true,
     badge: "FREE",
     launchMode: "external",
-    iframeUrl: import.meta.env.VITE_APP_URL_ALBUM || "https://hearseedo-album.netlify.app",
+    iframeUrl: import.meta.env?.VITE_APP_URL_ALBUM || "https://hearseedo-album.netlify.app",
   },
   {
     id: "sipswitch",
@@ -100,7 +100,7 @@ export const APPS = [
     accent: "#7B5EA7",
     audience: "adult",
     price: 1280,
-    iframeUrl: import.meta.env.VITE_APP_URL_SIPSWITCH || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_SIPSWITCH || "",
   },
   {
     id: "innerkey",
@@ -112,7 +112,7 @@ export const APPS = [
     accent: "#C9A84C",
     audience: "adult",
     price: 1480,
-    iframeUrl: import.meta.env.VITE_APP_URL_INNERKEY || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_INNERKEY || "",
   },
   {
     id: "monkeys-unlock",
@@ -125,7 +125,7 @@ export const APPS = [
     audience: "family",
     price: 980,
     comingSoon: true,
-    iframeUrl: import.meta.env.VITE_APP_URL_MONKEYS_UNLOCK || "",
+    iframeUrl: import.meta.env?.VITE_APP_URL_MONKEYS_UNLOCK || "",
   },
   {
     id: "career-ready",
