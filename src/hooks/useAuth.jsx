@@ -6,6 +6,7 @@ import { doc, getDoc, onSnapshot, setDoc, arrayUnion } from "firebase/firestore"
 import { getAccessiblePathways, getPathwayState, resolveCurrentPathway } from "../lib/pathwayAccess";
 import { PATHWAY_IDS } from "../constants/pathways";
 import { subscribeToFamilyMembers, getProfiles, SELF_PROFILE_ID } from "../lib/profiles";
+import { resolveCurrentProfile } from "../lib/pathwayRouteAccess";
 import { isValidPathwayId } from "../constants/pathways";
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 
@@ -17,6 +18,19 @@ export function AuthProvider({ children }) {
   const [referralData, setReferralData] = useState(null);
   const [profileReady, setProfileReady] = useState(false);
   const [familyMembers, setFamilyMembers] = useState([]);
+  // Phase 3.2 hardening (2026-09-12) — set when either the account-doc or
+  // familyMembers real-time listener errors (e.g. permission-denied on a
+  // misconfigured Firestore rules deploy). Previously neither listener had
+  // an error callback at all, so a denied read left `profile`/
+  // `familyMembers` silently stuck at their initial empty state forever —
+  // which getAccessiblePathways() then read as "no pathwayAccess, no
+  // subscriptions", incorrectly reporting every pathway as LOCKED even for
+  // an account that actually has access. Consumers (PathwayRoute) must
+  // treat this as "we don't know yet, don't fail this account's access
+  // claims either way" — never as proof of no access, and never papered
+  // over by falling back to a previous good `profile` value (no caching of
+  // account data is used as an authorization fallback here).
+  const [profileError, setProfileError] = useState(null);
   const profileUnsubRef = useRef(null);
   const familyMembersUnsubRef = useRef(null);
   const migrationAttemptedRef = useRef(false);
@@ -28,6 +42,7 @@ export function AuthProvider({ children }) {
     const unsub = onAuthChange(async (u) => {
       setFirebaseUser(u ?? null);
       setProfileReady(false);
+      setProfileError(null);
 
       // Tear down previous profile listener
       if (profileUnsubRef.current) {
@@ -41,10 +56,14 @@ export function AuthProvider({ children }) {
       migrationAttemptedRef.current = false;
 
       if (u) {
-        familyMembersUnsubRef.current = subscribeToFamilyMembers(u.uid, setFamilyMembers);
+        familyMembersUnsubRef.current = subscribeToFamilyMembers(u.uid, setFamilyMembers, (err) => {
+          console.error("[useAuth] familyMembers listener error:", err?.code || err);
+          setProfileError(err?.code || "unknown-error");
+        });
         // Real-time listener — profile updates instantly when Firestore changes
         let firstSnap = true;
         profileUnsubRef.current = onSnapshot(doc(db, "users", u.uid), (snap) => {
+          setProfileError(null); // a successful snapshot clears any earlier error, e.g. after reconnecting
           const data = snap.exists() ? snap.data() : {};
           setProfile(snap.exists() ? data : null);
           // Always ensure email + name are in Firestore (fixes admin display for all users)
@@ -87,6 +106,18 @@ export function AuthProvider({ children }) {
               .catch(() => {}); // best-effort — account still works via inference either way
           }
           if (firstSnap) { firstSnap = false; setProfileReady(true); }
+        }, (err) => {
+          // Phase 3.2 hardening — this listener previously had no error
+          // callback at all, so a denied/failed read left `profile` stuck
+          // at its initial `null` forever with no signal that anything had
+          // gone wrong. `profileReady` intentionally does NOT get set to
+          // true here — a load error is a distinct third state from
+          // "loading" and "ready", and callers (PathwayRoute) must not
+          // treat "not ready" as "definitely locked" just because
+          // `loading` (derived from Firebase Auth alone) has already
+          // turned false.
+          console.error("[useAuth] account listener error:", err?.code || err);
+          setProfileError(err?.code || "unknown-error");
         });
 
         // Non-blocking OS init
@@ -189,8 +220,13 @@ export function AuthProvider({ children }) {
     [user, familyMembers]
   );
 
+  // resolveCurrentProfile (Phase 3.2 hardening) validates the persisted
+  // activeProfileId against `profiles`, which is itself derived only from
+  // the LIVE familyMembers subscription — so a deleted/renamed child's old
+  // activeProfileId can never resolve to stale or another child's data; it
+  // falls back to the account owner's own profile instead.
   const currentProfile = useMemo(
-    () => profiles.find(p => p.id === user?.activeProfileId) ?? profiles[0] ?? null,
+    () => resolveCurrentProfile(profiles, user?.activeProfileId),
     [profiles, user?.activeProfileId]
   );
 
@@ -247,7 +283,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isAdmin, loading, profileReady,
+      user, isAdmin, loading, profileReady, profileError,
       refreshProfile: () => firebaseUser ? refreshProfile(firebaseUser.uid) : Promise.resolve(),
       // Phase 1 — account/profile/pathway architecture
       accessiblePathways, profiles, currentProfile, currentPathway,

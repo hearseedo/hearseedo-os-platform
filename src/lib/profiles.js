@@ -66,11 +66,21 @@ export function getProfile(account, familyMembers, profileId) {
   return getProfiles(account, familyMembers).find(p => p.id === profileId) ?? null;
 }
 
-/** Live subscription to an account's familyMembers subcollection. */
-export function subscribeToFamilyMembers(uid, onChange) {
-  return onSnapshot(collection(db, "users", uid, "familyMembers"), (snap) => {
-    onChange(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  });
+/**
+ * Live subscription to an account's familyMembers subcollection.
+ * `onError` (Phase 3.2 hardening, 2026-09-12) is optional for backward
+ * compatibility but should always be passed by real callers — without it,
+ * a denied/failed listener silently leaves `onChange` never called again,
+ * which looks identical to "this account has no family members" to
+ * anything downstream. Never falls back to a cached/previous list on
+ * error; that decision belongs to the caller.
+ */
+export function subscribeToFamilyMembers(uid, onChange, onError) {
+  return onSnapshot(
+    collection(db, "users", uid, "familyMembers"),
+    (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    onError
+  );
 }
 
 /**
