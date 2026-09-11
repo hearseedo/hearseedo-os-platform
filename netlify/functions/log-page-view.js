@@ -9,6 +9,20 @@ const SA_EMAIL = "firebase-adminsdk-fbsvc@hear-see-do-os-ai.iam.gserviceaccount.
 // Key split across two env vars to stay under Lambda 4KB limit; neither half is a valid PEM
 const SA_KEY_B64 = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
 
+// Credential-rotation hardening (2026-09-11) — FIREBASE_SA_PRIVATE_KEY
+// (single variable, raw PEM, real or \n-escaped newlines) takes priority
+// over the legacy split pair above. Mirrors _firebaseAdmin.js's
+// resolvePrivateKeyPem(); kept as a local function rather than importing
+// it since this file intentionally has its own independent, minimal
+// OAuth2 exchange (no dependency on the shared Firestore-REST helper).
+function resolvePrivateKeyPem() {
+  const single = process.env.FIREBASE_SA_PRIVATE_KEY;
+  if (single && single.length > 100) {
+    return single.includes("\\n") ? single.replace(/\\n/g, "\n") : single;
+  }
+  return Buffer.from(SA_KEY_B64, "base64").toString("utf8");
+}
+
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -52,7 +66,7 @@ exports.handler = async (event) => {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
 
   try {
-    const privateKey = Buffer.from(SA_KEY_B64, "base64").toString("utf8");
+    const privateKey = resolvePrivateKeyPem();
     const token      = await getAccessToken(SA_EMAIL, privateKey);
 
     const res = await fetch(

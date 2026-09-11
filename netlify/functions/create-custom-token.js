@@ -63,10 +63,22 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST")    return { statusCode: 405, headers: CORS, body: "Method not allowed" };
 
   const SERVICE_ACCOUNT_EMAIL = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL;
+  // Credential-rotation hardening (2026-09-11) — FIREBASE_SA_PRIVATE_KEY
+  // (single variable, raw PEM, real or \n-escaped newlines) takes priority;
+  // falls back to the legacy base64-split A+B pair, then the older unused
+  // FIREBASE_SERVICE_ACCOUNT_KEY single-var convention. Mirrors
+  // _firebaseAdmin.js's resolvePrivateKeyPem() — kept as a separate literal
+  // here rather than importing it, since this function intentionally has no
+  // dependency on _firebaseAdmin.js's Firestore-REST helper (it only needs
+  // the key for the Google OAuth2 exchange below, not any of that module's
+  // other exports).
+  const singleVarKey = process.env.FIREBASE_SA_PRIVATE_KEY;
   const rawKey = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
-  const SERVICE_ACCOUNT_KEY = rawKey
-    ? Buffer.from(rawKey, "base64").toString("utf8")
-    : process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const SERVICE_ACCOUNT_KEY = (singleVarKey && singleVarKey.length > 100)
+    ? (singleVarKey.includes("\\n") ? singleVarKey.replace(/\\n/g, "\n") : singleVarKey)
+    : rawKey
+      ? Buffer.from(rawKey, "base64").toString("utf8")
+      : process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   const FIREBASE_API_KEY      = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
 
   if (!SERVICE_ACCOUNT_EMAIL || !SERVICE_ACCOUNT_KEY || !FIREBASE_API_KEY) {
