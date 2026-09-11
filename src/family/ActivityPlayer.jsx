@@ -12,12 +12,13 @@ import { recordActivityStarted, recordActivityCompleted, recordActivityAbandoned
 import { buildFamilyJonaPrompt, buildFamilyOpeningMessage } from "./jonaFamily";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import { APPS } from "../constants/apps";
+import { resolveCurriculumId } from "./kidsAppResolution";
 import AppModal from "../components/AppModal";
 import FamilyError from "./FamilyError";
 import FamilyLoading from "./FamilyLoading";
 import { subscribeToFamilyFlags, DEFAULT_FLAGS } from "./familyFlags";
 import ConfidenceCheckIn from "./ConfidenceCheckIn";
-import { getCurriculumState, resolveRouteTarget, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
+import { getCurriculumState, resolveRouteTarget } from "./curriculumProgress";
 
 export default function ActivityPlayer() {
   const { activityId } = useParams();
@@ -148,12 +149,25 @@ function InstructionsPlayer({ activity, lang, onComplete, t }) {
 // integration). Only Monkey Yoga has a real curriculum today — every other
 // iframe_app activity behaves exactly as before (curriculumTarget stays
 // null, AppModal opens the app's plain home screen).
-const CURRICULUM_BY_APP_ID = { phonics: MONKEY_YOGA_CURRICULUM_ID };
-
+//
+// Phase 3 canonical-registry migration (docs/HSD_FAMILY_PATHWAY_AUDIT_2026-09-11.md,
+// Section 9 step 3) — resolveCurriculumId() (./kidsAppResolution.js) is the
+// single, narrowly-scoped thing this phase changes: which data source
+// decides "does this app id have a real curriculum". Behind
+// VITE_USE_CANONICAL_REGISTRY it reads canonicalRegistry.js's `programs`
+// field instead of a hardcoded map; off (the production default), nothing
+// changes. Both paths resolve to the same MONKEY_YOGA_CURRICULUM_ID for
+// "phonics" today — see tests/phase3-kids-migration.test.js for the parity
+// proof. Deliberately NOT changed here: the `app` object handed to
+// <AppModal> below stays sourced from the legacy APPS array regardless of
+// the flag — AppModal's iframe-launch contract (iframeUrl,
+// usesSecureHandshake, etc.) is a separate, unmigrated consumer, and
+// touching it here would violate the "migrate one consumer at a time"
+// constraint this phase is scoped to.
 function IframeAppPlayer({ activity, user, currentProfile, onComplete, t }) {
   const app = APPS.find(a => a.id === activity.media.appId);
   const [open, setOpen] = useState(true);
-  const curriculumId = CURRICULUM_BY_APP_ID[activity.media.appId];
+  const curriculumId = resolveCurriculumId(activity.media.appId);
   const profileId = currentProfile?.isVirtual ? SELF_PROFILE_ID : (currentProfile?.id ?? SELF_PROFILE_ID);
   const [curriculumTarget, setCurriculumTarget] = useState(undefined); // undefined = still resolving
 

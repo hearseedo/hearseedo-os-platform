@@ -80,8 +80,12 @@ const AUDIENCE_CORRECTIONS = {
   "speak-ready":  { universityBranches: ["speak"] },
   phonics: {
     audiencePaths: ["kids"],
+    programs: ["monkey-yoga-phonics"], // must match lib/curriculumRouting.js's MONKEY_YOGA_CURRICULUM_ID
     experienceModes: ["hear", "see", "do"],
     methodology: "confidence-first",
+    progressEvent: "HSD_OS_PROGRESS",
+    profileTypes: ["child"],
+    books: ["book1", "book2", "book3", "book4"],
   },
   family: {
     // constants/apps.js's "family" id is the EXTERNAL iframe app (audience "both"),
