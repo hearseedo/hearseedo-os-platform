@@ -1,9 +1,16 @@
 // Shared authenticated-Firestore-REST helper for Netlify Functions.
 // Mirrors the pattern already proven in log-page-view.js: the service
-// account's private key is split across FIREBASE_SA_KEY_A + FIREBASE_SA_KEY_B
-// (avoids AWS Lambda's 4KB per-function env var limit — a single
-// FIREBASE_ADMIN_CREDENTIALS var with the full service-account JSON blew past
-// that limit combined with this site's other env vars and broke deploys).
+// account's private key was historically split across FIREBASE_SA_KEY_A +
+// FIREBASE_SA_KEY_B (avoids AWS Lambda's 4KB per-function env var limit — a
+// single FIREBASE_ADMIN_CREDENTIALS var with the full service-account JSON
+// blew past that limit combined with this site's other env vars and broke
+// deploys). Just the private_key field alone (not the full JSON) comfortably
+// fits in one variable, so FIREBASE_SA_PRIVATE_KEY (2026-09-11, credential-
+// rotation hardening) is now the preferred single-variable path — set it to
+// the private_key field's raw value (either real newlines or literal `\n`
+// escapes both work, see below). FIREBASE_SA_KEY_A/B are still read as a
+// fallback so nothing breaks mid-rotation; new rotations should use the
+// single variable going forward and can leave A/B unset or blank.
 // Hand-rolls the Google OAuth2 JWT-bearer exchange rather than depending on
 // firebase-admin, which needs the full JSON and adds bundle weight neither of
 // which fit this constraint.
@@ -14,6 +21,22 @@ const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const SA_EMAIL   = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL || "firebase-adminsdk-fbsvc@hear-see-do-os-ai.iam.gserviceaccount.com";
 const SA_KEY_B64 = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
 const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+
+// Resolves the PEM private key from whichever source is configured.
+// FIREBASE_SA_PRIVATE_KEY takes priority (single-variable path); falls back
+// to the legacy base64-split A+B pair. `.replace(/\\n/g, "\n")` is a no-op
+// when the value already has real newlines (e.g. pasted from a textarea
+// that preserves them) and correctly un-escapes it when it doesn't (e.g.
+// copied verbatim out of the JSON file's quoted string, where newlines are
+// literal two-character `\n` sequences).
+function resolvePrivateKeyPem() {
+  const single = process.env.FIREBASE_SA_PRIVATE_KEY;
+  if (single && single.length > 100) {
+    return single.includes("\\n") ? single.replace(/\\n/g, "\n") : single;
+  }
+  if (!SA_KEY_B64 || SA_KEY_B64.length < 100) return null;
+  return Buffer.from(SA_KEY_B64, "base64").toString("utf8");
+}
 
 let cachedToken = null; // { token, expiresAt } — Netlify reuses warm containers
 
@@ -33,15 +56,14 @@ class FirestoreConfigError extends Error {
 async function getAccessToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60000) return cachedToken.token;
 
-  // Empty/short SA_KEY_B64 (env vars unset or truncated) would otherwise
+  // A missing/unset/truncated key (whichever source) would otherwise
   // surface as an opaque Node crypto exception from sign.sign() below —
   // catch the missing-config case explicitly instead of guessing at a
   // crypto error's message shape.
-  if (!SA_KEY_B64 || SA_KEY_B64.length < 100) {
+  const privateKey = resolvePrivateKeyPem();
+  if (!privateKey) {
     throw new FirestoreConfigError("Firebase service-account credentials are not configured.");
   }
-
-  const privateKey = Buffer.from(SA_KEY_B64, "base64").toString("utf8");
   const now   = Math.floor(Date.now() / 1000);
   const claim = {
     iss: SA_EMAIL,
@@ -173,5 +195,5 @@ function fromFirestoreFields(fields) {
 module.exports = {
   PROJECT_ID, FS_BASE, firestoreFetch, verifyIdToken, incrementField,
   toFirestoreValue, toFirestoreFields, fromFirestoreValue, fromFirestoreFields,
-  FirestoreConfigError,
+  FirestoreConfigError, resolvePrivateKeyPem,
 };
