@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { onAuthChange, touchLastLogin, checkAndUpdateStreak, auth } from "../lib/firebase";
-import { initLearnerProfile } from "../lib/learnerProfile";
 import { db } from "../lib/firebase";
 import { doc, getDoc, onSnapshot, setDoc, arrayUnion } from "firebase/firestore";
 import { getAccessiblePathways, getPathwayState, resolveCurrentPathway } from "../lib/pathwayAccess";
@@ -120,10 +119,13 @@ export function AuthProvider({ children }) {
           setProfileError(err?.code || "unknown-error");
         });
 
-        // Non-blocking OS init
+        // Non-blocking OS init. Learner-profile creation is no longer
+        // triggered here (Phase 3.4, 2026-09-12) — it used to be an eager,
+        // always-denied client write (see src/lib/learnerProfile.js's
+        // comment); profile creation is now on-demand and server-side, the
+        // first time a real engagement event is recorded.
         touchLastLogin(u.uid);
         checkAndUpdateStreak(u.uid);
-        initLearnerProfile(u.uid);
         // Load referral stats
         getDoc(doc(db, "referrals", u.uid))
           .then(snap => setReferralData(snap.exists() ? snap.data() : null))

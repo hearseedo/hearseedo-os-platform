@@ -13,7 +13,7 @@
 //   node --test tests/monkey-yoga-progress-contract.test.js
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isPlausibleProgressPayload, handleProgressMessage } from "../src/lib/progressMessageHandler.js";
+import { isPlausibleProgressPayload } from "../src/lib/progressMessageHandler.js";
 import { isValidProgressEvent, MONKEY_YOGA_CURRICULUM_ID } from "../src/lib/curriculumRouting.js";
 
 // Captured verbatim from the real browser-proven test on staging
@@ -118,39 +118,16 @@ test("profile isolation: two different modal sessions for the same appId never s
   assert.equal(eventA.curriculumId, eventB.curriculumId);
 });
 
-// ── handleProgressMessage: the isolation between the legacy write and the
-// real progress path (Phase A/B correction, re-verified here) ───────────
-
-test("handleProgressMessage always runs processEvent even when legacyWrite rejects (the known appProgress permission-denied case)", async () => {
-  let processEventCalled = false;
-  const result = await handleProgressMessage({
-    legacyWrite: () => Promise.reject(new Error("permission-denied (expected: no Firestore rule for appProgress)")),
-    processEvent: () => { processEventCalled = true; return Promise.resolve({ curriculumSync: { ok: true } }); },
-    log: () => {}, // suppress the expected warning in test output
-  });
-  assert.equal(processEventCalled, true);
-  assert.deepEqual(result, { curriculumSync: { ok: true } });
-});
-
-test("handleProgressMessage's logged warning never includes the event's own contents (uid/profileId/lessonId)", async () => {
-  const logged = [];
-  await handleProgressMessage({
-    legacyWrite: () => Promise.reject(new Error("permission-denied")),
-    processEvent: () => Promise.resolve({}),
-    log: (msg) => logged.push(msg),
-  });
-  const fullLog = logged.join(" ");
-  assert.ok(!fullLog.includes("7wzkdCIiKdqOKQ2NqfaE")); // no profileId
-  assert.ok(!fullLog.includes("b1-a")); // no lessonId
-  assert.ok(!fullLog.includes("monkey-yoga-phonics") || fullLog.includes("collection")); // curriculumId itself never leaked either
-});
-
-test("handleProgressMessage propagates processEvent's own result untouched on success", async () => {
-  const fakeResult = { curriculumSync: { ok: true, duplicate: false } };
-  const result = await handleProgressMessage({
-    legacyWrite: () => Promise.resolve(),
-    processEvent: () => Promise.resolve(fakeResult),
-    log: () => {},
-  });
-  assert.deepEqual(result, fakeResult);
-});
+// ── handleProgressMessage / legacy appProgress write: retired ───────────
+//
+// Phase 3.4 (2026-09-12): the three tests formerly here exercised
+// handleProgressMessage()'s isolation between the legacy
+// users/{uid}/appProgress write and the real progress path. That legacy
+// write has been removed outright (an audit found no reader for the
+// collection anywhere in the app — see docs/PHASE_3_3_DIAGNOSTICS.md and
+// docs/PHASE_3_4_DATA_MODEL.md), and handleProgressMessage() no longer
+// exists — AppModal.jsx calls processAppEvent() directly. See
+// tests/progress-message-handler.test.js for what remains of that file's
+// coverage (isPlausibleProgressPayload), and
+// netlify/functions/__tests__/record-engagement-event-*.test.cjs for the
+// server endpoint that replaced processAppEvent()'s direct Firestore writes.

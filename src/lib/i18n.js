@@ -560,6 +560,13 @@ export const STRINGS = {
     progress_sync_failed:  "We couldn't save your progress.",
     retry:                 "Retry now",
     dismiss:               "Dismiss",
+    // Phase 3.4 (2026-09-12) — PathwayRoute's AccountLoadError screen (a
+    // denied/failed account-data listener, distinct from "this pathway is
+    // locked" — see src/components/PathwayRoute.jsx).
+    account_error_title:   "We couldn't load your account",
+    account_error_body:    "This looks like a temporary connection problem, not a change to your access. Please try again.",
+    account_error_retry:   "Retry",
+    account_error_return:  "Back to Choose Pathway",
   },
 
   jp: {
@@ -1123,6 +1130,10 @@ export const STRINGS = {
     progress_sync_failed:  "学習記録を保存できませんでした。",
     retry:                 "もう一度試す",
     dismiss:               "閉じる",
+    account_error_title:   "アカウント情報を読み込めませんでした",
+    account_error_body:    "一時的な接続の問題のようです。アクセス権が変更されたわけではありません。もう一度お試しください。",
+    account_error_retry:   "再読み込み",
+    account_error_return:  "パスウェイ選択に戻る",
   },
 };
 

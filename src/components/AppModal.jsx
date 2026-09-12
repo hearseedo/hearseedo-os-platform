@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useSubscription } from "../hooks/useSubscription";
 import { useLang } from "../hooks/useLang";
-import { doc, setDoc } from "firebase/firestore";
-import { db, auth } from "../lib/firebase";
+import { auth } from "../lib/firebase";
 import { processAppEvent } from "../lib/appEvents";
 import { recordCurriculumProgressEvent } from "../family/curriculumProgress";
-import { isPlausibleProgressPayload, handleProgressMessage } from "../lib/progressMessageHandler";
+import { isPlausibleProgressPayload } from "../lib/progressMessageHandler";
 
 const EikenApp = lazy(() => import("../pages/EikenApp"));
 
@@ -225,36 +224,21 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
       }
 
       if (data.type === "HSD_OS_PROGRESS" && user?.uid && isPlausibleProgressPayload(data)) {
-        // Bug fix (staging correction, 2026-09-10): the legacy appProgress
-        // write and processAppEvent() used to share one try/catch.
-        // firestore.rules has no allow-rule for
-        // users/{uid}/appProgress/{module} at all (default-deny), so that
-        // write always threw permission-denied — and the empty catch was
-        // silently swallowing that AND skipping processAppEvent() entirely,
-        // meaning curriculum-progress was never recorded for ANY iframe_app
-        // activity. handleProgressMessage() (src/lib/progressMessageHandler.js,
-        // unit-tested) isolates the legacy write so its failure can never
-        // block the curriculum-progress path. Deliberately NOT given a
-        // Firestore rule here — this legacy collection's continued purpose
-        // needs an audit before deciding whether to grant it real write
-        // access or remove it outright.
+        // Phase 3.4 (2026-09-12): the legacy users/{uid}/appProgress/{module}
+        // client write that used to happen here has been removed outright —
+        // an audit (docs/PHASE_3_3_DIAGNOSTICS.md, docs/PHASE_3_4_DATA_MODEL.md)
+        // confirmed nothing anywhere in this codebase ever reads that
+        // collection, so it was a pure, permanently-denied write with no
+        // reader to preserve. processAppEvent() now routes engagement/skill
+        // tracking through a server-authenticated endpoint instead of a
+        // direct (also-denied) client Firestore write — see
+        // src/lib/appEvents.js and netlify/functions/record-engagement-event.js.
         //
         // Fall back to this modal's own profileId if the sub-app didn't
         // echo one back — never leave a progress event unattributed to a
         // specific child.
         const enrichedEvent = { ...data, module: data.module ?? app.id, profileId: data.profileId ?? profileId };
-        const result = await handleProgressMessage({
-          legacyWrite: () => setDoc(
-            doc(db, "users", user.uid, "appProgress", data.module ?? app.id),
-            {
-              module:       data.module ?? app.id,
-              lessonsToday: data.lessonsToday ?? 0,
-              updatedAt:    new Date().toISOString(),
-            },
-            { merge: true }
-          ),
-          processEvent: () => processAppEvent(user.uid, enrichedEvent),
-        });
+        const result = await processAppEvent(user.uid, enrichedEvent);
         syncCurriculumStatus(enrichedEvent, result?.curriculumSync);
       }
     };

@@ -5,9 +5,10 @@
 // completely untouched, so V1 keeps running exactly as it does today.
 //
 // Writes go through the same processAppEvent() the rest of the platform
-// uses, which only ever updates the SIGNED-IN user's own learnerProfiles
-// doc (and no-ops entirely if that profile hasn't been initialised) — so
-// this can never touch another user's data.
+// uses (Phase 3.4, 2026-09-12: routed through the server-authenticated
+// record-engagement-event.js, which verifies the ID token and the
+// profile's ownership before writing) — so this can never touch another
+// account's, or another child's, data.
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { auth } from "../lib/firebase";

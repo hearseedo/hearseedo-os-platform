@@ -34,39 +34,22 @@ export async function getRecentInteractions(uid, count = 20) {
   } catch { return []; }
 }
 
-// ── Initialize profile on first login ────────────────────────────────────────
-
-export async function initLearnerProfile(uid) {
-  const ref  = doc(db, "learnerProfiles", uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) return;
-
-  await setDoc(ref, {
-    uid,
-    confidenceScore:    50,
-    confidenceTrend:    "stable",
-    confidenceComponents: { consistency: 50, frequency: 0, persistence: 0, engagement: 50 },
-    engagementScore:    50,
-    totalInteractions:  0,
-    skills: {
-      vocabulary:    50,
-      grammar:       50,
-      pronunciation: 50,
-      speaking:      50,
-      listening:     50,
-      reading:       50,
-      writing:       50,
-      mindset:       50,
-    },
-    appUsage:           {},
-    favoriteTopics:     [],
-    recurringMistakes:  [],
-    successfulStrategies: [],
-    recommendations:    {},
-    createdAt:          serverTimestamp(),
-    updatedAt:          serverTimestamp(),
-  });
-}
+// ── Profile initialization ────────────────────────────────────────────────
+//
+// Phase 3.4 (2026-09-12): initLearnerProfile(), formerly here, made an
+// eager, UNCAUGHT client-side setDoc to learnerProfiles/{uid} on every
+// sign-in (src/hooks/useAuth.jsx). firestore.rules has denied that write
+// since Phase 0 (2026-09-09) — "server writes via /api/intelligence and
+// /api/chat" was the stated intent, but no such server write ever existed,
+// so this always threw an unhandled promise rejection (see
+// docs/PHASE_3_3_DIAGNOSTICS.md). Removed outright rather than wrapped in a
+// try/catch: profile creation is now on-demand and server-side, triggered
+// by the first trusted engagement event (netlify/functions/
+// record-engagement-event.js's plain Firestore `update` write has upsert
+// semantics — it creates the document the first time an event arrives, no
+// separate init call needed). getLearnerProfile() below already treats a
+// not-yet-created profile as `null`, which every caller (Dashboard.jsx,
+// generateRecommendations()) already handles.
 
 // ── Update after an AI interaction ───────────────────────────────────────────
 

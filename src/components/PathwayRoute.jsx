@@ -24,26 +24,42 @@
 // check, unchanged). No cached/previous pathwayStates value is ever used
 // as a stand-in for a fresh answer.
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useLang } from "../hooks/useLang";
 import { resolvePathwayRouteAccess } from "../lib/pathwayRouteAccess";
 import { subscribeToFamilyFlags, DEFAULT_FLAGS } from "../family/familyFlags";
 
-function AccountLoadError({ onRetry }) {
+// Phase 3.4 (2026-09-12): localized via t() (previously hardcoded English
+// only — see docs/PHASE_3_3_DIAGNOSTICS.md). A "Retry" reload can't detect
+// its own failure (the whole page re-mounts), so a safe return-navigation
+// option is always shown alongside it rather than only appearing after a
+// detected second failure — the family is never stuck with only a button
+// that might not work.
+function AccountLoadError({ onRetry, onReturn }) {
+  const { t } = useLang();
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0700", padding: 24 }}>
       <div style={{ maxWidth: 380, textAlign: "center", color: "#fff" }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>We couldn't load your account</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{t("account_error_title")}</div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", marginBottom: 24, lineHeight: 1.6 }}>
-          This looks like a temporary connection problem, not a change to your access. Please try again.
+          {t("account_error_body")}
         </div>
-        <button
-          onClick={onRetry}
-          style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "#C9A84C", color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
-        >
-          Retry
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+          <button
+            onClick={onRetry}
+            style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "#C9A84C", color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
+          >
+            {t("account_error_retry")}
+          </button>
+          <button
+            onClick={onReturn}
+            style={{ padding: "8px 16px", borderRadius: 12, border: "none", background: "none", color: "rgba(255,255,255,0.65)", fontWeight: 700, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+          >
+            {t("account_error_return")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -51,6 +67,7 @@ function AccountLoadError({ onRetry }) {
 
 export default function PathwayRoute({ pathwayId, children }) {
   const { loading, profileReady, profileError, pathwayStates } = useAuth();
+  const navigate = useNavigate();
   // Phase 4 (item 23) — Family's own kill switch, checked alongside
   // entitlement. Only actually subscribed for pathwayId === "family" so
   // Student/Adult/Educator routes aren't affected by it.
@@ -71,7 +88,7 @@ export default function PathwayRoute({ pathwayId, children }) {
   // would tell a genuinely-entitled account it has no access, when the
   // real problem is that we couldn't confirm either way. Reloading re-runs
   // useAuth's listener setup from scratch (fresh subscription attempt).
-  if (decision === "error") return <AccountLoadError onRetry={() => window.location.reload()} />;
+  if (decision === "error") return <AccountLoadError onRetry={() => window.location.reload()} onReturn={() => navigate("/choose-path", { replace: true })} />;
   if (decision === "redirect") return <Navigate to="/choose-path" replace state={{ blockedPathway: pathwayId, reason }} />;
   return children;
 }

@@ -72,6 +72,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/record-engagement-event"
+  to     = "/.netlify/functions/record-engagement-event"
+  status = 200
+
+[[redirects]]
   from   = "/api/coaching-card"
   to     = "/.netlify/functions/coaching-card"
   status = 200
