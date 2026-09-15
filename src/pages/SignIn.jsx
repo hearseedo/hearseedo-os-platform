@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { loginWithEmail, signupWithEmail, loginWithGoogle, resetPassword, db } from "../lib/firebase";
 import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useLang } from "../hooks/useLang";
+import { resolveAuthSuccessDestination } from "../lib/pathwayRouteAccess";
 
 const OWNER_EMAILS = [import.meta.env.VITE_ADMIN_EMAIL, "waltho79@gmail.com"].filter(Boolean);
 
@@ -269,8 +270,7 @@ export default function SignIn() {
   }, []);
 
   const onSuccess = (email) => {
-    if (OWNER_EMAILS.includes(email)) { navigate("/admin", { replace: true }); return; }
-    navigate("/join", { replace: true });
+    navigate(resolveAuthSuccessDestination(email, OWNER_EMAILS), { replace: true });
   };
 
   const ring = (size, opacity, dur, rev) => ({

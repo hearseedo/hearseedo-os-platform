@@ -26,8 +26,7 @@ import AdminAccessCodes   from "./pages/AdminAccessCodes";
 // all seasonal content) is only needed by users who actually open it, so it's
 // split into its own chunk rather than bundled into every visitor's initial load.
 const SipSpeakLearn = lazy(() => import("./pages/SipSpeakLearn"));
-import JoinFlow           from "./pages/JoinFlow";
-import Blueprint          from "./pages/Blueprint";
+import { resolveBlueprintRedirect, resolveJoinDestination } from "./lib/pathwayRouteAccess";
 import { isSSLEnabled }   from "./sipSpeakLearn/config";
 const DevAuthGate = lazy(() => import("./sipSpeakLearn/DevAuthGate"));
 import PhonicsV2Preview   from "./pages/PhonicsV2Preview";
@@ -58,20 +57,6 @@ import DemoLearning     from "./demo/DemoLearning";
 import DemoProgress     from "./demo/DemoProgress";
 import DemoComplete     from "./demo/DemoComplete";
 import { isPhonicsV2PreviewEnabled } from "./lib/phonicsV2PreviewFlag";
-import PreviewShell        from "./livingBlueprint/PreviewShell";
-import PreviewHome         from "./livingBlueprint/PreviewHome";
-import PreviewFamily       from "./livingBlueprint/PreviewFamily";
-import WorldPage           from "./livingBlueprint/WorldPage";
-import PreviewProgress     from "./livingBlueprint/PreviewProgress";
-import PreviewCoach        from "./livingBlueprint/PreviewCoach";
-import PreviewMessages     from "./livingBlueprint/PreviewMessages";
-import PreviewMembership   from "./livingBlueprint/PreviewMembership";
-import PreviewRewards      from "./livingBlueprint/PreviewRewards";
-import PreviewCalendar     from "./livingBlueprint/PreviewCalendar";
-import PreviewReferrals    from "./livingBlueprint/PreviewReferrals";
-import PreviewMore         from "./livingBlueprint/PreviewMore";
-import OnboardingFlow      from "./livingBlueprint/onboarding/OnboardingFlow";
-import { isLivingBlueprintEnabled } from "./lib/livingBlueprintFlag";
 
 // Minimal, neutral fallback while a lazy-loaded chunk (e.g. Sip Speak Learn)
 // downloads. Intentionally unbranded/plain — it's on screen for a fraction of
@@ -108,102 +93,30 @@ function PhonicsV2PreviewGate() {
   return isPhonicsV2PreviewEnabled(user) ? <PhonicsV2Preview /> : <Navigate to="/dashboard" replace />;
 }
 
-// Living Blueprint rebuild — Phase 1 foundation preview gate. Same pattern as
-// SSLGate: invisible outside dev/admin/localStorage flag until Phase 7 cutover.
-function LivingBlueprintPreviewGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewShell /> : <Navigate to="/dashboard" replace />;
+// Retired-Blueprint gate: signed-in visitors to any retired /blueprint URL
+// land on /choose-path (the current pathway selector); signed-out visitors
+// land on /join (the Welcome/auth page's signup entry point). See
+// resolveBlueprintRedirect in lib/pathwayRouteAccess.js. Waits out
+// useAuth's `loading` first — same reasoning as JoinGate below: `user` is
+// undefined (falsy) while Firebase Auth is still resolving, so deciding
+// before then would misroute an already-signed-in visitor to /join.
+function BlueprintRetiredGate() {
+  const { user, loading } = useAuth();
+  if (loading) return <ChunkLoading />;
+  return <Navigate to={resolveBlueprintRedirect(user)} replace />;
 }
 
-function LivingBlueprintOnboardingGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <OnboardingFlow /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintHomeGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintFamilyGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewFamily /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintWorldGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <WorldPage /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintProgressGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewProgress /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintCoachGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewCoach /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintMessagesGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewMessages /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintMembershipGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewMembership /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintRewardsGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewRewards /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintCalendarGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewCalendar /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintReferralsGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewReferrals /> : <Navigate to="/dashboard" replace />;
-}
-
-function LivingBlueprintMoreGate() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <PreviewMore /> : <Navigate to="/dashboard" replace />;
-}
-
-// Entry-point gates: when the flag is on, the new Living Blueprint pages
-// become the actual /dashboard and /welcome experience — not just reachable
-// at /preview/*. Same flag, same instant rollback (livingBlueprintFlag.js);
-// this just changes what the existing entry-point routes render, so
-// bookmarks/redirects that already point at /dashboard and /welcome (e.g.
-// SignIn.jsx, JoinFlow.jsx) pick up the new experience automatically.
-function DashboardEntry() {
-  const { user } = useAuth();
-  // NOTE (routing cutover, 2026-09-10): /dashboard is intentionally NOT
-  // gated here. Two dozen+ already-shipped call sites across the platform
-  // (SpeakReady, CareerReady, GlobalReady, WonderCamp, Assessment,
-  // OnboardingV2, AccessCode, Admin, SipSpeakLearn, LivingBlueprint preview
-  // pages) navigate to plain "/dashboard" as their normal, working exit
-  // action — a route-level guard can't distinguish "a stale bookmark" from
-  // "SpeakReady's own back button", so gating this route would silently
-  // break all of those for any account that has ever used the new pathway
-  // selector. Retiring /dashboard as the DEFAULT destination is instead
-  // handled entirely at the one real chokepoint: Blueprint.jsx's
-  // handleEnter, which now resolves lastUsedPathway via
-  // resolvePathwayDestination() instead of sending every returning account
-  // here unconditionally. See the routing-cutover report for the full
-  // reasoning — widening this to a route guard is a separate, larger piece
-  // of work (updating every one of those call sites) that wasn't done here.
-  return isLivingBlueprintEnabled(user) ? <PreviewHome /> : <AppShell><Dashboard /></AppShell>;
-}
-
-function WelcomeEntry() {
-  const { user } = useAuth();
-  return isLivingBlueprintEnabled(user) ? <OnboardingFlow /> : <AppShell><Welcome /></AppShell>;
+// /join compatibility gate: a signed-out visitor gets SignIn.jsx's existing
+// ?mode=signup shortcut (no second click needed to reach account creation);
+// a signed-in visitor skips signup entirely and goes to /choose-path. Must
+// wait for useAuth's `loading` to resolve first — `user` is undefined
+// (falsy, same as signed-out) for the brief window before Firebase Auth
+// reports back, and deciding during that window would flash signup at an
+// already-authenticated user. See resolveJoinDestination.
+function JoinGate() {
+  const { user, loading } = useAuth();
+  if (loading) return <ChunkLoading />;
+  return <Navigate to={resolveJoinDestination(user)} replace />;
 }
 
 export default function App() {
@@ -212,15 +125,22 @@ export default function App() {
       <GlobalStyles />
       <Routes>
         <Route path="/"          element={<SignIn />} />
-        <Route path="/welcome"   element={<ProtectedRoute><WelcomeEntry /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardEntry /></ProtectedRoute>} />
+        <Route path="/welcome"   element={<ProtectedRoute><AppShell><Welcome /></AppShell></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><AppShell><Dashboard /></AppShell></ProtectedRoute>} />
         <Route path="/admin"     element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="/plans"     element={<ProtectedRoute><AppShell><Plans /></AppShell></ProtectedRoute>} />
         <Route path="/assessment" element={<ProtectedRoute><AppShell><Assessment /></AppShell></ProtectedRoute>} />
         <Route path="/setup"      element={<ProtectedRoute><AppShell><FamilySetup /></AppShell></ProtectedRoute>} />
         <Route path="/onboard"    element={<ProtectedRoute><AppShell><OnboardingV2 /></AppShell></ProtectedRoute>} />
-        <Route path="/join"       element={<ProtectedRoute><AppShell><JoinFlow /></AppShell></ProtectedRoute>} />
-        <Route path="/blueprint"  element={<ProtectedRoute><AppShell><Blueprint /></AppShell></ProtectedRoute>} />
+        {/* Phase 4A (2026-09-13) — /join is a compatibility entry point for the
+            retired JoinFlow page's old URL. Signed-out: reuses SignIn.jsx's
+            existing ?mode=signup mechanism (the same state "Begin Your
+            Journey" puts you in) so landing here requires no second click to
+            reach account creation. Signed-in: skips signup and goes straight
+            to /choose-path. See JoinGate / resolveJoinDestination. */}
+        <Route path="/join"       element={<JoinGate />} />
+        <Route path="/blueprint"  element={<BlueprintRetiredGate />} />
+        <Route path="/blueprint/*" element={<BlueprintRetiredGate />} />
         <Route path="/parent/:uid"   element={<ParentView />} />
         {/* Phase 2 — pathway selector + entry points. Additive: existing users
             are never automatically routed here (see /dashboard above, unchanged) —
@@ -253,70 +173,11 @@ export default function App() {
         <Route path="/dev/phonics-v2"       element={<ProtectedRoute><PhonicsV2PreviewGate /></ProtectedRoute>} />
         {/* Phase 1 — minimal functional profile/pathway switcher for validation, not final UI (Phase 2). */}
         <Route path="/dev/pathway-lab"      element={<ProtectedRoute><PathwayLab /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 1 foundation preview, flagged (see lib/livingBlueprintFlag.js). */}
-        <Route path="/preview/shell"        element={<ProtectedRoute><LivingBlueprintPreviewGate /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 2 six-step onboarding preview, flagged. */}
-        <Route path="/preview/onboarding"   element={<ProtectedRoute><LivingBlueprintOnboardingGate /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 3 Individual/Family Home preview, flagged. */}
-        <Route path="/preview/home"         element={<ProtectedRoute><LivingBlueprintHomeGate /></ProtectedRoute>} />
-        <Route path="/preview/family"       element={<ProtectedRoute><LivingBlueprintFamilyGate /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 4 World landing/launch preview, flagged. */}
-        <Route path="/preview/world/:worldId" element={<ProtectedRoute><LivingBlueprintWorldGate /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 5 Progress + Jona Coach preview, flagged. */}
-        <Route path="/preview/progress"     element={<ProtectedRoute><LivingBlueprintProgressGate /></ProtectedRoute>} />
-        <Route path="/preview/coach"        element={<ProtectedRoute><LivingBlueprintCoachGate /></ProtectedRoute>} />
-        {/* Living Blueprint rebuild — Phase 6 supporting areas preview, flagged. */}
-        <Route path="/preview/messages"     element={<ProtectedRoute><LivingBlueprintMessagesGate /></ProtectedRoute>} />
-        <Route path="/preview/membership"   element={<ProtectedRoute><LivingBlueprintMembershipGate /></ProtectedRoute>} />
-        <Route path="/preview/rewards"      element={<ProtectedRoute><LivingBlueprintRewardsGate /></ProtectedRoute>} />
-        <Route path="/preview/calendar"     element={<ProtectedRoute><LivingBlueprintCalendarGate /></ProtectedRoute>} />
-        <Route path="/preview/referrals"    element={<ProtectedRoute><LivingBlueprintReferralsGate /></ProtectedRoute>} />
-        <Route path="/preview/more"         element={<ProtectedRoute><LivingBlueprintMoreGate /></ProtectedRoute>} />
         {/* DEV-ONLY preview (unauthenticated). Stripped from production builds.
             Wrapped in DevAuthGate so Firestore writes (Table/Host Mode) have a
             real (anonymous, throwaway) auth session to work against. */}
         {import.meta.env.DEV && (
           <Route path="/ssl-preview"        element={<Suspense fallback={<ChunkLoading />}><DevAuthGate><SipSpeakLearn /></DevAuthGate></Suspense>} />
-        )}
-        {/* DEV-ONLY preview (unauthenticated), for visual QA of the Living Blueprint foundation. */}
-        {import.meta.env.DEV && (
-          <Route path="/preview/shell-dev"  element={<PreviewShell />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/onboarding-dev" element={<OnboardingFlow />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/home-dev"   element={<PreviewHome />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/family-dev" element={<PreviewFamily />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/world-dev/:worldId" element={<WorldPage />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/progress-dev" element={<PreviewProgress />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/coach-dev"    element={<PreviewCoach />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/messages-dev"   element={<PreviewMessages />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/membership-dev" element={<PreviewMembership />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/rewards-dev"    element={<PreviewRewards />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/calendar-dev"   element={<PreviewCalendar />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/referrals-dev"  element={<PreviewReferrals />} />
-        )}
-        {import.meta.env.DEV && (
-          <Route path="/preview/more-dev"       element={<PreviewMore />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
         {/* Demo Mode — scripted, no-auth walkthrough for pitch videos and judges. */}

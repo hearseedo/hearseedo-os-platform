@@ -21,6 +21,7 @@
     "test:account-error-i18n": "node --test tests/account-error-i18n.test.js",
     "test:no-direct-locked-writes": "node --test tests/no-direct-locked-writes.test.js",
     "test:pathway-route": "node --test tests/pathway-route-access.test.js",
+    "test:blueprint-retirement": "node --test tests/blueprint-retirement.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },
   "dependencies": {

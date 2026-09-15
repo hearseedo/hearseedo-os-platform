@@ -61,3 +61,51 @@ export function resolvePathwayRouteAccess({ loading, profileError, profileReady,
 export function resolveCurrentProfile(profiles, activeProfileId) {
   return profiles.find(p => p.id === activeProfileId) ?? profiles[0] ?? null;
 }
+
+// Phase 4A (2026-09-13) — retiring the legacy Blueprint onboarding chain
+// (JoinFlow "Who is joining HSDOS?" -> Blueprint "Building your
+// Blueprint..." -> old resolvePathwayDestination) and the separate,
+// never-launched src/livingBlueprint/ rebuild, in favor of the simplified
+// entry flow: Welcome -> Join or Sign in -> Choose Your Path -> Pathway
+// Home. Pure decision functions so the retired-route redirects and the
+// post-auth landing are directly unit-testable.
+
+/**
+ * Where a signed-in vs signed-out visitor to a retired Blueprint URL
+ * (/blueprint, /blueprint/*) should land. Never redirects back into the
+ * retired system itself, so it can't produce a redirect loop.
+ * @param {object|null|undefined} user - useAuth's `user` (real object or null/undefined)
+ * @returns {"/choose-path"|"/join"}
+ */
+export function resolveBlueprintRedirect(user) {
+  return user ? "/choose-path" : "/join";
+}
+
+/**
+ * Where the /join compatibility route should land, once Firebase Auth has
+ * resolved (callers must gate on useAuth's `loading` themselves and show a
+ * loading state first — this function assumes that's already handled, so it
+ * never has to guess and never briefly sends an authenticated user through
+ * signup). Signed-out visitors get SignIn.jsx's existing ?mode=signup
+ * shortcut (the same state one click of "Begin Your Journey" produces, so no
+ * second click is required); signed-in visitors skip signup entirely and go
+ * straight to the pathway selector.
+ * @param {object|null|undefined} user - useAuth's `user`, AFTER loading has resolved
+ * @returns {"/choose-path"|"/?mode=signup"}
+ */
+export function resolveJoinDestination(user) {
+  return user ? "/choose-path" : "/?mode=signup";
+}
+
+/**
+ * Where a successful sign-in or sign-up should land. Deliberately takes no
+ * "isNewUser" flag — a fresh signup and a returning sign-in resolve
+ * identically, matching the simplified flow's requirement that both land
+ * on /choose-path.
+ * @param {string} email
+ * @param {string[]} [ownerEmails]
+ * @returns {"/admin"|"/choose-path"}
+ */
+export function resolveAuthSuccessDestination(email, ownerEmails = []) {
+  return ownerEmails.includes(email) ? "/admin" : "/choose-path";
+}
