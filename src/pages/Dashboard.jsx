@@ -34,9 +34,10 @@ import { useLang } from "../hooks/useLang";
 import { isAccessActive, formatExpiry, daysUntilExpiry } from "../lib/accessCodeUtils";
 import { JonaProvider, useJona } from "../context/JonaContext";
 import FoundingBanner from "../components/FoundingBanner";
+import { SELF_PROFILE_ID } from "../lib/profiles";
 
 export default function Dashboard() {
-  const { user, profileReady, isAdmin, accessiblePathways } = useAuth();
+  const { user, profileReady, isAdmin, accessiblePathways, currentProfile, setActiveProfile } = useAuth();
   const { defaultView, isUnlocked }    = useSubscription();
   const navigate           = useNavigate();
   const location           = useLocation();
@@ -50,7 +51,16 @@ export default function Dashboard() {
   const [orbitView, setOrbitView]     = useState(defaultView());
   const [selectedApp, setSelectedApp] = useState(null);
   const [activeNav, setActiveNav]     = useState("home");
-  const [activeMember, setActiveMember] = useState(null); // null = viewing own profile
+  // Phase 4B (2026-09-15) — active profile now lives in useAuth's
+  // currentProfile/setActiveProfile (Firestore-backed activeProfileId on
+  // the account doc), not a local useState, so the selection survives a
+  // refresh and falls back to the owner via the already-tested
+  // resolveCurrentProfile if the saved id is missing/deleted/unauthorized.
+  // Dashboard's own null-means-owner convention is preserved here so none
+  // of the many child components below (FamilyCard, HomeChildCard,
+  // MobileDashboard, ConfidenceCard, AppModal, etc.) need to change.
+  const activeMember = currentProfile && currentProfile.id !== SELF_PROFILE_ID ? currentProfile : null;
+  const setActiveMember = (member) => { setActiveProfile(member ? member.id : SELF_PROFILE_ID); };
   const [familyMembers, setFamilyMembers] = useState([]);
   const [showPulse, setShowPulse]         = useState(false);
   const [pulseTrigger, setPulseTrigger]   = useState("general");
@@ -238,7 +248,9 @@ export default function Dashboard() {
     return onSnapshot(q, snap => {
       const updated = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setFamilyMembers(updated);
-      setActiveMember(prev => prev ? (updated.find(m => m.id === prev.id) ?? prev) : null);
+      // activeMember is now derived from currentProfile (see above), which
+      // already re-resolves against the live profiles list on its own —
+      // no manual re-sync needed here.
     });
   }, [user?.uid]);
 
@@ -323,6 +335,7 @@ export default function Dashboard() {
           unreadCount={unreadCount} onOpenInbox={() => setShowInbox(true)}
           onAllMissionsDone={() => setCelebration(CEL.all_missions)}
           familyMembers={familyMembers} activeMember={activeMember} setActiveMember={setActiveMember}
+          profileReady={profileReady} isAdmin={isAdmin}
         />
         <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={activeMember} />
         {showPulse && <PulseFeedback trigger={pulseTrigger} onDismiss={() => setShowPulse(false)} />}
@@ -681,7 +694,7 @@ export default function Dashboard() {
 
 // ── MOBILE DASHBOARD ──────────────────────────────────────────────────────────
 
-function MobileDashboard({ user, firstName, greeting, activeNav, setActiveNav, setSelectedApp, navigate, isUnlocked, unreadCount, onOpenInbox, onAllMissionsDone, familyMembers, activeMember, setActiveMember }) {
+function MobileDashboard({ user, firstName, greeting, activeNav, setActiveNav, setSelectedApp, navigate, isUnlocked, unreadCount, onOpenInbox, onAllMissionsDone, familyMembers, activeMember, setActiveMember, profileReady, isAdmin }) {
   const { lang, setLang, t } = useLang();
   const BOTTOM_NAV = [
     { id: "home",      icon: "🏠",       label: "Home"     },
