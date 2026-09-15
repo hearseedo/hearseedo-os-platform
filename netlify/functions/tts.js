@@ -3,7 +3,11 @@ const VOICE_ID_EN  = "BnRBNgpLmN6RYIWw3eEw"; // Jona's voice (English)
 const VOICE_ID_JP  = "5FNeYl6NmyAXYQWW7CEV"; // Jona's voice (Japanese only)
 const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
 const MAX_CHARS    = 1200;
-const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — see _firebaseAdmin.js's
+// resolveProjectId: fails closed for a real deploy, never silently
+// defaults to production.
+const { resolveProjectId } = require("./_firebaseAdmin.js");
+const PROJECT_ID   = resolveProjectId();
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 

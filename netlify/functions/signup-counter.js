@@ -2,7 +2,11 @@
 // GET  → returns { count, spotsLeft }
 // POST → atomically increments, returns { count, spotsLeft, spotNumber }
 
-const PROJECT_ID  = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — see _firebaseAdmin.js's
+// resolveProjectId: fails closed for a real deploy, never silently
+// defaults to production.
+const { resolveProjectId } = require("./_firebaseAdmin.js");
+const PROJECT_ID  = resolveProjectId();
 const API_KEY     = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE     = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 const TOTAL_SPOTS = 200;

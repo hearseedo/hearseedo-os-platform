@@ -2,7 +2,11 @@
 // POST { uid, type: "interview"|"writing", action: "check"|"use" }
 // Returns { allowed, used, limit, remaining }
 
-const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — PROJECT_ID comes from the
+// same fail-closed resolver every other function uses, not its own
+// hardcoded production fallback. See _firebaseAdmin.js's resolveProjectId.
+const { resolveProjectId } = require("./_firebaseAdmin.js");
+const PROJECT_ID   = resolveProjectId();
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 

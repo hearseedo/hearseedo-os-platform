@@ -8,7 +8,14 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-const PROJECT_ID = "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — this was an unconditional
+// hardcoded production project id (not even env-var-overridable), the most
+// dangerous shape of this bug: no deploy of this site could ever point
+// this endpoint anywhere but production. Now uses the same fail-closed
+// resolver every other function uses. See _firebaseAdmin.js's
+// resolveProjectId.
+const { resolveProjectId } = require("./_firebaseAdmin.js");
+const PROJECT_ID = resolveProjectId();
 const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 const SKILL_MAP = {

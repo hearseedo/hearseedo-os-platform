@@ -18,8 +18,115 @@
 const crypto = require("crypto");
 const { normalizePem } = require("./_pemUtils");
 
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
-const SA_EMAIL   = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL || "firebase-adminsdk-fbsvc@hear-see-do-os-ai.iam.gserviceaccount.com";
+// Thrown when the service account/project itself isn't usable — missing or
+// malformed credentials, Google rejecting the JWT-bearer exchange, or (2026-
+// 09-16, staging-isolation hardening) a deploy's FIREBASE_PROJECT_ID that
+// doesn't match its own deploy context. This is never the calling user's
+// fault and never something a client retry can fix on its own; callers
+// (record-curriculum-progress.js) check `err.name` to route it to a distinct
+// "server configuration" response instead of lumping it in with a generic
+// 500 or, worse, a transient/retryable one.
+class FirestoreConfigError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "FirestoreConfigError";
+  }
+}
+
+// Staging-isolation hardening (2026-09-16, corrected same-day). Netlify's
+// process.env.CONTEXT ("production", "deploy-preview", "branch-deploy") is
+// NOT the same concept as "which HSD environment is this" — CONTEXT means
+// "the published deploy of whichever Netlify SITE this is", and a separate
+// staging Netlify site's own published deploy legitimately has
+// CONTEXT=production too (Netlify's "production" just means "this site's
+// main, published deploy" — it says nothing about which HSD environment
+// that site represents). Conflating the two would incorrectly reject a
+// staging site's own normal published deployment.
+//
+// So there are two independent, explicit signals, both required for any
+// real deploy:
+//   - process.env.HSD_ENV        — "production" | "staging", HSD's own
+//     identity for this deploy. No default, ever. Set once per Netlify
+//     site (production site always "production", staging site always
+//     "staging" — this is what actually distinguishes them, not CONTEXT).
+//   - process.env.CONTEXT        — Netlify's own deploy-context signal.
+//     Used only for ONE additional check: HSD_ENV=production must also be
+//     the genuine published production deploy (CONTEXT=production) of the
+//     PRODUCTION site, so a deploy-preview/branch-deploy accidentally
+//     built with HSD_ENV=production can never reach production Firestore.
+//     Staging has no such restriction — a staging site's preview/branch
+//     deploys are allowed to use staging Firebase too.
+//
+// Neither variable is set by a plain `node --test` run or a local script —
+// process.env.CONTEXT is the "is this a real deploy at all" gate, matching
+// this repo's existing function tests (several require this module
+// transitively with zero Firebase env configured, replacing
+// firestoreFetch/verifyIdToken with fakes before invoking any handler, so
+// PROJECT_ID/FS_BASE are computed but never actually used in that path).
+const PRODUCTION_PROJECT_ID = "hear-see-do-os-ai";
+const HSD_ENV_PRODUCTION = "production";
+const HSD_ENV_STAGING = "staging";
+const VALID_HSD_ENVS = [HSD_ENV_PRODUCTION, HSD_ENV_STAGING];
+
+function resolveProjectId() {
+  const envProjectId = process.env.FIREBASE_PROJECT_ID;
+  const context = process.env.CONTEXT;
+  const hsdEnv = process.env.HSD_ENV;
+
+  if (!context) {
+    // Not a real Netlify deploy (local test run / script) — nothing to
+    // validate against. Never defaults to the production project.
+    return envProjectId || null;
+  }
+
+  // A real deploy must always declare which HSD environment it is —
+  // missing, empty, or an unrecognized value all fail closed the same way.
+  if (!hsdEnv || !VALID_HSD_ENVS.includes(hsdEnv)) {
+    throw new FirestoreConfigError(
+      `HSD_ENV must be explicitly set to "production" or "staging" for the "${context}" deploy context (got ${hsdEnv ? JSON.stringify(hsdEnv) : "unset"}). Refusing to start rather than guessing.`
+    );
+  }
+  if (!envProjectId) {
+    throw new FirestoreConfigError(
+      `FIREBASE_PROJECT_ID is not set for HSD_ENV="${hsdEnv}" (deploy context "${context}"). Refusing to start rather than guessing a project.`
+    );
+  }
+
+  const isProductionProject = envProjectId === PRODUCTION_PROJECT_ID;
+
+  if (hsdEnv === HSD_ENV_PRODUCTION) {
+    if (!isProductionProject) {
+      throw new FirestoreConfigError(
+        `Refusing to start: HSD_ENV is "production" but FIREBASE_PROJECT_ID is "${envProjectId}", not "${PRODUCTION_PROJECT_ID}".`
+      );
+    }
+    // Production Firebase may only be reached from the genuine published
+    // production deploy — never a deploy-preview or branch-deploy of the
+    // production site, even one that (mis)declares HSD_ENV=production.
+    if (context !== "production") {
+      throw new FirestoreConfigError(
+        `Refusing to start: HSD_ENV is "production" but this deploy's Netlify context is "${context}", not "production". Only the genuine published production deployment may access production Firebase.`
+      );
+    }
+    return envProjectId;
+  }
+
+  // hsdEnv === HSD_ENV_STAGING — allowed from any Netlify context on the
+  // staging site (its own published deploy included — that deploy's own
+  // CONTEXT is legitimately "production", meaning "this site's main
+  // deploy", which is NOT the same claim as HSD_ENV=production above).
+  // The one absolute rule: staging may never use the production project,
+  // regardless of context.
+  if (isProductionProject) {
+    throw new FirestoreConfigError(
+      `Refusing to start: HSD_ENV is "staging" but FIREBASE_PROJECT_ID is set to the production project ("${PRODUCTION_PROJECT_ID}"). A staging deploy must never target production.`
+    );
+  }
+  return envProjectId;
+}
+
+const PROJECT_ID = resolveProjectId();
+const SA_EMAIL   = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL || null;
 const SA_KEY_B64 = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
 const FS_BASE    = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
@@ -38,19 +145,6 @@ function resolvePrivateKeyPem() {
 
 let cachedToken = null; // { token, expiresAt } — Netlify reuses warm containers
 
-// Thrown when the service account itself isn't usable — missing/malformed
-// FIREBASE_SA_KEY_A/B, or Google rejecting the JWT-bearer exchange. This is
-// never the calling user's fault and never something a client retry can fix
-// on its own; callers (record-curriculum-progress.js) check `err.name` to
-// route it to a distinct "server configuration" response instead of lumping
-// it in with a generic 500 or, worse, a transient/retryable one.
-class FirestoreConfigError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "FirestoreConfigError";
-  }
-}
-
 async function getAccessToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60000) return cachedToken.token;
 
@@ -61,6 +155,12 @@ async function getAccessToken() {
   const privateKey = resolvePrivateKeyPem();
   if (!privateKey) {
     throw new FirestoreConfigError("Firebase service-account credentials are not configured.");
+  }
+  // SA_EMAIL has no hardcoded fallback (staging-isolation hardening,
+  // 2026-09-16) — a signed JWT with a missing/wrong issuer would otherwise
+  // fail opaquely at Google's token endpoint below instead of here, clearly.
+  if (!SA_EMAIL) {
+    throw new FirestoreConfigError("FIREBASE_SERVICE_ACCOUNT_EMAIL is not configured.");
   }
   const now   = Math.floor(Date.now() / 1000);
   const claim = {
@@ -194,4 +294,6 @@ module.exports = {
   PROJECT_ID, FS_BASE, firestoreFetch, verifyIdToken, incrementField,
   toFirestoreValue, toFirestoreFields, fromFirestoreValue, fromFirestoreFields,
   FirestoreConfigError, resolvePrivateKeyPem,
+  PRODUCTION_PROJECT_ID, resolveProjectId, getAccessToken,
+  HSD_ENV_PRODUCTION, HSD_ENV_STAGING,
 };
