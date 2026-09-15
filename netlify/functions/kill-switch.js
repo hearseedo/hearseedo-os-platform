@@ -9,10 +9,12 @@
 // of that — not a substitute for it.
 const { firestoreFetch } = require("./_firebaseAdmin");
 
-if (!process.env.SHUTDOWN_PASSCODE) {
-  console.error("SHUTDOWN_PASSCODE env var is not set — kill-switch is relying on a source-code fallback value. Set it in Netlify now.");
-}
-const PASSCODE = process.env.SHUTDOWN_PASSCODE || "HSD-STOP-2026";
+// Staging-isolation hardening (2026-09-16) — removed the previous
+// hardcoded source-code fallback passcode. There must be no built-in/
+// default passcode anywhere in source; PASSCODE is null (never a
+// guessable literal) when the env var is absent, and the handler below
+// fails closed in that case rather than silently accepting a fallback.
+const PASSCODE = process.env.SHUTDOWN_PASSCODE || null;
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -39,6 +41,13 @@ exports.handler = async (event) => {
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
   const { action, passcode } = body;
+
+  // Fail closed: with no configured passcode, no request can ever be
+  // valid — never fall through to a comparison against a hardcoded value.
+  if (!PASSCODE) {
+    console.error("kill-switch: SHUTDOWN_PASSCODE is not configured — refusing all requests.");
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
+  }
 
   if (!passcode || passcode !== PASSCODE) {
     return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: "Invalid passcode" }) };

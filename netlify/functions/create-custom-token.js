@@ -16,6 +16,14 @@
 
 const crypto = require("crypto");
 const { normalizePem } = require("./_pemUtils");
+// Staging-isolation hardening (2026-09-16) — this function mints a custom
+// Firebase Auth token signed with the service account's own private key.
+// Before this fix it never validated WHICH Firebase project that service
+// account belongs to, or whether HSD_ENV/CONTEXT even permit that project —
+// a staging deploy accidentally holding production SA credentials would
+// have minted valid production-identity tokens with no check at all. Reuses
+// the exact same fail-closed resolver every other function uses.
+const { resolveProjectId } = require("./_firebaseAdmin");
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -83,6 +91,32 @@ exports.handler = async (event) => {
   const FIREBASE_API_KEY      = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
 
   if (!SERVICE_ACCOUNT_EMAIL || !SERVICE_ACCOUNT_KEY || !FIREBASE_API_KEY) {
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
+  }
+
+  // Staging-isolation hardening (2026-09-16) — refuse to mint any token at
+  // all unless this deploy's HSD_ENV/CONTEXT/FIREBASE_PROJECT_ID combination
+  // is valid (see resolveProjectId in _firebaseAdmin.js for the full
+  // matrix), AND the configured service-account email actually belongs to
+  // that same resolved project. The second check closes a gap the first
+  // one alone wouldn't catch: an operator could correctly set
+  // FIREBASE_PROJECT_ID=monkey-see-c4c28 for a staging deploy while
+  // accidentally leaving FIREBASE_SERVICE_ACCOUNT_EMAIL/
+  // FIREBASE_SA_PRIVATE_KEY set to production's real values — resolveProjectId()
+  // alone wouldn't notice that mismatch, since it never inspects the SA
+  // credentials. Every real Firebase/GCP default service account email is
+  // "...@<project-id>.iam.gserviceaccount.com", so this is a reliable,
+  // non-secret check. Both failures are logged server-side only — never
+  // returned to the caller.
+  let resolvedProjectId;
+  try {
+    resolvedProjectId = resolveProjectId();
+  } catch (err) {
+    console.error("create-custom-token: refusing to mint — deploy environment is misconfigured:", err.message);
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
+  }
+  if (resolvedProjectId && !SERVICE_ACCOUNT_EMAIL.endsWith(`@${resolvedProjectId}.iam.gserviceaccount.com`)) {
+    console.error(`create-custom-token: refusing to mint — configured service account does not belong to the resolved project "${resolvedProjectId}".`);
     return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
   }
 
