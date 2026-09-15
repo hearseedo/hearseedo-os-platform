@@ -5,10 +5,13 @@
 // a client-supplied uid/sso_token with no verification at all — anyone could
 // call it and consume a paid Gemini request. It now requires a valid
 // Firebase ID token and derives identity from it server-side.
-const { verifyIdToken } = require("./_firebaseAdmin");
+const { verifyIdToken, resolveProjectId } = require("./_firebaseAdmin");
 
 const MODEL        = "gemini-2.5-flash";
-const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — see _firebaseAdmin.js's
+// resolveProjectId: fails closed for a real deploy, never silently
+// defaults to production.
+const PROJECT_ID   = resolveProjectId();
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE      = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 const CORS  = {

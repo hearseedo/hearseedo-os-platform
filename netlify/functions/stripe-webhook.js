@@ -1,8 +1,11 @@
 const crypto = require("crypto");
-const { firestoreFetch } = require("./_firebaseAdmin");
+const { firestoreFetch, resolveProjectId } = require("./_firebaseAdmin");
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-const PROJECT_ID     = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — see _firebaseAdmin.js's
+// resolveProjectId: fails closed for a real deploy, never silently
+// defaults to production.
+const PROJECT_ID     = resolveProjectId();
 
 const FOUNDING_LIMIT = 200; // first 200 paying users get the Founding Member badge
 

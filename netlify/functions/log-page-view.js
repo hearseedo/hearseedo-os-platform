@@ -4,9 +4,18 @@
 
 const crypto     = require("crypto");
 const { normalizePem } = require("./_pemUtils");
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
+// Staging-isolation hardening (2026-09-16) — this file intentionally has
+// its own independent OAuth2 exchange (see comment below), but PROJECT_ID
+// must still come from the same fail-closed resolver every other function
+// uses, not its own hardcoded production fallback.
+const { resolveProjectId } = require("./_firebaseAdmin");
+const PROJECT_ID = resolveProjectId();
 
-const SA_EMAIL = "firebase-adminsdk-fbsvc@hear-see-do-os-ai.iam.gserviceaccount.com";
+// SA_EMAIL had a hardcoded production service-account address here — the
+// most dangerous shape of this bug alongside track-event.js's hardcoded
+// PROJECT_ID, since it fixed the SIGNING IDENTITY, not just the target
+// project. Now required explicitly, no fallback.
+const SA_EMAIL = process.env.FIREBASE_SERVICE_ACCOUNT_EMAIL || null;
 // Key split across two env vars to stay under Lambda 4KB limit; neither half is a valid PEM
 const SA_KEY_B64 = (process.env.FIREBASE_SA_KEY_A || "") + (process.env.FIREBASE_SA_KEY_B || "");
 
@@ -67,6 +76,10 @@ exports.handler = async (event) => {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
 
   try {
+    if (!SA_EMAIL) {
+      console.error("log-page-view: FIREBASE_SERVICE_ACCOUNT_EMAIL is not configured.");
+      return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Server not configured" }) };
+    }
     const privateKey = resolvePrivateKeyPem();
     const token      = await getAccessToken(SA_EMAIL, privateKey);
 
