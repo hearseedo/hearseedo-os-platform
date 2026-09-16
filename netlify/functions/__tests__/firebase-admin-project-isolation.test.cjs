@@ -1,22 +1,25 @@
-// Staging-isolation hardening (2026-09-16, corrected same-day) — unit tests
-// for resolveProjectId()/PROJECT_ID/SA_EMAIL in _firebaseAdmin.js.
+// Staging-isolation hardening (2026-09-16, corrected twice same-day) —
+// unit tests for resolveProjectId()/PROJECT_ID/SA_EMAIL in _firebaseAdmin.js.
 //
-// Two independent signals are required for any real deploy:
-//   - process.env.HSD_ENV  — "production" | "staging", HSD's own identity
-//     for this deploy. No default, ever.
-//   - process.env.CONTEXT  — Netlify's own deploy-context signal
-//     ("production" | "deploy-preview" | "branch-deploy"), automatically
-//     set on every real deploy, never set for a plain `node --test` run.
+// Two independent, explicit signals are required for any real deploy:
+//   - process.env.HSD_ENV            — "production" | "staging", HSD's own
+//     identity for this deploy. No default, ever.
+//   - process.env.HSD_DEPLOY_CONTEXT — "published" | "deploy-preview" |
+//     "branch-deploy" | "preview-server". WE set this explicitly per
+//     deploy context on each Netlify site — it is never inferred from
+//     Netlify's own process.env.CONTEXT, which was found to be a
+//     build-time-only variable not reliably present in a deployed
+//     Function's runtime (confirmed via /api/config-status on the real
+//     staging deploy, which reported CONTEXT as simply absent). A signal
+//     that isn't reliably present at runtime can't gate access to Firebase
+//     credentials, hence the switch to an explicit variable WE control.
 //
-// The critical distinction this correction fixes: Netlify's CONTEXT=
-// "production" means "the published deploy of whichever site this is" —
-// NOT "this is HSD's production Firebase project". A separate staging
-// Netlify site's own normal published deployment legitimately has
-// CONTEXT=production while correctly needing HSD_ENV=staging and
-// FIREBASE_PROJECT_ID=monkey-see-c4c28. The original (same-day, prior)
-// version of this fix conflated the two and would have wrongly rejected
-// exactly that combination — see the "staging site's own published
-// deployment" test below, which is the one this correction exists for.
+// Neither HSD_ENV nor HSD_DEPLOY_CONTEXT is set by a plain `node --test`
+// run or a local script — every test below supplies its own explicit
+// configuration rather than relying on either variable's mere absence to
+// mean "local execution"; the "local execution" scenarios themselves are
+// exercised as their own explicit test cases (see the "no real-deploy
+// signal at all" section below).
 //
 // Uses only fake, non-secret project ids/emails. Run with:
 //   node --test netlify/functions/__tests__/firebase-admin-project-isolation.test.cjs
@@ -38,7 +41,7 @@ const { privateKey: FAKE_REAL_PEM } = crypto.generateKeyPairSync("rsa", {
 });
 
 function withEnv(vars, fn) {
-  const keys = ["CONTEXT", "HSD_ENV", "FIREBASE_PROJECT_ID", "FIREBASE_SERVICE_ACCOUNT_EMAIL"];
+  const keys = ["CONTEXT", "HSD_ENV", "HSD_DEPLOY_CONTEXT", "FIREBASE_PROJECT_ID", "FIREBASE_SERVICE_ACCOUNT_EMAIL"];
   const original = {};
   for (const k of keys) original[k] = process.env[k];
   for (const k of keys) delete process.env[k];
@@ -59,81 +62,98 @@ function freshRequire() {
 }
 
 // ── resolveProjectId(): the pure decision function, called directly ─────
-// Fetched ONCE via a safe (no-CONTEXT) require — resolveProjectId() itself
-// re-reads process.env fresh on every call, so the same function reference
-// can be reused across every scenario below without re-requiring. This
-// matters because the module ALSO calls resolveProjectId() eagerly at its
-// own top level (to compute PROJECT_ID) — re-requiring with an
+// Fetched ONCE via a safe (no real-deploy signal) require — resolveProjectId()
+// itself re-reads process.env fresh on every call, so the same function
+// reference can be reused across every scenario below without re-requiring.
+// This matters because the module ALSO calls resolveProjectId() eagerly at
+// its own top level (to compute PROJECT_ID) — re-requiring with an
 // intentionally-bad env, as these tests need to, would throw during the
 // require() itself, before ever reaching the function this section means
 // to exercise directly.
 const { resolveProjectId, FirestoreConfigError } = withEnv({}, () => freshRequire());
 
-test("no CONTEXT at all (a plain local/test run) resolves to null, never to production, regardless of HSD_ENV", () => {
+// ── No real-deploy signal at all (explicit local/test-run scenarios) ────
+
+test("no HSD_ENV and no HSD_DEPLOY_CONTEXT (a plain local/test run) resolves to null, never to production", () => {
   withEnv({}, () => {
     assert.equal(resolveProjectId(), null);
   });
 });
 
-test("no CONTEXT but an explicit FIREBASE_PROJECT_ID (local override) is honored as-is", () => {
+test("no HSD_ENV/HSD_DEPLOY_CONTEXT but an explicit FIREBASE_PROJECT_ID (local override) is honored as-is", () => {
   withEnv({ FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    assert.equal(resolveProjectId(), STAGING_ID);
+  });
+});
+
+test("Netlify's own CONTEXT is never consulted — setting it alone (with neither HSD var set) still resolves as a local run", () => {
+  withEnv({ CONTEXT: "production", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
     assert.equal(resolveProjectId(), STAGING_ID);
   });
 });
 
 // ── Genuine production ───────────────────────────────────────────────────
 
-test("genuine production: HSD_ENV=production, CONTEXT=production, project=production → PASS", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "production", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+test("production + published + production Firebase → PASS", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.equal(resolveProjectId(), PRODUCTION_ID);
   });
 });
 
-test("production preview attempting production access: HSD_ENV=production, CONTEXT=deploy-preview → FAIL CLOSED", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "deploy-preview", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+test("production + deploy-preview + production Firebase → FAIL", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "deploy-preview", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
-test("production branch-deploy attempting production access: HSD_ENV=production, CONTEXT=branch-deploy → FAIL CLOSED", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+test("production + branch-deploy + production Firebase → FAIL", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
-test("production pointing at staging: HSD_ENV=production, CONTEXT=production, project=staging → FAIL CLOSED", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "production", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+test("production + preview-server + production Firebase → FAIL", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "preview-server", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
-// ── HSD staging — including the case this correction exists for ────────
+test("production pointing at staging: HSD_ENV=production, HSD_DEPLOY_CONTEXT=published, project=staging → FAIL CLOSED", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    assert.throws(() => resolveProjectId(), FirestoreConfigError);
+  });
+});
 
-test("CRITICAL: the separate staging site's own published deployment — HSD_ENV=staging, CONTEXT=production, project=staging → PASS", () => {
-  // Netlify's CONTEXT=production here means only "this is the staging
-  // site's own main/published deploy" — it is NOT a claim about HSD
-  // production. This must be allowed.
-  withEnv({ HSD_ENV: "staging", CONTEXT: "production", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+// ── HSD staging ───────────────────────────────────────────────────────────
+
+test("staging + published + staging Firebase → PASS", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
     assert.equal(resolveProjectId(), STAGING_ID);
   });
 });
 
-test("staging preview: HSD_ENV=staging, CONTEXT=deploy-preview, project=staging → PASS", () => {
-  withEnv({ HSD_ENV: "staging", CONTEXT: "deploy-preview", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+test("staging + deploy-preview + staging Firebase → PASS", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "deploy-preview", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
     assert.equal(resolveProjectId(), STAGING_ID);
   });
 });
 
-test("staging branch-deploy: HSD_ENV=staging, CONTEXT=branch-deploy, project=staging → PASS", () => {
-  withEnv({ HSD_ENV: "staging", CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+test("staging + branch-deploy + staging Firebase → PASS", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
     assert.equal(resolveProjectId(), STAGING_ID);
   });
 });
 
-test("staging attempting production Firebase is rejected under every Netlify context", () => {
-  for (const context of ["production", "deploy-preview", "branch-deploy"]) {
-    withEnv({ HSD_ENV: "staging", CONTEXT: context, FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
-      assert.throws(() => resolveProjectId(), FirestoreConfigError, `context=${context} must be rejected`);
+test("staging + preview-server + staging Firebase → PASS", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "preview-server", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    assert.equal(resolveProjectId(), STAGING_ID);
+  });
+});
+
+test("staging + any context + production Firebase → FAIL", () => {
+  for (const deployContext of ["published", "deploy-preview", "branch-deploy", "preview-server"]) {
+    withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: deployContext, FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+      assert.throws(() => resolveProjectId(), FirestoreConfigError, `deployContext=${deployContext} must be rejected`);
     });
   }
 });
@@ -141,30 +161,52 @@ test("staging attempting production Firebase is rejected under every Netlify con
 // ── Missing / invalid HSD_ENV ────────────────────────────────────────────
 
 test("missing HSD_ENV on a real deploy fails closed", () => {
-  withEnv({ CONTEXT: "production", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+  withEnv({ HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
 test("empty-string HSD_ENV fails closed", () => {
-  withEnv({ CONTEXT: "production", HSD_ENV: "", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+  withEnv({ HSD_DEPLOY_CONTEXT: "published", HSD_ENV: "", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
 test("an unrecognized HSD_ENV value fails closed", () => {
-  withEnv({ CONTEXT: "production", HSD_ENV: "test123", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+  withEnv({ HSD_DEPLOY_CONTEXT: "published", HSD_ENV: "test123", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+    assert.throws(() => resolveProjectId(), FirestoreConfigError);
+  });
+});
+
+// ── Missing / invalid HSD_DEPLOY_CONTEXT ─────────────────────────────────
+
+test("missing HSD_DEPLOY_CONTEXT on a real deploy fails closed", () => {
+  withEnv({ HSD_ENV: "staging", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    assert.throws(() => resolveProjectId(), FirestoreConfigError);
+  });
+});
+
+test("empty-string HSD_DEPLOY_CONTEXT fails closed", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    assert.throws(() => resolveProjectId(), FirestoreConfigError);
+  });
+});
+
+test("an unrecognized HSD_DEPLOY_CONTEXT value fails closed", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "production", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+    // "production" is Netlify's own CONTEXT vocabulary, not a valid
+    // HSD_DEPLOY_CONTEXT value — must be rejected, not silently accepted.
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
 
 // ── Missing project id (retained) ────────────────────────────────────────
 
-test("valid HSD_ENV but FIREBASE_PROJECT_ID missing fails closed rather than guessing", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "production" }, () => {
+test("valid HSD_ENV/HSD_DEPLOY_CONTEXT but FIREBASE_PROJECT_ID missing fails closed rather than guessing", () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "published" }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
-  withEnv({ HSD_ENV: "staging", CONTEXT: "production" }, () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "published" }, () => {
     assert.throws(() => resolveProjectId(), FirestoreConfigError);
   });
 });
@@ -172,27 +214,27 @@ test("valid HSD_ENV but FIREBASE_PROJECT_ID missing fails closed rather than gue
 // ── Module-load-time PROJECT_ID: proves require() itself is safe/unsafe
 // in exactly the right circumstances ──────────────────────────────────
 
-test("requiring the module with no CONTEXT never throws (existing test suite safety)", () => {
+test("requiring the module with no real-deploy signal never throws (existing test suite safety)", () => {
   withEnv({}, () => {
     assert.doesNotThrow(() => freshRequire());
   });
 });
 
 test("requiring the module in a simulated genuine-production deploy succeeds", () => {
-  withEnv({ HSD_ENV: "production", CONTEXT: "production", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+  withEnv({ HSD_ENV: "production", HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.doesNotThrow(() => freshRequire());
   });
 });
 
-test("requiring the module in a simulated staging site's published deploy succeeds (CONTEXT=production, HSD_ENV=staging)", () => {
-  withEnv({ HSD_ENV: "staging", CONTEXT: "production", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
+test("requiring the module in a simulated staging site's published deploy succeeds", () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "published", FIREBASE_PROJECT_ID: STAGING_ID }, () => {
     const { PROJECT_ID } = freshRequire();
     assert.equal(PROJECT_ID, STAGING_ID);
   });
 });
 
 test("requiring the module in a simulated real deploy with a bad project id throws at load time — refuses to start", () => {
-  withEnv({ HSD_ENV: "staging", CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
+  withEnv({ HSD_ENV: "staging", HSD_DEPLOY_CONTEXT: "branch-deploy", FIREBASE_PROJECT_ID: PRODUCTION_ID }, () => {
     assert.throws(() => freshRequire());
   });
 });

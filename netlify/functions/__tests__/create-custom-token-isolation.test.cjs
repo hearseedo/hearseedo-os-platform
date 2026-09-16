@@ -1,18 +1,21 @@
-// Staging-isolation hardening (2026-09-16) — regression tests for
-// create-custom-token.js's environment/project validation. Before this
-// fix, this function minted SSO custom tokens signed with whatever
-// service-account credentials happened to be configured, with no check at
-// all on which Firebase project (or HSD environment) they belonged to — a
-// staging deploy accidentally holding production SA credentials could mint
-// valid production-identity tokens.
+// Staging-isolation hardening (2026-09-16, corrected twice same-day) —
+// regression tests for create-custom-token.js's environment/project
+// validation. Before this fix, this function minted SSO custom tokens
+// signed with whatever service-account credentials happened to be
+// configured, with no check at all on which Firebase project (or HSD
+// environment) they belonged to — a staging deploy accidentally holding
+// production SA credentials could mint valid production-identity tokens.
 //
-// The two new checks run BEFORE any real ID-token verification (no network
+// The two checks run BEFORE any real ID-token verification (no network
 // call needed to exercise them): resolveProjectId() (imported from
-// _firebaseAdmin.js — same fail-closed matrix used everywhere else) must
-// succeed, and the configured FIREBASE_SERVICE_ACCOUNT_EMAIL must actually
-// belong to the resolved project. Uses only fake, non-secret values — the
-// "private key" here never needs to be real since these tests all fail
-// before it would ever be used to sign anything. Run with:
+// _firebaseAdmin.js — same fail-closed matrix used everywhere else, now
+// keyed on the explicit HSD_DEPLOY_CONTEXT variable rather than Netlify's
+// own CONTEXT, which was found not to be reliably present in a deployed
+// Function's runtime) must succeed, and the configured
+// FIREBASE_SERVICE_ACCOUNT_EMAIL must actually belong to the resolved
+// project. Uses only fake, non-secret values — the "private key" here
+// never needs to be real since these tests all fail before it would ever
+// be used to sign anything. Run with:
 //   node --test netlify/functions/__tests__/create-custom-token-isolation.test.cjs
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -22,7 +25,7 @@ const PRODUCTION_ID = "hear-see-do-os-ai";
 const STAGING_ID = "monkey-see-c4c28";
 
 const MANAGED_KEYS = [
-  "CONTEXT", "HSD_ENV", "FIREBASE_PROJECT_ID",
+  "CONTEXT", "HSD_ENV", "HSD_DEPLOY_CONTEXT", "FIREBASE_PROJECT_ID",
   "FIREBASE_SERVICE_ACCOUNT_EMAIL", "FIREBASE_SA_PRIVATE_KEY",
   "FIREBASE_API_KEY", "VITE_FIREBASE_API_KEY",
 ];
@@ -44,6 +47,15 @@ function withEnv(vars, fn) {
 
 function freshHandler() {
   delete require.cache[HANDLER_PATH];
+  // Deliberately does NOT clear _firebaseAdmin.js's own cache entry:
+  // that module computes PROJECT_ID = resolveProjectId() eagerly at its
+  // own top level, which throws given the deliberately-invalid env
+  // combinations these tests construct — but create-custom-token.js only
+  // imports the resolveProjectId FUNCTION (not that precomputed PROJECT_ID
+  // value), and the function itself re-reads process.env fresh on every
+  // call regardless of when the module was first loaded. Leaving
+  // _firebaseAdmin.js cached from its first (successful) load avoids
+  // re-triggering that unrelated module-load-time throw here.
   return require(HANDLER_PATH).handler;
 }
 
@@ -60,7 +72,7 @@ test("staging cannot mint a token using production service-account credentials",
   await withEnv({
     ...baseConfig,
     HSD_ENV: "staging",
-    CONTEXT: "production", // the staging site's own published deploy
+    HSD_DEPLOY_CONTEXT: "published", // the staging site's own published deploy
     FIREBASE_PROJECT_ID: STAGING_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -71,11 +83,11 @@ test("staging cannot mint a token using production service-account credentials",
   });
 });
 
-test("production preview (deploy-preview context) cannot mint a production-identity token", async () => {
+test("production deploy-preview cannot mint a production-identity token", async () => {
   await withEnv({
     ...baseConfig,
     HSD_ENV: "production",
-    CONTEXT: "deploy-preview",
+    HSD_DEPLOY_CONTEXT: "deploy-preview",
     FIREBASE_PROJECT_ID: PRODUCTION_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -90,7 +102,21 @@ test("production branch-deploy cannot mint a production-identity token either", 
   await withEnv({
     ...baseConfig,
     HSD_ENV: "production",
-    CONTEXT: "branch-deploy",
+    HSD_DEPLOY_CONTEXT: "branch-deploy",
+    FIREBASE_PROJECT_ID: PRODUCTION_ID,
+    FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
+  }, async () => {
+    const handler = freshHandler();
+    const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "irrelevant" }) });
+    assert.equal(res.statusCode, 503);
+  });
+});
+
+test("production preview-server cannot mint a production-identity token either", async () => {
+  await withEnv({
+    ...baseConfig,
+    HSD_ENV: "production",
+    HSD_DEPLOY_CONTEXT: "preview-server",
     FIREBASE_PROJECT_ID: PRODUCTION_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -103,7 +129,7 @@ test("production branch-deploy cannot mint a production-identity token either", 
 test("missing HSD_ENV on a real deploy fails closed", async () => {
   await withEnv({
     ...baseConfig,
-    CONTEXT: "production",
+    HSD_DEPLOY_CONTEXT: "published",
     FIREBASE_PROJECT_ID: PRODUCTION_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -113,11 +139,38 @@ test("missing HSD_ENV on a real deploy fails closed", async () => {
   });
 });
 
-test("genuine production (HSD_ENV=production, CONTEXT=production, matching SA + project) passes validation and proceeds to idToken verification", async () => {
+test("missing HSD_DEPLOY_CONTEXT on a real deploy fails closed", async () => {
+  await withEnv({
+    ...baseConfig,
+    HSD_ENV: "staging",
+    FIREBASE_PROJECT_ID: STAGING_ID,
+    FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${STAGING_ID}.iam.gserviceaccount.com`,
+  }, async () => {
+    const handler = freshHandler();
+    const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "irrelevant" }) });
+    assert.equal(res.statusCode, 503);
+  });
+});
+
+test("an invalid HSD_DEPLOY_CONTEXT value fails closed", async () => {
+  await withEnv({
+    ...baseConfig,
+    HSD_ENV: "staging",
+    HSD_DEPLOY_CONTEXT: "production", // Netlify's own CONTEXT vocabulary, not a valid value here
+    FIREBASE_PROJECT_ID: STAGING_ID,
+    FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${STAGING_ID}.iam.gserviceaccount.com`,
+  }, async () => {
+    const handler = freshHandler();
+    const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "irrelevant" }) });
+    assert.equal(res.statusCode, 503);
+  });
+});
+
+test("genuine production (HSD_ENV=production, HSD_DEPLOY_CONTEXT=published, matching SA + project) passes validation and proceeds to idToken verification", async () => {
   await withEnv({
     ...baseConfig,
     HSD_ENV: "production",
-    CONTEXT: "production",
+    HSD_DEPLOY_CONTEXT: "published",
     FIREBASE_PROJECT_ID: PRODUCTION_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -131,11 +184,11 @@ test("genuine production (HSD_ENV=production, CONTEXT=production, matching SA + 
   });
 });
 
-test("the staging site's own published deployment (CONTEXT=production, HSD_ENV=staging) with matching staging SA + project passes validation", async () => {
+test("the staging site's own published deployment with matching staging SA + project passes validation", async () => {
   await withEnv({
     ...baseConfig,
     HSD_ENV: "staging",
-    CONTEXT: "production",
+    HSD_DEPLOY_CONTEXT: "published",
     FIREBASE_PROJECT_ID: STAGING_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${STAGING_ID}.iam.gserviceaccount.com`,
   }, async () => {
@@ -149,7 +202,7 @@ test("no credential information (key material, tokens) appears in any response b
   await withEnv({
     ...baseConfig,
     HSD_ENV: "staging",
-    CONTEXT: "production",
+    HSD_DEPLOY_CONTEXT: "published",
     FIREBASE_PROJECT_ID: STAGING_ID,
     FIREBASE_SERVICE_ACCOUNT_EMAIL: `firebase-adminsdk-fbsvc@${PRODUCTION_ID}.iam.gserviceaccount.com`,
   }, async () => {

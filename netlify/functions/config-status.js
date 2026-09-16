@@ -1,27 +1,23 @@
-// Staging-isolation hardening (2026-09-16, corrected same-day) — safe,
+// Staging-isolation hardening (2026-09-16, corrected twice same-day) — safe,
 // non-secret diagnostic endpoint for confirming which Firebase project a
 // deployed Function is actually configured to use, without exposing any
 // credential material.
 // GET /api/config-status →
-//   { hsdEnvironment, netlifyContext, firebaseProjectId, commit, status }
+//   { hsdEnvironment, hsdDeployContext, firebaseProjectId, status, url }
 //
-// hsdEnvironment (HSD_ENV) and netlifyContext (Netlify's own CONTEXT) are
-// reported SEPARATELY and deliberately — they are not the same concept.
-// CONTEXT=production means "this is the published deploy of whichever
-// Netlify site this is"; it says nothing about which HSD environment that
-// site represents. A separate staging Netlify site's own published deploy
-// legitimately reports { hsdEnvironment: "staging", netlifyContext:
-// "production", firebaseProjectId: "monkey-see-c4c28" } — that combination
-// is correct, not a bug; see _firebaseAdmin.js's resolveProjectId for the
-// full safety matrix this reflects.
-//
-// Deliberately requires _firebaseAdmin.js INSIDE the handler (not at module
-// top) and wrapped in try/catch: that module throws at require() time when
-// a real deploy's HSD_ENV/CONTEXT/FIREBASE_PROJECT_ID combination is
-// invalid — this endpoint's whole purpose is to surface that as a readable
-// { status: "misconfigured" } response instead of a bare 502, so requiring
-// it eagerly (and letting the throw propagate uncaught) would defeat the
-// point.
+// Earlier versions of this endpoint reported process.env.CONTEXT as
+// "netlifyContext" and process.env.COMMIT_REF as "commit". Both turned out
+// to be Netlify BUILD-time variables that are not reliably present in a
+// deployed Function's actual runtime — verified directly against the real
+// staging deploy, which reported CONTEXT as simply absent ("local"),
+// despite genuinely being a published deploy. Reporting a value that can't
+// be trusted at runtime is worse than not reporting it, so both fields have
+// been replaced with hsdDeployContext (process.env.HSD_DEPLOY_CONTEXT) — an
+// explicit, Functions-scoped variable WE set per deploy context on each
+// site (see _firebaseAdmin.js's resolveProjectId for the full safety
+// matrix this reflects). commit is omitted entirely rather than reported as
+// a value that may not reflect reality; url reports Netlify's own
+// non-secret runtime URL, which IS reliably present.
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -31,9 +27,9 @@ const CORS = {
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
 
-  const netlifyContext = process.env.CONTEXT || "local";
   const hsdEnvironment = process.env.HSD_ENV || null;
-  const commit = process.env.COMMIT_REF ? process.env.COMMIT_REF.slice(0, 7) : null;
+  const hsdDeployContext = process.env.HSD_DEPLOY_CONTEXT || null;
+  const url = process.env.URL || null;
 
   try {
     // Fresh require each invocation (not cached at module scope) so a
@@ -45,23 +41,23 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         headers: { ...CORS, "Content-Type": "application/json" },
-        body: JSON.stringify({ hsdEnvironment, netlifyContext, commit, status: "unconfigured", firebaseProjectId: null }),
+        body: JSON.stringify({ hsdEnvironment, hsdDeployContext, url, status: "unconfigured", firebaseProjectId: null }),
       };
     }
     return {
       statusCode: 200,
       headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ hsdEnvironment, netlifyContext, commit, status: "configured", firebaseProjectId: PROJECT_ID }),
+      body: JSON.stringify({ hsdEnvironment, hsdDeployContext, url, status: "configured", firebaseProjectId: PROJECT_ID }),
     };
   } catch (err) {
-    // resolveProjectId's FirestoreConfigError (missing HSD_ENV, an
-    // unrecognized HSD_ENV, missing project id, or an
-    // HSD_ENV/CONTEXT/project mismatch) lands here — reported, never
-    // thrown raw.
+    // resolveProjectId's FirestoreConfigError (missing/invalid HSD_ENV,
+    // missing/invalid HSD_DEPLOY_CONTEXT, missing project id, or an
+    // HSD_ENV/HSD_DEPLOY_CONTEXT/project mismatch) lands here — reported,
+    // never thrown raw.
     return {
       statusCode: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ hsdEnvironment, netlifyContext, commit, status: "misconfigured", error: err.message }),
+      body: JSON.stringify({ hsdEnvironment, hsdDeployContext, url, status: "misconfigured", error: err.message }),
     };
   }
 };

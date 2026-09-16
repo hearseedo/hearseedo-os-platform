@@ -33,34 +33,47 @@ class FirestoreConfigError extends Error {
   }
 }
 
-// Staging-isolation hardening (2026-09-16, corrected same-day). Netlify's
-// process.env.CONTEXT ("production", "deploy-preview", "branch-deploy") is
-// NOT the same concept as "which HSD environment is this" — CONTEXT means
-// "the published deploy of whichever Netlify SITE this is", and a separate
-// staging Netlify site's own published deploy legitimately has
-// CONTEXT=production too (Netlify's "production" just means "this site's
-// main, published deploy" — it says nothing about which HSD environment
-// that site represents). Conflating the two would incorrectly reject a
-// staging site's own normal published deployment.
+// Staging-isolation hardening (2026-09-16, corrected twice same-day).
 //
-// So there are two independent, explicit signals, both required for any
-// real deploy:
-//   - process.env.HSD_ENV        — "production" | "staging", HSD's own
+// First correction: Netlify's process.env.CONTEXT ("production",
+// "deploy-preview", "branch-deploy") is NOT the same concept as "which HSD
+// environment is this" — CONTEXT means "the published deploy of whichever
+// Netlify SITE this is", and a separate staging Netlify site's own
+// published deploy legitimately has CONTEXT=production too.
+//
+// Second correction (this one): CONTEXT (and COMMIT_REF) turned out to be
+// Netlify BUILD-time variables that are not reliably injected into a
+// deployed Function's actual runtime environment at all — verified via
+// /api/config-status on the real staging deploy, which reported
+// CONTEXT as simply absent. A signal that isn't reliably present at
+// runtime can't be trusted to gate access to Firebase credentials, so
+// runtime reliance on process.env.CONTEXT has been removed entirely.
+//
+// In its place: process.env.HSD_DEPLOY_CONTEXT — a small, explicit,
+// Functions-scoped variable that WE set per Netlify deploy context on each
+// site (never inferred from Netlify's own CONTEXT), one of:
+//   "published"       — the site's own genuine published/main deploy
+//   "deploy-preview"   — a PR/deploy-preview build
+//   "branch-deploy"    — a non-main branch build
+//   "preview-server"   — Netlify's Preview Server / Agent Runner compute
+//
+// Two independent, explicit signals are now required for any real deploy:
+//   - process.env.HSD_ENV            — "production" | "staging", HSD's own
 //     identity for this deploy. No default, ever. Set once per Netlify
 //     site (production site always "production", staging site always
-//     "staging" — this is what actually distinguishes them, not CONTEXT).
-//   - process.env.CONTEXT        — Netlify's own deploy-context signal.
-//     Used only for ONE additional check: HSD_ENV=production must also be
-//     the genuine published production deploy (CONTEXT=production) of the
-//     PRODUCTION site, so a deploy-preview/branch-deploy accidentally
-//     built with HSD_ENV=production can never reach production Firestore.
-//     Staging has no such restriction — a staging site's preview/branch
+//     "staging").
+//   - process.env.HSD_DEPLOY_CONTEXT — which of the four contexts above
+//     this specific running deploy is. Used for ONE additional check:
+//     HSD_ENV=production must also be HSD_DEPLOY_CONTEXT="published", so a
+//     deploy-preview/branch-deploy/preview-server build that (mis)declares
+//     HSD_ENV=production can never reach production Firestore. Staging has
+//     no such restriction — a staging site's preview/branch/preview-server
 //     deploys are allowed to use staging Firebase too.
 //
-// Neither variable is set by a plain `node --test` run or a local script —
-// process.env.CONTEXT is the "is this a real deploy at all" gate, matching
-// this repo's existing function tests (several require this module
-// transitively with zero Firebase env configured, replacing
+// Neither HSD_ENV nor HSD_DEPLOY_CONTEXT is set by a plain `node --test`
+// run or a local script — their absence is the "is this a real deploy at
+// all" gate, matching this repo's existing function tests (several require
+// this module transitively with zero Firebase env configured, replacing
 // firestoreFetch/verifyIdToken with fakes before invoking any handler, so
 // PROJECT_ID/FS_BASE are computed but never actually used in that path).
 const PRODUCTION_PROJECT_ID = "hear-see-do-os-ai";
@@ -68,12 +81,28 @@ const HSD_ENV_PRODUCTION = "production";
 const HSD_ENV_STAGING = "staging";
 const VALID_HSD_ENVS = [HSD_ENV_PRODUCTION, HSD_ENV_STAGING];
 
+const HSD_DEPLOY_CONTEXT_PUBLISHED = "published";
+const HSD_DEPLOY_CONTEXT_DEPLOY_PREVIEW = "deploy-preview";
+const HSD_DEPLOY_CONTEXT_BRANCH_DEPLOY = "branch-deploy";
+const HSD_DEPLOY_CONTEXT_PREVIEW_SERVER = "preview-server";
+const VALID_DEPLOY_CONTEXTS = [
+  HSD_DEPLOY_CONTEXT_PUBLISHED,
+  HSD_DEPLOY_CONTEXT_DEPLOY_PREVIEW,
+  HSD_DEPLOY_CONTEXT_BRANCH_DEPLOY,
+  HSD_DEPLOY_CONTEXT_PREVIEW_SERVER,
+];
+
 function resolveProjectId() {
   const envProjectId = process.env.FIREBASE_PROJECT_ID;
-  const context = process.env.CONTEXT;
   const hsdEnv = process.env.HSD_ENV;
+  const deployContext = process.env.HSD_DEPLOY_CONTEXT;
 
-  if (!context) {
+  // A real deploy always declares at least one of these explicitly; a local
+  // test/script run declares neither. Gating on their presence (rather than
+  // on Netlify's own CONTEXT, which is not reliably present at Function
+  // runtime) is what makes this check trustworthy in a deployed Function.
+  const isRealDeploy = hsdEnv !== undefined || deployContext !== undefined;
+  if (!isRealDeploy) {
     // Not a real Netlify deploy (local test run / script) — nothing to
     // validate against. Never defaults to the production project.
     return envProjectId || null;
@@ -83,12 +112,19 @@ function resolveProjectId() {
   // missing, empty, or an unrecognized value all fail closed the same way.
   if (!hsdEnv || !VALID_HSD_ENVS.includes(hsdEnv)) {
     throw new FirestoreConfigError(
-      `HSD_ENV must be explicitly set to "production" or "staging" for the "${context}" deploy context (got ${hsdEnv ? JSON.stringify(hsdEnv) : "unset"}). Refusing to start rather than guessing.`
+      `HSD_ENV must be explicitly set to "production" or "staging" (got ${hsdEnv ? JSON.stringify(hsdEnv) : "unset"}). Refusing to start rather than guessing.`
+    );
+  }
+  // A real deploy must always declare its deploy context explicitly too —
+  // missing or unrecognized fails closed the same way.
+  if (!deployContext || !VALID_DEPLOY_CONTEXTS.includes(deployContext)) {
+    throw new FirestoreConfigError(
+      `HSD_DEPLOY_CONTEXT must be one of ${VALID_DEPLOY_CONTEXTS.join(", ")} (got ${deployContext ? JSON.stringify(deployContext) : "unset"}). Refusing to start rather than guessing.`
     );
   }
   if (!envProjectId) {
     throw new FirestoreConfigError(
-      `FIREBASE_PROJECT_ID is not set for HSD_ENV="${hsdEnv}" (deploy context "${context}"). Refusing to start rather than guessing a project.`
+      `FIREBASE_PROJECT_ID is not set for HSD_ENV="${hsdEnv}" (deploy context "${deployContext}"). Refusing to start rather than guessing a project.`
     );
   }
 
@@ -101,22 +137,20 @@ function resolveProjectId() {
       );
     }
     // Production Firebase may only be reached from the genuine published
-    // production deploy — never a deploy-preview or branch-deploy of the
-    // production site, even one that (mis)declares HSD_ENV=production.
-    if (context !== "production") {
+    // production deploy — never a deploy-preview, branch-deploy, or
+    // preview-server build, even one that (mis)declares HSD_ENV=production.
+    if (deployContext !== HSD_DEPLOY_CONTEXT_PUBLISHED) {
       throw new FirestoreConfigError(
-        `Refusing to start: HSD_ENV is "production" but this deploy's Netlify context is "${context}", not "production". Only the genuine published production deployment may access production Firebase.`
+        `Refusing to start: HSD_ENV is "production" but HSD_DEPLOY_CONTEXT is "${deployContext}", not "published". Only the genuine published production deployment may access production Firebase.`
       );
     }
     return envProjectId;
   }
 
-  // hsdEnv === HSD_ENV_STAGING — allowed from any Netlify context on the
-  // staging site (its own published deploy included — that deploy's own
-  // CONTEXT is legitimately "production", meaning "this site's main
-  // deploy", which is NOT the same claim as HSD_ENV=production above).
-  // The one absolute rule: staging may never use the production project,
-  // regardless of context.
+  // hsdEnv === HSD_ENV_STAGING — allowed from any valid deploy context on
+  // the staging site (its own published deploy included). The one absolute
+  // rule: staging may never use the production project, regardless of
+  // deploy context.
   if (isProductionProject) {
     throw new FirestoreConfigError(
       `Refusing to start: HSD_ENV is "staging" but FIREBASE_PROJECT_ID is set to the production project ("${PRODUCTION_PROJECT_ID}"). A staging deploy must never target production.`
@@ -296,4 +330,7 @@ module.exports = {
   FirestoreConfigError, resolvePrivateKeyPem,
   PRODUCTION_PROJECT_ID, resolveProjectId, getAccessToken,
   HSD_ENV_PRODUCTION, HSD_ENV_STAGING,
+  HSD_DEPLOY_CONTEXT_PUBLISHED, HSD_DEPLOY_CONTEXT_DEPLOY_PREVIEW,
+  HSD_DEPLOY_CONTEXT_BRANCH_DEPLOY, HSD_DEPLOY_CONTEXT_PREVIEW_SERVER,
+  VALID_DEPLOY_CONTEXTS,
 };
