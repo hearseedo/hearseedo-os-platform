@@ -229,6 +229,14 @@ async function getAccessToken() {
     // Google rejected the credentials (revoked/disabled service account,
     // clock skew, wrong audience, etc.) — a real config problem on our
     // side, never something the calling family can retry their way past.
+    // Temporary diagnostic (2026-09-16): log Google's own error body
+    // server-side only. That body is Google's classification of the
+    // rejection (e.g. {"error":"invalid_grant","error_description":"..."})
+    // — never the request we sent, never the key — so it's safe to log and
+    // to report, and is the only way to distinguish "bad key" from
+    // "disabled service account" from "clock skew" from here.
+    const errorBody = await res.text().catch(() => "<unreadable>");
+    console.error(`getAccessToken: Google token endpoint rejected the request (${res.status}): ${errorBody}`);
     throw new FirestoreConfigError(`Token exchange rejected (${res.status}).`);
   }
   const data = await res.json();
