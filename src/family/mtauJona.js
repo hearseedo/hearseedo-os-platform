@@ -14,7 +14,7 @@
 // construction below (the function signature has no name parameter at
 // all). Jona addresses the learner as "friend"/"champion", same as every
 // other Family Jona conversation.
-import { MTAU_LESSON_1_1 } from "./mtauContent.js";
+import { getMTAULesson } from "./mtauContent.js";
 import { FAMILY_CHILD_SAFETY_RULE } from "./jonaFamily.js";
 
 const AGE_BAND_VOICE = {
@@ -33,7 +33,7 @@ const AGE_BAND_VOICE = {
  * rather than a canned script.
  */
 export function buildMTAUJonaPrompt({ bookId, lessonId, ageBand, currentObjectiveIndex = 0 }) {
-  const lesson = bookId === 1 && lessonId === 1 ? MTAU_LESSON_1_1 : null;
+  const lesson = getMTAULesson(bookId, lessonId);
   const voice = AGE_BAND_VOICE[ageBand] ?? AGE_BAND_VOICE.junior_high;
   const jonaStep = lesson?.steps.find(s => s.kind === "jona");
   const objectives = jonaStep?.objectives ?? [];
@@ -67,6 +67,6 @@ TURN_COMPLETE: <true if the learner gave a real English attempt this turn, other
 
 /** Opening line sent as the first "user" turn so Jona greets the learner first. */
 export function buildMTAUOpeningMessage({ bookId, lessonId }) {
-  const lesson = bookId === 1 && lessonId === 1 ? MTAU_LESSON_1_1 : null;
+  const lesson = getMTAULesson(bookId, lessonId);
   return `Session start. Greet the learner warmly, in character, for ${lesson ? `"${lesson.title}" at ${lesson.location}` : "this lesson"}, and ask the first simple question to get them speaking. Keep it short and exciting.`;
 }

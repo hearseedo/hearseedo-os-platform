@@ -24,7 +24,7 @@ import { useLang } from "../hooks/useLang";
 import { auth } from "../lib/firebase";
 import { FAMILY_COLORS } from "./theme";
 import { getMTAULesson, getMTAUBook } from "./mtauContent";
-import { getMTAULessonProgress, recordMTAUStep, recordMTAULessonCompleted, mtauDocId } from "./mtauProgress";
+import { getMTAULessonProgress, recordMTAUStep, recordMTAULessonCompleted, recordMTAUConfidence, mtauDocId } from "./mtauProgress";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "./mtauJona";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -88,6 +88,8 @@ export default function MTAULesson() {
       if (p) {
         setStepIndex(p.completed ? lesson.steps.length - 1 : (p.currentStep ?? 0));
         setCompletedSteps(p.completedSteps ?? []);
+        setConfidenceBefore(p.confidenceBefore ?? null);
+        setConfidenceAfter(p.confidenceAfter ?? null);
       }
     }).catch(() => setProgress({}));
   }, [user?.uid, profileId, bookId, lessonId, lesson]);
@@ -122,6 +124,14 @@ export default function MTAULesson() {
 
   function recordVoiceAttempt() {
     setVoiceAttempts(a => a + 1);
+  }
+
+  // Persists the 1-5 self-rating onto the same progress doc as steps do —
+  // written immediately (not deferred to lesson completion) so it survives
+  // refresh/resume just like currentStep already does.
+  async function recordConfidence(phase, value) {
+    if (phase === "before") setConfidenceBefore(value); else setConfidenceAfter(value);
+    if (user?.uid) await recordMTAUConfidence(user.uid, profileId, bookId, lessonId, phase, value);
   }
 
   return (
@@ -166,9 +176,8 @@ export default function MTAULesson() {
             practiceName={practiceName}
             setPracticeName={setPracticeName}
             confidenceBefore={confidenceBefore}
-            setConfidenceBefore={setConfidenceBefore}
             confidenceAfter={confidenceAfter}
-            setConfidenceAfter={setConfidenceAfter}
+            onConfidenceChange={recordConfidence}
             onVoiceAttempt={recordVoiceAttempt}
             lang={lang}
           />
@@ -190,7 +199,7 @@ export default function MTAULesson() {
   );
 }
 
-function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practiceName, setPracticeName, confidenceBefore, setConfidenceBefore, confidenceAfter, setConfidenceAfter, onVoiceAttempt, lang }) {
+function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practiceName, setPracticeName, confidenceBefore, confidenceAfter, onConfidenceChange, onVoiceAttempt, lang }) {
   switch (step.kind) {
     case "arrive":
       return (
@@ -209,7 +218,7 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
           <h1 style={headingStyle}>{step.heading}</h1>
           <ScaleRow
             value={step.phase === "before" ? confidenceBefore : confidenceAfter}
-            onChange={step.phase === "before" ? setConfidenceBefore : setConfidenceAfter}
+            onChange={value => onConfidenceChange(step.phase, value)}
             labels={step.scaleLabels}
           />
           {step.note && <p style={noteStyle}>{step.note}</p>}
@@ -255,12 +264,25 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
       );
 
     case "respond":
+    case "review":
+      // Shared render: some lessons' respond/review steps show a character
+      // + speech bubble prompting the learner (Lesson 2/3); Lesson 1's
+      // respond step has neither field, so this degrades gracefully to the
+      // original plain layout — no lesson-specific branching, just optional
+      // fields.
       return (
         <Centered>
-          <Eyebrow>RESPOND</Eyebrow>
-          <h1 style={headingStyle}>{step.heading}</h1>
+          <Eyebrow>{step.kind === "review" ? "QUICK REVIEW" : "RESPOND"}</Eyebrow>
+          {step.character && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>{step.character}</div>
+              {step.bubble && <div style={bubbleStyle}>{step.bubble}</div>}
+            </div>
+          )}
+          {!step.character && <h1 style={headingStyle}>{step.heading}</h1>}
           <MicButton onClick={onVoiceAttempt} />
-          <p style={noteStyle}>{step.note}</p>
+          {step.note && <p style={noteStyle}>{step.note}</p>}
+          {step.successNote && <p style={{ ...noteStyle, color: "#8ee6a8" }}>{step.successNote}</p>}
         </Centered>
       );
 
@@ -286,26 +308,68 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
           <Eyebrow>SEE THE PATTERN</Eyebrow>
           <h1 style={headingStyle}>{step.heading}</h1>
           <p style={bodyStyle}>{step.instruction}</p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {step.tiles.map((tile, i) => <span key={i} style={tileStyle}>{tile}</span>)}
-          </div>
+          {/* Two real shapes seen in the source: a sentence-builder word
+              bank (Lesson 1/3, `tiles`) and pronoun-matching cards
+              (Lesson 2, `pronounCards`) — both generic, neither lesson-specific. */}
+          {step.tiles && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              {step.tiles.map((tile, i) => <span key={i} style={tileStyle}>{tile}</span>)}
+            </div>
+          )}
+          {step.pronounCards && (
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+              {step.pronounCards.map(card => (
+                <div key={card.character} style={{ background: "#1e1e2a", borderRadius: 12, padding: 14, textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>{card.character}</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {card.options.map(opt => (
+                      <button key={opt} onClick={onVoiceAttempt} style={{ ...choiceBtn, marginBottom: 0, display: "inline-block", width: "auto" }}>{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Centered>
       );
 
     case "meet_team":
       return (
         <div>
-          <Eyebrow>MEET THE TEAM</Eyebrow>
+          <Eyebrow>{step.title?.toUpperCase() ?? "MEET THE TEAM"}</Eyebrow>
           <h1 style={headingStyle}>{step.heading}</h1>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {step.characters.map(c => (
               <div key={c.name} style={{ ...dialogueLineStyle, justifyContent: "space-between" }}>
-                <div><strong>{c.name}</strong><div style={{ fontSize: 13, color: "#ccc" }}>{c.line}</div></div>
+                {/* Two real shapes: a fixed greeting line (Lesson 1, `line`)
+                    and a pronoun+detail pair used to build "This is X. Y is
+                    Z." (Lesson 2, `pronoun`/`detail`) — both generic. */}
+                <div>
+                  <strong>{c.name}</strong>
+                  <div style={{ fontSize: 13, color: "#ccc" }}>
+                    {c.line ?? (c.pronoun && c.detail ? `This is ${c.name}. ${c.pronoun} is ${c.detail}.` : "")}
+                  </div>
+                </div>
                 <MicButton small onClick={onVoiceAttempt} />
               </div>
             ))}
           </div>
           <p style={noteStyle}>{step.note}</p>
+        </div>
+      );
+
+    case "number_hunt":
+      return (
+        <div>
+          <Eyebrow>NUMBER HUNT</Eyebrow>
+          <h1 style={headingStyle}>{step.heading}</h1>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {step.items.map(item => (
+              <button key={item.label} onClick={onVoiceAttempt} style={{ ...choiceBtn, textAlign: "center" }}>
+                {item.n} {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       );
 
@@ -319,6 +383,19 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
             <MicButton onClick={onVoiceAttempt} />
           </div>
           <p style={noteStyle}>{step.note}</p>
+        </Centered>
+      );
+
+    case "ask_switch":
+      return (
+        <Centered>
+          <Eyebrow>ASK &amp; SWITCH</Eyebrow>
+          <h1 style={headingStyle}>{step.heading}</h1>
+          {step.characterPair && (
+            <p style={{ fontWeight: 800, marginBottom: 8 }}>{step.characterPair[0]} ⇄ {step.characterPair[1]}</p>
+          )}
+          {step.exchange?.map((line, i) => <p key={i} style={bodyStyle}>{line}</p>)}
+          <MicButton onClick={onVoiceAttempt} />
         </Centered>
       );
 
@@ -350,9 +427,12 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
             <div><div style={{ fontSize: 11, color: "#888" }}>BEFORE</div><div style={{ fontSize: 22, fontWeight: 800 }}>{confidenceBefore ?? "–"}</div></div>
             <div><div style={{ fontSize: 11, color: "#888" }}>AFTER</div><div style={{ fontSize: 22, fontWeight: 800 }}>{confidenceAfter ?? "–"}</div></div>
           </div>
-          <ScaleRow value={confidenceAfter} onChange={setConfidenceAfter} labels={[null, null, null, null, null]} />
+          <ScaleRow value={confidenceAfter} onChange={value => onConfidenceChange("after", value)} labels={[null, null, null, null, null]} />
           {lesson.nextDestination && (
-            <p style={{ ...noteStyle, marginTop: 20 }}>NEXT DESTINATION: {lesson.nextDestination} (Lesson 2 — coming soon)</p>
+            <p style={{ ...noteStyle, marginTop: 20 }}>
+              NEXT DESTINATION: {lesson.nextDestination} (Lesson {lessonId + 1}
+              {getMTAULesson(bookId, lessonId + 1) ? "" : " — coming soon"})
+            </p>
           )}
         </Centered>
       );
@@ -376,10 +456,18 @@ function WorkbookStep({ step }) {
           </div>
         ))}
       </div>
+      {/* Optional reading passage + its own audio control — present on
+          Lesson 2/3, absent on Lesson 1's simpler workbook step. */}
+      {step.readingText && (
+        <div style={{ background: "#1e1e2a", borderRadius: 10, padding: 14, marginBottom: 12 }}>
+          <p style={{ ...bodyStyle, marginBottom: 8 }}>{step.readingText}</p>
+          <ListenButton small onClick={() => speak(step.readingText, "Milo")} />
+        </div>
+      )}
       <button onClick={() => setConfirmed(c => !c)} style={{ ...choiceBtn, borderColor: confirmed ? "#8ee6a8" : "#333" }}>
         {confirmed ? "✓ " : ""}{step.confirmLabel}
       </button>
-      <p style={noteStyle}>{step.note}</p>
+      {step.note && <p style={noteStyle}>{step.note}</p>}
       <p style={{ ...noteStyle, fontSize: 11 }}>This is a self-check — completing the actual workbook pages happens outside the app; nothing here is auto-graded or synced.</p>
     </div>
   );
@@ -406,6 +494,13 @@ function CreateStep({ step, onAttempt }) {
       <Eyebrow>CREATE</Eyebrow>
       <h1 style={headingStyle}>{step.heading}</h1>
       <p style={bodyStyle}>{step.instruction}</p>
+      {/* Optional sentence-starter prompts — present on Lesson 2/3, absent
+          on Lesson 1's simpler create step. */}
+      {step.prompts && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {step.prompts.map((p, i) => <span key={i} style={{ ...tileStyle, textAlign: "center" }}>{p}</span>)}
+        </div>
+      )}
       <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>0:{String(seconds).padStart(2, "0")} / 0:{step.maxSeconds}</div>
       <MicButton active={recording} onClick={toggle} label={recording ? "Stop" : "Record"} />
       <p style={{ ...noteStyle, fontSize: 11 }}>Practice recording only — not uploaded, scored, or evaluated.</p>
@@ -522,6 +617,7 @@ const noteStyle = { fontSize: 12, color: "#8ee6a8", marginTop: 12 };
 const inputStyle = { width: "100%", maxWidth: 320, padding: "12px 16px", borderRadius: 12, border: "1px solid #333", background: "#1e1e2a", color: "#fff", fontSize: 15, marginBottom: 12 };
 const dialogueLineStyle = { display: "flex", alignItems: "center", gap: 10, background: "#1e1e2a", borderRadius: 10, padding: "10px 14px", marginBottom: 8 };
 const tileStyle = { padding: "10px 16px", borderRadius: 10, background: "#2a2a3a", fontWeight: 700 };
+const bubbleStyle = { display: "inline-block", background: "#2a2a3a", borderRadius: 14, padding: "10px 16px", fontSize: 15, fontWeight: 700 };
 const choiceBtn = { display: "block", width: "100%", textAlign: "left", padding: "12px 16px", borderRadius: 10, border: "1px solid #333", background: "#1e1e2a", color: "#fff", marginBottom: 8, cursor: "pointer" };
 const primaryBtn = { padding: "12px 24px", borderRadius: 12, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, cursor: "pointer" };
 const secondaryBtn = { padding: "10px 18px", borderRadius: 12, border: "1px solid #333", background: "transparent", color: "#fff", fontWeight: 700, cursor: "pointer" };

@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
   MTAU_BOOKS, MTAU_MIN_AGE_BANDS, MTAU_STEP_KINDS, MTAU_LESSON_1_1,
-  getMTAULesson, getMTAUBook,
+  MTAU_LESSON_1_2, MTAU_LESSON_1_3,
+  getMTAULesson, getMTAUBook, getMigratedLessonIds, getMTAULessonSummary,
 } from "../src/family/mtauContent.js";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "../src/family/mtauJona.js";
 // mtauProgress.js imports the Firebase SDK chain (via ../lib/firebase),
@@ -68,21 +69,50 @@ test("MTAUJourney itself also gates on ageAppropriate, not just relying on Famil
   assert.ok(/FamilyError kind="unavailable"/.test(journeySrc), "an underage/wrong-profile visit must fail closed to a friendly error, not crash or leak content");
 });
 
+test("MTAUJourney's lesson-status list is data-driven over migratedLessonIds.map, not a fixed Lesson-1-only card", () => {
+  assert.ok(/migratedLessonIds\.map\(lessonId =>/.test(journeySrc));
+  assert.ok(!/\/family\/mtau\/book\/1\/lesson\/1["'`]/.test(journeySrc), "must not hardcode a link straight to Lesson 1 — navigation must follow the computed current lesson");
+});
+
 // ── Book 1 Lesson 1 loading, all 14 steps present ────────────────────────
 
-test("getMTAULesson(1, 1) returns the real migrated lesson; any other book/lesson returns null (honest, not invented)", () => {
+test("getMTAULesson(1,1/2/3) returns the real migrated lessons; any other book/lesson returns null (honest, not invented)", () => {
   assert.ok(getMTAULesson(1, 1));
-  assert.equal(getMTAULesson(1, 2), null);
+  assert.ok(getMTAULesson(1, 2));
+  assert.ok(getMTAULesson(1, 3));
+  assert.equal(getMTAULesson(1, 4), null, "Lesson 4 is deliberately not migrated this pass");
   assert.equal(getMTAULesson(2, 1), null);
   assert.equal(getMTAULesson(7, 1), null);
 });
 
-test("Book 1 Lesson 1 has exactly the real 14 steps in the real audited order", () => {
-  assert.equal(MTAU_LESSON_1_1.steps.length, 14);
-  assert.deepEqual(MTAU_LESSON_1_1.steps.map(s => s.kind), MTAU_STEP_KINDS);
+test("getMTAULesson is a data-driven lookup, not a chain of hardcoded if-checks for specific lesson IDs", () => {
+  const src = read("src/family/mtauContent.js");
+  const fnBody = src.slice(src.indexOf("export function getMTAULesson"));
+  assert.ok(!/if \(bookId === 1 && lessonId === 2\)/.test(fnBody), "must not special-case Lesson 2");
+  assert.ok(!/if \(bookId === 1 && lessonId === 3\)/.test(fnBody), "must not special-case Lesson 3");
+  assert.ok(/MTAU_LESSON_INDEX\[`\$\{bookId\}-\$\{lessonId\}`\]/.test(fnBody), "must be a single generic index lookup");
 });
 
-test("Book 1 Lesson 1 content matches what was audited live from the reference product (spot checks, not invented)", () => {
+test("Lesson 1 has exactly the real 14 steps; every kind it uses is part of the shared MTAU_STEP_KINDS vocabulary", () => {
+  assert.equal(MTAU_LESSON_1_1.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_1.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+});
+
+test("Lesson 2 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_2.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_2.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)), "every step kind Lesson 2 uses must be in the shared vocabulary, not a one-off");
+  assert.equal(MTAU_LESSON_1_2.title, "Meet My Friends");
+  assert.equal(MTAU_LESSON_1_2.location, "Hisaya-odori Park");
+});
+
+test("Lesson 3 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_3.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_3.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_3.title, "Numbers Everywhere");
+  assert.equal(MTAU_LESSON_1_3.location, "Midland Square");
+});
+
+test("Lesson 1 content matches what was audited live from the reference product (spot checks, not invented)", () => {
   assert.equal(MTAU_LESSON_1_1.title, "Hello, I'm Milo!");
   assert.equal(MTAU_LESSON_1_1.location, "JR Nagoya Station");
   const hear = MTAU_LESSON_1_1.steps.find(s => s.kind === "hear");
@@ -93,6 +123,35 @@ test("Book 1 Lesson 1 content matches what was audited live from the reference p
   assert.equal(workbook.completionRequirement, "self_report_only", "workbook completion must never claim to be auto-detected/synced");
 });
 
+test("Lesson 2/3 content matches what was extracted directly from the compiled bundle source (spot checks, not invented)", () => {
+  const hear2 = MTAU_LESSON_1_2.steps.find(s => s.kind === "hear");
+  assert.equal(hear2.dialogue[0].line, "Kiko, this is my friend Lola.");
+  assert.equal(MTAU_LESSON_1_2.steps.find(s => s.kind === "workbook").pages, "15–20");
+
+  const hear3 = MTAU_LESSON_1_3.steps.find(s => s.kind === "hear");
+  assert.equal(hear3.dialogue[1].line, "I'm ten. How old are you?");
+  assert.equal(MTAU_LESSON_1_3.steps.find(s => s.kind === "workbook").pages, "21–26");
+  const numberHunt = MTAU_LESSON_1_3.steps.find(s => s.kind === "number_hunt");
+  assert.deepEqual(numberHunt.items, [
+    { n: 3, label: "cards" }, { n: 5, label: "lights" }, { n: 8, label: "pencils" }, { n: 9, label: "balloons" },
+  ]);
+});
+
+test("MTAU_BOOK_1_LESSON_SUMMARY (all 18) matches the structured source extracted from the reference product's own compiled bundle", () => {
+  const l4 = getMTAULessonSummary(1, 4);
+  assert.deepEqual(l4, { lessonId: 4, title: "My Family", place: "Noritake Garden", pages: "27–32", canDo: "Name family members and show who belongs to whom" });
+  const l18 = getMTAULessonSummary(1, 18);
+  assert.equal(l18.title, "Review and Unlock Celebration");
+  assert.equal(l18.place, "Mirai Tower");
+  assert.equal(getMTAULessonSummary(2, 1), null, "only Book 1's summary has been extracted/validated so far — honest, not invented for other books");
+});
+
+test("lesson-to-lesson navigation chain matches the real source: L1 -> Hisaya-odori Park (L2), L2 -> Midland Square (L3), L3 -> Noritake Garden (L4, not yet migrated)", () => {
+  assert.equal(MTAU_LESSON_1_1.nextDestination, "Hisaya-odori Park");
+  assert.equal(MTAU_LESSON_1_2.nextDestination, "Midland Square");
+  assert.equal(MTAU_LESSON_1_3.nextDestination, "Noritake Garden");
+});
+
 // ── Step progression / current-step resume (data-layer contract) ────────
 
 const lessonSrc = read("src/family/MTAULesson.jsx");
@@ -101,6 +160,23 @@ test("MTAULesson resumes from the persisted currentStep, not always step 0", () 
 });
 test("every step advance calls recordMTAUStep so progress survives refresh/navigation", () => {
   assert.ok(/recordMTAUStep\(user\.uid, profileId, bookId, lessonId, nextIndex, newCompleted\)/.test(lessonSrc));
+});
+
+// ── Confidence before/after persistence (Phase 10) ───────────────────────
+
+test("confidenceBefore/confidenceAfter are written onto the SAME per-lesson progress doc via recordMTAUConfidence, not a separate collection/function", () => {
+  const progressSrc = read("src/family/mtauProgress.js");
+  assert.ok(/export async function recordMTAUConfidence\(uid, profileId, bookId, lessonId, phase, value\)/.test(progressSrc));
+  const fnBody = progressSrc.slice(progressSrc.indexOf("export async function recordMTAUConfidence"));
+  assert.ok(/doc\(db, \.\.\.progressCollectionPath\(uid, profileId\), mtauDocId\(bookId, lessonId\)\)/.test(fnBody), "must reuse the exact same doc ref helper as step/completion writes");
+  assert.ok(/\{ merge: true \}/.test(fnBody), "must merge onto the existing doc, not overwrite it");
+  assert.ok(!/collection\(db, "confidence"|"mtauConfidence"/.test(progressSrc), "must not introduce a separate confidence collection");
+});
+
+test("MTAULesson persists confidence immediately when the learner picks a rating, and hydrates it back on resume", () => {
+  assert.ok(/recordMTAUConfidence\(user\.uid, profileId, bookId, lessonId, phase, value\)/.test(lessonSrc), "must persist on selection, not just at lesson completion");
+  assert.ok(/setConfidenceBefore\(p\.confidenceBefore \?\? null\)/.test(lessonSrc));
+  assert.ok(/setConfidenceAfter\(p\.confidenceAfter \?\? null\)/.test(lessonSrc));
 });
 
 // ── Profile-separated Firestore state ─────────────────────────────────────
@@ -118,14 +194,30 @@ test("MTAU progress reuses the SAME activityProgress collection as the rest of F
   assert.ok(!/collection\(db, "mtauProgress"/.test(progressSrc), "must not introduce a new top-level collection");
 });
 
-// ── Lesson completion / next lesson recommendation ───────────────────────
+// ── Lesson completion / current+next lesson recommendation ──────────────
 
-test("getMTAUNextLesson: incomplete/missing lesson recommends Lesson 1 as available; completing it recommends Lesson 2, honestly marked unavailable", () => {
+test("getMTAUCurrentLesson is generic (derives migrated lesson ids from getMigratedLessonIds), not hardcoded to Lesson 1/2 specifically", () => {
   const progressSrc = read("src/family/mtauProgress.js");
-  const fnBody = progressSrc.slice(progressSrc.indexOf("export function getMTAUNextLesson"));
-  assert.ok(/if \(!lessonProgress \|\| !lessonProgress\.completed\)/.test(fnBody));
-  assert.ok(/return \{ bookId: 1, lessonId: 1, available: true \}/.test(fnBody));
-  assert.ok(/return \{ bookId: 1, lessonId: 2, available: false \}/.test(fnBody), "must not claim Lesson 2 is openable when its content doesn't exist yet");
+  const fnBody = progressSrc.slice(progressSrc.indexOf("export function getMTAUCurrentLesson"));
+  assert.ok(/getMigratedLessonIds\(bookId\)/.test(fnBody), "must derive the migrated lesson list generically, not hardcode lesson numbers");
+  assert.ok(!/lessonId: 2/.test(fnBody) && !/lessonId: 1,/.test(fnBody), "must not hardcode specific lesson numbers in the logic itself");
+});
+
+test("getMigratedLessonIds(1) returns exactly [1, 2, 3] — derived from the real data index, not a separately maintained list", () => {
+  assert.deepEqual(getMigratedLessonIds(1), [1, 2, 3]);
+});
+
+test("progression logic: walks migrated lessons in order, returns the first incomplete one as current, and (last migrated + 1) as the honestly-unavailable next lesson once all are complete", () => {
+  const progressSrc = read("src/family/mtauProgress.js");
+  const fnBody = progressSrc.slice(
+    progressSrc.indexOf("export function getMTAUCurrentLesson"),
+    progressSrc.indexOf("export function getMTAUCurrentLesson") + 900
+  );
+  assert.ok(/for \(const lessonId of migratedIds\)/.test(fnBody), "must iterate the real migrated list, not a fixed range");
+  assert.ok(/if \(!p \|\| !p\.completed\)/.test(fnBody), "an unstarted or incomplete lesson must be returned as current");
+  assert.ok(/available: true/.test(fnBody));
+  assert.ok(/migratedIds\[migratedIds\.length - 1\] \+ 1/.test(fnBody), "the lesson after the last migrated one must be computed, not hardcoded");
+  assert.ok(/available: false/.test(fnBody), "a lesson beyond what's migrated must be honestly marked unavailable");
 });
 
 // ── Jona MTAU context / no stored child name sent to Jona ───────────────

@@ -1,15 +1,15 @@
 // Monkeys Talk & Unlock — Books journey/map screen (Summit Readiness
-// Sprint, 2026-09-17). Shows Books 1-6 with their real, audited metadata
-// (city/CEFR/EIKEN) plus Books 7-8 explicitly labelled "coming next" —
-// never represented as available, matching the reference product's own
-// labelling. Only Book 1 Lesson 1 is deeply integrated and openable this
-// pass; Books 2-6 are visible (proving the architecture scales) but their
-// lessons are not yet migrated.
+// Sprint: content-migration pipeline validation, 2026-09-18). Shows Books
+// 1-6 with real, audited metadata (city/CEFR/EIKEN) plus Books 7-8 labelled
+// "coming next". Book 1 Lessons 1-3 are deeply integrated; the per-lesson
+// status list and current/next-lesson logic are fully generic over
+// getMigratedLessonIds(1) — adding Lesson 4 later means adding one entry
+// to mtauContent.js's lesson index, not touching this component.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { MTAU_BOOKS, MTAU_MIN_AGE_BANDS } from "./mtauContent";
-import { getMTAULessonProgress, getMTAUNextLesson } from "./mtauProgress";
+import { MTAU_BOOKS, MTAU_MIN_AGE_BANDS, getMigratedLessonIds, getMTAULessonSummary } from "./mtauContent";
+import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
 import { FAMILY_COLORS } from "./theme";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -19,18 +19,18 @@ export default function MTAUJourney() {
   const { user, currentProfile } = useAuth();
   const navigate = useNavigate();
   const profileId = currentProfile?.id ?? SELF_PROFILE_ID;
-  // undefined = still resolving; null = resolved, genuinely no progress yet
-  // (first visit) — these must stay distinguishable, since
-  // getMTAULessonProgress legitimately resolves to null when the learner
-  // has never started Lesson 1, same convention IframeAppPlayer already
-  // uses in ActivityPlayer.jsx for curriculumTarget.
-  const [lesson11Progress, setLesson11Progress] = useState(undefined);
+  // undefined = still resolving; null-ish states inside the map are fine
+  // since each lesson's own progress doc legitimately resolves to null on
+  // first visit — same convention IframeAppPlayer already uses in
+  // ActivityPlayer.jsx for curriculumTarget.
+  const [bookProgress, setBookProgress] = useState(undefined);
 
   const ageAppropriate = currentProfile && MTAU_MIN_AGE_BANDS.includes(currentProfile.ageBand);
+  const migratedLessonIds = getMigratedLessonIds(1); // Book 1 only, this pass
 
   useEffect(() => {
     if (!user?.uid || !ageAppropriate) return;
-    getMTAULessonProgress(user.uid, profileId, 1, 1).then(setLesson11Progress).catch(() => setLesson11Progress(null));
+    getMTAUBookProgress(user.uid, profileId, 1).then(setBookProgress).catch(() => setBookProgress({}));
   }, [user?.uid, profileId, ageAppropriate]);
 
   if (!currentProfile) return <FamilyLoading />;
@@ -42,7 +42,8 @@ export default function MTAUJourney() {
     return <FamilyError kind="unavailable" onBack={() => navigate("/family/home")} />;
   }
 
-  const next = getMTAUNextLesson(lesson11Progress);
+  const current = bookProgress !== undefined ? getMTAUCurrentLesson(1, bookProgress) : null;
+  const nextUnmigrated = current && !current.available ? getMTAULessonSummary(1, current.lessonId) : null;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0b0b12", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -55,21 +56,44 @@ export default function MTAUJourney() {
       </header>
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 60px" }}>
-        {lesson11Progress !== undefined && (
+        {bookProgress !== undefined && (
           <div style={{ background: "#1e1e2a", border: "1px solid #333", borderRadius: 16, padding: 18, marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#e0559c", fontWeight: 800, marginBottom: 6 }}>CURRENT JOURNEY</div>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
-              Book 1 · Nagoya {lesson11Progress?.completed ? "— Lesson 1 complete" : lesson11Progress?.currentStep ? "— in progress" : ""}
+            <div style={{ fontSize: 11, color: "#e0559c", fontWeight: 800, marginBottom: 6 }}>BOOK 1 · NAGOYA</div>
+
+            {/* Real per-lesson status row for every migrated lesson —
+                generic over migratedLessonIds, not a fixed Lesson-1-only
+                card. Adding Lesson 4 later needs zero changes here. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+              {migratedLessonIds.map(lessonId => {
+                const p = bookProgress[lessonId];
+                const isCurrent = current?.available && current.lessonId === lessonId;
+                const summary = getMTAULessonSummary(1, lessonId);
+                const label = p?.completed ? "✓ Complete" : p?.currentStep ? "In progress" : isCurrent ? "Ready to start" : "Locked";
+                return (
+                  <div key={lessonId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#15151f", borderRadius: 10, padding: "10px 14px" }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>Lesson {lessonId} · {summary?.place ?? ""}</div>
+                      <div style={{ fontSize: 12, color: "#888" }}>{summary?.title ?? ""}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: p?.completed ? "#8ee6a8" : "#aaa", fontWeight: 700 }}>{label}</div>
+                  </div>
+                );
+              })}
             </div>
+
             <button
-              onClick={() => navigate("/family/mtau/book/1/lesson/1")}
-              style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, cursor: "pointer" }}
+              onClick={() => current?.available && navigate(`/family/mtau/book/1/lesson/${current.lessonId}`)}
+              disabled={!current?.available}
+              style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: current?.available ? FAMILY_COLORS.pink : "#333", color: "#fff", fontWeight: 800, cursor: current?.available ? "pointer" : "default" }}
             >
-              {lesson11Progress?.completed ? "Review Lesson 1" : lesson11Progress?.currentStep ? "Continue Lesson 1" : "Start Lesson 1"} →
+              {current?.available ? (
+                bookProgress[current.lessonId]?.currentStep ? `Continue Lesson ${current.lessonId}` : `Start Lesson ${current.lessonId}`
+              ) : "All migrated lessons complete"} →
             </button>
-            {lesson11Progress?.completed && (
+
+            {nextUnmigrated && (
               <div style={{ fontSize: 12, color: "#888", marginTop: 10 }}>
-                Next: Book {next.bookId} · Lesson {next.lessonId} — coming soon
+                Next: Lesson {current.lessonId} · {nextUnmigrated.place} · {nextUnmigrated.title} — coming soon
               </div>
             )}
           </div>

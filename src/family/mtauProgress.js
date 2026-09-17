@@ -15,6 +15,7 @@
 import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { SELF_PROFILE_ID } from "../lib/profiles";
+import { getMigratedLessonIds } from "./mtauContent";
 
 function progressCollectionPath(uid, profileId) {
   return profileId === SELF_PROFILE_ID
@@ -52,6 +53,24 @@ export async function recordMTAUStep(uid, profileId, bookId, lessonId, stepIndex
   }, { merge: true });
 }
 
+/**
+ * Persists confidenceBefore/confidenceAfter (1-5 self-rating) onto the SAME
+ * per-lesson progress doc used for step/completion tracking — not a
+ * separate collection. Written immediately when the learner picks a rating
+ * (not just at lesson completion) so it survives refresh/resume the same
+ * way currentStep does.
+ */
+export async function recordMTAUConfidence(uid, profileId, bookId, lessonId, phase, value) {
+  const ref = doc(db, ...progressCollectionPath(uid, profileId), mtauDocId(bookId, lessonId));
+  const field = phase === "before" ? "confidenceBefore" : "confidenceAfter";
+  await setDoc(ref, {
+    curriculum: "mtau",
+    bookId, lessonId,
+    [field]: value,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
 /** Marks the lesson fully complete — the one write that makes "Lesson 2 becomes recommended" possible once Lesson 2 exists. */
 export async function recordMTAULessonCompleted(uid, profileId, bookId, lessonId, completedSteps) {
   const ref = doc(db, ...progressCollectionPath(uid, profileId), mtauDocId(bookId, lessonId));
@@ -66,17 +85,40 @@ export async function recordMTAULessonCompleted(uid, profileId, bookId, lessonId
 }
 
 /**
- * Deterministic "what's next" for the MTAU journey screen — mirrors
- * familyProgress.js's getRecommendedActivity in spirit (simple rules, no
- * ML). This pass only has Lesson 1 of Book 1 migrated, so "next" beyond
- * that is reported as a label only (bookId/lessonId that isn't loadable
- * yet), never a fabricated navigable lesson.
+ * Reads every migrated lesson's progress for a book in one go — the
+ * primary read the journey screen needs (was previously Lesson-1-only).
  */
-export function getMTAUNextLesson(lessonProgress) {
-  if (!lessonProgress || !lessonProgress.completed) {
-    return { bookId: 1, lessonId: 1, available: true };
+export async function getMTAUBookProgress(uid, profileId, bookId) {
+  const lessonIds = getMigratedLessonIds(bookId);
+  const entries = await Promise.all(
+    lessonIds.map(async lessonId => [lessonId, await getMTAULessonProgress(uid, profileId, bookId, lessonId)])
+  );
+  return Object.fromEntries(entries); // { [lessonId]: progressDocOrNull }
+}
+
+/**
+ * Deterministic "what's current / what's next" for a book — mirrors
+ * familyProgress.js's getRecommendedActivity in spirit (simple rules, no
+ * ML), generalized across however many lessons are actually migrated for
+ * this book (was hardcoded to Lesson 1 -> Lesson 2 only; now data-driven
+ * off getMigratedLessonIds, so it needed zero changes when Lessons 2/3
+ * were added).
+ *
+ * progressByLessonId: { [lessonId]: progressDocOrNull }, e.g. from
+ * getMTAUBookProgress above.
+ */
+export function getMTAUCurrentLesson(bookId, progressByLessonId) {
+  const migratedIds = getMigratedLessonIds(bookId);
+  if (migratedIds.length === 0) return null; // nothing migrated for this book at all
+
+  for (const lessonId of migratedIds) {
+    const p = progressByLessonId[lessonId];
+    if (!p || !p.completed) {
+      return { bookId, lessonId, available: true, status: p ? "in_progress" : "not_started" };
+    }
   }
-  // Lesson 1 complete — Lesson 2 is the recommended next step, but its
-  // content hasn't been migrated this pass (scope: stop after Lesson 1).
-  return { bookId: 1, lessonId: 2, available: false };
+  // Every migrated lesson is complete — the real next lesson (by number)
+  // may or may not have been migrated yet.
+  const nextLessonId = migratedIds[migratedIds.length - 1] + 1;
+  return { bookId, lessonId: nextLessonId, available: false, status: "not_migrated" };
 }
