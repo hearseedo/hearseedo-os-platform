@@ -19,13 +19,18 @@ export default function MTAUJourney() {
   const { user, currentProfile } = useAuth();
   const navigate = useNavigate();
   const profileId = currentProfile?.id ?? SELF_PROFILE_ID;
-  const [lesson11Progress, setLesson11Progress] = useState(null);
+  // undefined = still resolving; null = resolved, genuinely no progress yet
+  // (first visit) — these must stay distinguishable, since
+  // getMTAULessonProgress legitimately resolves to null when the learner
+  // has never started Lesson 1, same convention IframeAppPlayer already
+  // uses in ActivityPlayer.jsx for curriculumTarget.
+  const [lesson11Progress, setLesson11Progress] = useState(undefined);
 
   const ageAppropriate = currentProfile && MTAU_MIN_AGE_BANDS.includes(currentProfile.ageBand);
 
   useEffect(() => {
     if (!user?.uid || !ageAppropriate) return;
-    getMTAULessonProgress(user.uid, profileId, 1, 1).then(setLesson11Progress).catch(() => setLesson11Progress({}));
+    getMTAULessonProgress(user.uid, profileId, 1, 1).then(setLesson11Progress).catch(() => setLesson11Progress(null));
   }, [user?.uid, profileId, ageAppropriate]);
 
   if (!currentProfile) return <FamilyLoading />;
@@ -50,7 +55,7 @@ export default function MTAUJourney() {
       </header>
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 60px" }}>
-        {lesson11Progress !== null && (
+        {lesson11Progress !== undefined && (
           <div style={{ background: "#1e1e2a", border: "1px solid #333", borderRadius: 16, padding: 18, marginBottom: 24 }}>
             <div style={{ fontSize: 11, color: "#e0559c", fontWeight: 800, marginBottom: 6 }}>CURRENT JOURNEY</div>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
