@@ -8,6 +8,7 @@ import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
 import { getActivityProgress, getRecommendedActivity, getLastActivity } from "./familyProgress";
 import { localizedTitle } from "./content";
+import { MTAU_MIN_AGE_BANDS } from "./mtauContent";
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -191,6 +192,25 @@ export default function FamilyHome() {
             <span style={{ fontWeight: 800, color: FAMILY_COLORS.text }}>{t("fam_family_hub")}</span>
           </button>
         </div>
+
+        {/* Monkeys Talk & Unlock entry (Summit Sprint) — visible only to an
+            appropriate older learner, same ageBand-gating convention used
+            elsewhere in Family. Not a security boundary, just product scoping. */}
+        {MTAU_MIN_AGE_BANDS.includes(ageBand) && (
+          <button
+            onClick={() => navigate("/family/mtau")}
+            style={{
+              ...secondaryCardStyle, marginTop: 16, width: "100%",
+              background: "#15151f", border: "2px solid #e0559c55", color: "#fff",
+            }}
+          >
+            <span style={{ fontSize: 32 }}>🔓</span>
+            <div>
+              <div style={{ fontWeight: 800, color: "#fff" }}>Monkeys Talk &amp; Unlock</div>
+              <div style={{ fontSize: 12, color: "#aaa" }}>Books 1–6 · Speaking journey</div>
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );

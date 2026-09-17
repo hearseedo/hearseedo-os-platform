@@ -47,6 +47,8 @@ const FamilyHub          = lazy(() => import("./family/FamilyHub"));
 const ChildProfileCreate = lazy(() => import("./family/ChildProfileCreate"));
 const FamilyParentView   = lazy(() => import("./family/FamilyParentView"));
 const FamilyInvite       = lazy(() => import("./family/FamilyInvite"));
+const MTAUJourney        = lazy(() => import("./family/MTAUJourney"));
+const MTAULesson         = lazy(() => import("./family/MTAULesson"));
 import DemoShell        from "./demo/DemoShell";
 import DemoStart        from "./demo/DemoStart";
 import DemoAssessment   from "./demo/DemoAssessment";
@@ -159,6 +161,8 @@ export default function App() {
         <Route path="/family/hub"            element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><FamilyHub /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/family/parent"         element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><FamilyParentView /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/family/activity/:activityId" element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityPlayer /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/mtau"           element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><MTAUJourney /></Suspense></PathwayRoute></ProtectedRoute>} />
+        <Route path="/family/mtau/book/:bookId/lesson/:lessonId" element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><MTAULesson /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/family/:category"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityGrid /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/student"     element={<ProtectedRoute><PathwayRoute pathwayId="student"><PathwayEntry pathwayId="student" /></PathwayRoute></ProtectedRoute>} />
         <Route path="/adult"       element={<ProtectedRoute><PathwayRoute pathwayId="adult"><PathwayEntry pathwayId="adult" /></PathwayRoute></ProtectedRoute>} />
