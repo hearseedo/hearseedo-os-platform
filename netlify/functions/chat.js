@@ -274,7 +274,17 @@ exports.handler = async (event) => {
   try {
     const geminiBody = {
       contents: toGeminiContents(messages),
-      generationConfig: { temperature: 0.9, maxOutputTokens: 512 },
+      // gemini-3.6-flash is a thinking-by-default model: its internal
+      // reasoning tokens are drawn from the SAME maxOutputTokens budget as
+      // the visible reply, so 512 (fine for gemini-2.5-flash, which had no
+      // such budget-sharing) was leaving almost nothing for the actual
+      // REPLY_EN/REPLY_JP/TURN_COMPLETE text — confirmed live: a real
+      // response came back truncated mid-sentence with no tags at all.
+      // thinkingBudget: 0 turns off extended reasoning entirely (this
+      // conversation only ever needs a short, immediate, in-character
+      // reply, never multi-step reasoning), so the full token budget goes
+      // to the visible reply.
+      generationConfig: { temperature: 0.9, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } },
     };
     geminiBody.systemInstruction = { parts: [{ text: (system || "") + SERVER_SAFETY_FLOOR }] };
 
