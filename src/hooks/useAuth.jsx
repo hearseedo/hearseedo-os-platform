@@ -273,8 +273,17 @@ export function AuthProvider({ children }) {
       .catch(() => false);
   }, [firebaseUser, accessiblePathways, user?.lastUsedPathway, user?.visitedPathways]);
 
-  const setActiveProfile = useCallback((profileId) => {
-    if (!firebaseUser || !profiles.some(p => p.id === profileId)) return Promise.resolve(false);
+  // knownValid (Summit Sprint 1, item 5) — a caller that JUST created the
+  // profile itself (has the real Firestore doc ref/id in hand) can opt out
+  // of the profiles.some() guard below. That guard exists to stop a
+  // stale/garbage id from ever being persisted, not to block a genuinely
+  // valid id merely because the live familyMembers listener hasn't caught
+  // up with this client's own just-completed write yet — which is exactly
+  // the race a "new child becomes active immediately" flow hits every
+  // time, since addDoc() resolving and onSnapshot() delivering the new doc
+  // back to this same client are two separate async events.
+  const setActiveProfile = useCallback((profileId, { knownValid = false } = {}) => {
+    if (!firebaseUser || !(knownValid || profiles.some(p => p.id === profileId))) return Promise.resolve(false);
     return setDoc(doc(db, "users", firebaseUser.uid), { activeProfileId: profileId }, { merge: true })
       .then(() => {
         logPathwayEvent(firebaseUser.uid, PATHWAY_EVENTS.PROFILE_SELECTED, { profileId });

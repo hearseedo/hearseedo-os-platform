@@ -15,7 +15,7 @@ import { GraffitiStyles, spraySplash } from "./graffitiStyles";
 const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
 export default function FamilyHome() {
-  const { user, currentProfile } = useAuth();
+  const { user, profiles, currentProfile, setActiveProfile } = useAuth();
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
@@ -53,6 +53,56 @@ export default function FamilyHome() {
       </header>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 60px" }}>
+        {/* Family profile switcher (Summit Sprint 1, item 2) — switching who
+            is active must happen right here, without leaving Family Home or
+            routing through Switch Pathway → Continue → Who's learning?.
+            Reuses the exact same setActiveProfile() the pathway picker
+            already uses — no second, competing profile-state mechanism. */}
+        {profiles.length > 1 && (
+          <div
+            role="tablist"
+            aria-label={t("fam_whos_learning")}
+            style={{ display: "flex", gap: 10, overflowX: "auto", marginBottom: 20, paddingBottom: 2 }}
+          >
+            {profiles.map(p => {
+              const isActive = p.id === profileId;
+              const label = p.isVirtual ? t("fam_parent_mode") : p.name;
+              return (
+                <button
+                  key={p.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => { if (!isActive) setActiveProfile(p.id); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+                    padding: "6px 14px 6px 6px", borderRadius: 999,
+                    border: `2px solid ${isActive ? FAMILY_COLORS.pink : FAMILY_COLORS.border}`,
+                    background: isActive ? FAMILY_COLORS.pinkSoft : FAMILY_COLORS.card,
+                    cursor: isActive ? "default" : "pointer",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: isActive ? FAMILY_COLORS.pink : FAMILY_COLORS.border,
+                      color: isActive ? "#fff" : FAMILY_COLORS.textMuted,
+                      fontSize: 14, fontWeight: 800,
+                    }}
+                  >
+                    {p.isVirtual ? "👤" : (label?.[0]?.toUpperCase() ?? "?")}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: isActive ? FAMILY_COLORS.pink : FAMILY_COLORS.text }}>
+                    {label}
+                  </span>
+                  {isActive && <span aria-hidden="true" style={{ fontSize: 12, color: FAMILY_COLORS.pink }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Continue Your Journey — item 6, never leave "what's next" empty.
             family-hero.webp as the full illustrated banner background. */}
         <section

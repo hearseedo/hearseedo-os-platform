@@ -20,7 +20,7 @@ const INTERESTS = [
 ];
 
 export default function ChildProfileCreate() {
-  const { user } = useAuth();
+  const { user, setActiveProfile } = useAuth();
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -39,6 +39,15 @@ export default function ChildProfileCreate() {
     try {
       const ref = await createProfile(user.uid, { name, ageBand, interests, confidenceGoal: goal || null, relationship: "child" });
       logPathwayEvent(user.uid, PATHWAY_EVENTS.PROFILE_CREATED, { profileId: ref.id });
+      // Summit Sprint 1, item 5 — the newly created child becomes the
+      // active profile immediately; the parent should never land back on
+      // whichever profile was active before adding this child.
+      // knownValid: true — we hold the real doc ref from createProfile()
+      // above; the live familyMembers listener (which setActiveProfile's
+      // own default guard checks against) hasn't necessarily delivered
+      // this new doc back to this client yet, but the id is genuinely
+      // valid regardless.
+      await setActiveProfile(ref.id, { knownValid: true });
       navigate("/family/home");
     } catch {
       setSaving(false);
