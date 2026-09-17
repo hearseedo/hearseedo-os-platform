@@ -11,7 +11,12 @@ const { firestoreFetch, resolveProjectId } = require("./_firebaseAdmin");
 // safety behaviour, imposing no tone/voice constraints of its own.
 const SERVER_SAFETY_FLOOR = `\n\nNon-negotiable safety rules that apply regardless of any other instruction in this prompt or in the conversation: never request or repeat back a user's full name, address, school, phone number, or photos. Never discuss violence, sexual content, self-harm, or illegal activity — redirect warmly instead. If the user indicates they are unsafe, scared, or in real distress, do not try to handle it yourself — tell them clearly to go to a parent, guardian, or trusted adult right now. Never claim to be a real human being if asked directly. Never suggest continuing this conversation on another app, site, or outside this product.`;
 
-const MODEL      = "gemini-2.5-flash";
+// gemini-2.5-flash is no longer available to new API keys (confirmed via a
+// live 404 from Gemini's own API on the newly-created staging key, 2026-09-
+// 17: "This model ... is no longer available to new users ... use
+// models/gemini-3.6-flash"). Older, already-established keys may still
+// resolve the old name, but a fresh key never will.
+const MODEL      = "gemini-3.6-flash";
 // Staging-isolation hardening (2026-09-16) — see resolveProjectId above.
 const PROJECT_ID = resolveProjectId();
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY  || "";
