@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { auth } from "../lib/firebase";
 import { FAMILY_COLORS } from "./theme";
-import { getActivity, INSTRUCTIONS } from "./content";
+import { getActivity, INSTRUCTIONS, localizedTitle } from "./content";
 import { recordActivityStarted, recordActivityCompleted, recordActivityAbandoned } from "./familyProgress";
 import { buildFamilyJonaPrompt, buildFamilyOpeningMessage } from "./jonaFamily";
 import { SELF_PROFILE_ID } from "../lib/profiles";
@@ -79,7 +79,7 @@ export default function ActivityPlayer() {
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 20px 60px" }}>
         <div style={{ fontSize: 40, textAlign: "center", marginBottom: 8 }}>{activity.icon}</div>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: FAMILY_COLORS.text, textAlign: "center", marginBottom: 24 }}>
-          {lang === "jp" && activity.titleJp ? activity.titleJp : activity.title}
+          {localizedTitle(activity, lang)}
         </h1>
 
         {/* Confidence signal (item 14) — only on speaking-flavoured

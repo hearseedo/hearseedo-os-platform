@@ -5,7 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
-import { getActivitiesByCategory } from "./content";
+import { getActivitiesByCategory, localizedTitle } from "./content";
 import { getActivityProgress } from "./familyProgress";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import { CATEGORIES } from "./content";
@@ -17,7 +17,7 @@ export default function ActivityGrid({ category: categoryProp }) {
   const params = useParams();
   const category = categoryProp ?? params.category;
   const { user, currentProfile } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
 
@@ -74,7 +74,7 @@ export default function ActivityGrid({ category: categoryProp }) {
                   >
                     {done && <span style={{ position: "absolute", top: 10, right: 10, fontSize: 18, zIndex: 2 }}>✅</span>}
                     <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
-                    <div className="fam-section-card-title">{a.title}</div>
+                    <div className="fam-section-card-title">{localizedTitle(a, lang)}</div>
                     <div className="fam-section-card-meta">{a.duration} min</div>
                   </button>
                 );
@@ -136,14 +136,14 @@ export default function ActivityGrid({ category: categoryProp }) {
                       style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", objectPosition: "center 40%" }}
                     />
                     <div className="fam-underline" style={{ padding: "14px 16px 16px", color: style.color }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{a.title}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{localizedTitle(a, lang)}</div>
                       <div style={{ fontSize: 11, color: FAMILY_COLORS.textMuted }}>{a.duration} min</div>
                     </div>
                   </>
                 ) : (
                   <>
                     <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{a.title}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: FAMILY_COLORS.text, marginBottom: 4 }}>{localizedTitle(a, lang)}</div>
                     <div style={{ fontSize: 11, color: FAMILY_COLORS.textMuted }}>{a.duration} min</div>
                   </>
                 )}

@@ -7,6 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
 import { getActivityProgress, getRecommendedActivity, getLastActivity } from "./familyProgress";
+import { localizedTitle } from "./content";
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -120,11 +121,11 @@ export default function FamilyHome() {
             </div>
             {last && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
-                {t("fam_last_activity")}: {last.icon} {last.title}
+                {t("fam_last_activity")}: {last.icon} {localizedTitle(last, lang)}
               </div>
             )}
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
-              {recommended ? `${recommended.icon} ${recommended.title}` : "🎉 All caught up!"}
+              {recommended ? `${recommended.icon} ${localizedTitle(recommended, lang)}` : "🎉 All caught up!"}
             </div>
           </div>
           {recommended && (

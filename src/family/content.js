@@ -99,6 +99,18 @@ export function getActivity(activityId) {
   return ALL_ACTIVITIES.find(a => a.activityId === activityId) ?? null;
 }
 
+// Summit Readiness Sprint 1, Priority 4 (2026-09-17) — the one rendering
+// rule every Family surface that shows an activity title must follow.
+// ActivityPlayer.jsx already had this exact logic inline; this just gives
+// every other surface (FamilyHome, ActivityGrid, FamilyParentView) the same
+// pure function instead of each re-deriving its own copy of the ternary.
+// Display-only: never touched for activityId/progress-key/routing
+// purposes, which all still read `activity.activityId` directly.
+export function localizedTitle(activity, lang) {
+  if (!activity) return "";
+  return lang === "jp" && activity.titleJp ? activity.titleJp : activity.title;
+}
+
 // Instructions for activityType: "instructions" entries — kept as a
 // separate lookup rather than bloating each activity object above.
 export const INSTRUCTIONS = {

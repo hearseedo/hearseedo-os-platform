@@ -12,7 +12,7 @@ import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
 import { getActivityProgress, getCompletionStats, getRecommendedActivity, getWeeklySummary } from "./familyProgress";
 import { SELF_PROFILE_ID } from "../lib/profiles";
-import { CATEGORIES } from "./content";
+import { CATEGORIES, localizedTitle } from "./content";
 import { db } from "../lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import FamilyLoading from "./FamilyLoading";
@@ -20,7 +20,7 @@ import { getCurriculumState, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgr
 
 export default function FamilyParentView() {
   const { user, profiles, currentProfile } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(currentProfile?.id ?? SELF_PROFILE_ID);
   const [progress, setProgress] = useState(null);
@@ -136,7 +136,7 @@ export default function FamilyParentView() {
         {recommended && (
           <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 6 }}>{t("fam_parent_recommended")}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: FAMILY_COLORS.text }}>{recommended.icon} {recommended.title}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: FAMILY_COLORS.text }}>{recommended.icon} {localizedTitle(recommended, lang)}</div>
           </div>
         )}
 
