@@ -15,7 +15,7 @@
 import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { SELF_PROFILE_ID } from "../lib/profiles";
-import { getMigratedLessonIds } from "./mtauContent";
+import { getMigratedLessonIds, getMTAUBookLessonCount, getMTAUBook } from "./mtauContent";
 
 function progressCollectionPath(uid, profileId) {
   return profileId === SELF_PROFILE_ID
@@ -121,4 +121,48 @@ export function getMTAUCurrentLesson(bookId, progressByLessonId) {
   // may or may not have been migrated yet.
   const nextLessonId = migratedIds[migratedIds.length - 1] + 1;
   return { bookId, lessonId: nextLessonId, available: false, status: "not_migrated" };
+}
+
+/**
+ * Whether a book is genuinely, fully complete — every real lesson the
+ * curriculum has (not just every currently-migrated lesson) is migrated
+ * AND completed. Deliberately requires getMTAUBookLessonCount to know the
+ * real total first: this is what stops "15 of 15 migrated" from ever being
+ * mistaken for "book complete" while lessons 16-18 still existed only as
+ * summary metadata. No lesson-number is hardcoded here — a book with a
+ * different real length would just work.
+ */
+export function isMTAUBookComplete(bookId, progressByLessonId) {
+  const migratedIds = getMigratedLessonIds(bookId);
+  if (migratedIds.length === 0) return false;
+  const totalLessons = getMTAUBookLessonCount(bookId);
+  if (totalLessons == null || migratedIds.length < totalLessons) return false;
+  return migratedIds.every(lessonId => progressByLessonId[lessonId]?.completed);
+}
+
+/**
+ * Certificate-ready hook (not a certificate generator): a plain, derived
+ * summary of a genuinely completed book, built only from real completed-
+ * lesson docs — never a temporary UI flag. Returns null until
+ * isMTAUBookComplete is true. A future certificate feature can read this
+ * directly instead of re-deriving completion state itself.
+ */
+export function getMTAUBookCompletionRecord(bookId, progressByLessonId) {
+  if (!isMTAUBookComplete(bookId, progressByLessonId)) return null;
+  const migratedIds = getMigratedLessonIds(bookId);
+  const book = getMTAUBook(bookId);
+  const completedAtTimestamps = migratedIds
+    .map(lessonId => progressByLessonId[lessonId]?.completedAt)
+    .filter(Boolean);
+  return {
+    bookId,
+    city: book?.city ?? null,
+    cefr: book?.cefr ?? null,
+    eiken: book?.eiken ?? null,
+    lessonsCompleted: migratedIds.length,
+    totalLessons: migratedIds.length,
+    // Firestore serverTimestamp sentinels resolve to real Timestamps once
+    // read back — the latest one is an honest "book completed at" moment.
+    completedAt: completedAtTimestamps.length > 0 ? completedAtTimestamps[completedAtTimestamps.length - 1] : null,
+  };
 }

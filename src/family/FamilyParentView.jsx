@@ -18,7 +18,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import FamilyLoading from "./FamilyLoading";
 import { getCurriculumState, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
 import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary, getMigratedLessonIds } from "./mtauContent";
-import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
+import { getMTAUBookProgress, getMTAUCurrentLesson, isMTAUBookComplete } from "./mtauProgress";
 
 export default function FamilyParentView() {
   const { user, profiles, currentProfile } = useAuth();
@@ -73,6 +73,7 @@ export default function FamilyParentView() {
   const mtauCurrent = mtauStarted ? getMTAUCurrentLesson(1, mtauBookProgress) : null;
   const mtauCompletedCount = mtauStarted ? Object.values(mtauBookProgress).filter(p => p?.completed).length : 0;
   const mtauMigratedCount = getMigratedLessonIds(1).length;
+  const mtauBookComplete = mtauStarted && isMTAUBookComplete(1, mtauBookProgress);
   // Confidence for the lesson currently in progress (or, once every
   // migrated lesson is complete, the last one) — real per-lesson data
   // already on the same doc, not a separate signal to compute.
@@ -145,7 +146,9 @@ export default function FamilyParentView() {
           <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 8 }}>Monkeys Talk &amp; Unlock</div>
             <div style={{ fontSize: 13, color: FAMILY_COLORS.text, lineHeight: 1.6 }}>
-              {mtauCurrent?.available ? (
+              {mtauBookComplete ? (
+                <>🎉 <strong>Book 1 Complete</strong></>
+              ) : mtauCurrent?.available ? (
                 <>Currently at <strong>Book 1 · Lesson {mtauCurrent.lessonId}</strong>{getMTAULessonSummary(1, mtauCurrent.lessonId) && <> · {getMTAULessonSummary(1, mtauCurrent.lessonId).title}</>}</>
               ) : (
                 <>Completed every migrated Book 1 lesson so far</>

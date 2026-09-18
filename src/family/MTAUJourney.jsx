@@ -8,8 +8,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { MTAU_BOOKS, MTAU_MIN_AGE_BANDS, getMigratedLessonIds, getMTAULessonSummary } from "./mtauContent";
-import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
+import { MTAU_BOOKS, MTAU_MIN_AGE_BANDS, getMigratedLessonIds, getMTAULessonSummary, getMTAUBook } from "./mtauContent";
+import { getMTAUBookProgress, getMTAUCurrentLesson, isMTAUBookComplete } from "./mtauProgress";
 import { FAMILY_COLORS } from "./theme";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -43,7 +43,13 @@ export default function MTAUJourney() {
   }
 
   const current = bookProgress !== undefined ? getMTAUCurrentLesson(1, bookProgress) : null;
-  const nextUnmigrated = current && !current.available ? getMTAULessonSummary(1, current.lessonId) : null;
+  const bookComplete = bookProgress !== undefined && isMTAUBookComplete(1, bookProgress);
+  // Only treat this as "not yet migrated" once we know the book genuinely
+  // isn't complete — otherwise (once all 18 real lessons are migrated and
+  // done) getMTAULessonSummary(1, 19) would honestly return null anyway,
+  // but the explicit bookComplete banner below is clearer than silence.
+  const nextUnmigrated = current && !current.available && !bookComplete ? getMTAULessonSummary(1, current.lessonId) : null;
+  const nextBook = bookComplete ? getMTAUBook(2) : null;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0b0b12", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -81,20 +87,36 @@ export default function MTAUJourney() {
               })}
             </div>
 
-            <button
-              onClick={() => current?.available && navigate(`/family/mtau/book/1/lesson/${current.lessonId}`)}
-              disabled={!current?.available}
-              style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: current?.available ? FAMILY_COLORS.pink : "#333", color: "#fff", fontWeight: 800, cursor: current?.available ? "pointer" : "default" }}
-            >
-              {current?.available ? (
-                bookProgress[current.lessonId]?.currentStep ? `Continue Lesson ${current.lessonId}` : `Start Lesson ${current.lessonId}`
-              ) : "All migrated lessons complete"} →
-            </button>
-
-            {nextUnmigrated && (
-              <div style={{ fontSize: 12, color: "#888", marginTop: 10 }}>
-                Next: Lesson {current.lessonId} · {nextUnmigrated.place} · {nextUnmigrated.title} — coming soon
+            {bookComplete ? (
+              <div style={{ background: "#1e1e2a", border: `1px solid ${FAMILY_COLORS.pink}55`, borderRadius: 12, padding: "14px 16px" }}>
+                <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4 }}>🎉 BOOK 1 COMPLETE</div>
+                <div style={{ fontSize: 12, color: "#aaa", marginBottom: 2 }}>{migratedLessonIds.length}/{migratedLessonIds.length} lessons completed</div>
+                <div style={{ fontSize: 12, color: "#aaa", marginBottom: 2 }}>Book 1 · A1 · EIKEN 5</div>
+                <div style={{ fontSize: 12, color: "#8ee6a8", marginBottom: 10 }}>Nagoya journey complete</div>
+                {nextBook && (
+                  <div style={{ fontSize: 12, color: "#888" }}>
+                    Next Journey: Book {nextBook.bookId} — {nextBook.city} — coming soon
+                  </div>
+                )}
               </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => current?.available && navigate(`/family/mtau/book/1/lesson/${current.lessonId}`)}
+                  disabled={!current?.available}
+                  style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: current?.available ? FAMILY_COLORS.pink : "#333", color: "#fff", fontWeight: 800, cursor: current?.available ? "pointer" : "default" }}
+                >
+                  {current?.available ? (
+                    bookProgress[current.lessonId]?.currentStep ? `Continue Lesson ${current.lessonId}` : `Start Lesson ${current.lessonId}`
+                  ) : "All migrated lessons complete"} →
+                </button>
+
+                {nextUnmigrated && (
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 10 }}>
+                    Next: Lesson {current.lessonId} · {nextUnmigrated.place} · {nextUnmigrated.title} — coming soon
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

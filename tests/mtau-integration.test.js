@@ -14,7 +14,8 @@ import {
   MTAU_LESSON_1_7, MTAU_LESSON_1_8, MTAU_LESSON_1_9,
   MTAU_LESSON_1_10, MTAU_LESSON_1_11, MTAU_LESSON_1_12,
   MTAU_LESSON_1_13, MTAU_LESSON_1_14, MTAU_LESSON_1_15,
-  getMTAULesson, getMTAUBook, getMigratedLessonIds, getMTAULessonSummary,
+  MTAU_LESSON_1_16, MTAU_LESSON_1_17, MTAU_LESSON_1_18,
+  getMTAULesson, getMTAUBook, getMigratedLessonIds, getMTAULessonSummary, getMTAUBookLessonCount,
 } from "../src/family/mtauContent.js";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "../src/family/mtauJona.js";
 // mtauProgress.js imports the Firebase SDK chain (via ../lib/firebase),
@@ -107,9 +108,10 @@ test("MTAUJourney's lesson-status list is data-driven over migratedLessonIds.map
 
 // ── Book 1 Lesson 1 loading, all 14 steps present ────────────────────────
 
-test("getMTAULesson(1,1..15) returns the real migrated lessons; any other book/lesson returns null (honest, not invented)", () => {
-  for (let i = 1; i <= 15; i++) assert.ok(getMTAULesson(1, i), `Lesson ${i} should be migrated`);
-  assert.equal(getMTAULesson(1, 16), null, "Lesson 16 is deliberately not migrated this pass");
+test("getMTAULesson(1,1..18) returns the real migrated lessons; there is no Lesson 19 and no other book/lesson returns real content (honest, not invented)", () => {
+  for (let i = 1; i <= 18; i++) assert.ok(getMTAULesson(1, i), `Lesson ${i} should be migrated`);
+  assert.equal(getMTAULesson(1, 19), null, "there is no Lesson 19 — Book 1 has exactly 18 real lessons");
+  assert.equal(getMTAULessonSummary(1, 19), null, "no summary metadata should exist for a nonexistent Lesson 19 either");
   assert.equal(getMTAULesson(2, 1), null);
   assert.equal(getMTAULesson(7, 1), null);
 });
@@ -285,6 +287,61 @@ test("Lesson 13/14/15 content matches the reference product's own clean RSC conf
   assert.equal(MTAU_LESSON_1_15.steps.find(s => s.kind === "workbook").readTitle, "Message from Hana");
 });
 
+test("Lesson 16 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_16.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_16.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_16.title, "Do You Like Sports?");
+  assert.equal(MTAU_LESSON_1_16.location, "Vantelin Dome");
+});
+
+test("Lesson 17 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_17.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_17.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_17.title, "What's the Weather Like?");
+  assert.equal(MTAU_LESSON_1_17.location, "Nagoya Port");
+});
+
+test("Lesson 18 loads with all 14 real steps and is the real book-final lesson (nextDestination honestly null, not an invented Lesson 19 place)", () => {
+  assert.equal(MTAU_LESSON_1_18.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_18.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_18.title, "Review and Unlock Celebration");
+  assert.equal(MTAU_LESSON_1_18.location, "Mirai Tower");
+  assert.equal(MTAU_LESSON_1_18.nextDestination, null);
+});
+
+test("Batch 6 (Lessons 16-18) introduced zero new step kinds despite three new real 'kind' values on the source (sports/weather/celebration) — even the book-final lesson reuses Lesson 6's vocabulary", () => {
+  const kindsBeforeBatch6 = new Set(MTAU_LESSON_1_6.steps.map(s => s.kind));
+  for (const lesson of [MTAU_LESSON_1_16, MTAU_LESSON_1_17, MTAU_LESSON_1_18]) {
+    for (const step of lesson.steps) {
+      assert.ok(kindsBeforeBatch6.has(step.kind), `${lesson.title}'s "${step.kind}" step must reuse a kind Lesson 6 already established`);
+    }
+  }
+});
+
+test("Lesson 16/17/18 content matches the reference product's own clean RSC config payloads (spot checks, not invented)", () => {
+  const hear16 = MTAU_LESSON_1_16.steps.find(s => s.kind === "hear");
+  assert.equal(hear16.dialogue[2].line, "I like soccer. It's my favourite.");
+  assert.equal(MTAU_LESSON_1_16.steps.find(s => s.kind === "workbook").pages, "99–104");
+
+  const hear17 = MTAU_LESSON_1_17.steps.find(s => s.kind === "hear");
+  assert.equal(hear17.dialogue[1].line, "It's rainy and cool.");
+  const grid17 = MTAU_LESSON_1_17.steps.find(s => s.kind === "item_grid");
+  assert.deepEqual(grid17.items.map(i => i.label), ["sunny", "rainy", "cloudy", "windy", "snowy", "hot"]);
+
+  const hear18 = MTAU_LESSON_1_18.steps.find(s => s.kind === "hear");
+  assert.equal(hear18.dialogue.length, 6, "Lesson 18's real dialogue has an extra 'Student' roleplay turn Lessons 1-17 didn't have");
+  assert.equal(hear18.dialogue[1].speaker, "Student");
+  assert.equal(hear18.dialogue[1].line, "My name is Kai. Nice to meet you.");
+  assert.equal(MTAU_LESSON_1_18.steps.find(s => s.kind === "workbook").readTitle, "English Club Day");
+  const reflect18 = MTAU_LESSON_1_18.steps.find(s => s.kind === "reflect");
+  assert.equal(reflect18.heading, "Your Book 1 voice is unlocked.", "real extracted celebration copy, not the standard 'How ready are you now?'");
+});
+
+test("getMTAUBookLessonCount(1) returns 18, derived from the real validated summary length, not a hardcoded literal elsewhere", () => {
+  assert.equal(getMTAUBookLessonCount(1), 18);
+  assert.equal(getMTAUBookLessonCount(2), null, "only Book 1's total is validated so far — honest, not invented");
+});
+
 test("Lesson 7/8/9 content matches the reference product's own clean RSC config payloads (spot checks, not invented)", () => {
   const hear7 = MTAU_LESSON_1_7.steps.find(s => s.kind === "hear");
   assert.equal(hear7.dialogue.length, 5);
@@ -388,7 +445,7 @@ test("MTAU_BOOK_1_LESSON_SUMMARY (all 18) matches the structured source extracte
   assert.equal(getMTAULessonSummary(2, 1), null, "only Book 1's summary has been extracted/validated so far — honest, not invented for other books");
 });
 
-test("lesson-to-lesson navigation chain matches the real source through Lesson 15: L1->Hisaya-odori Park, L2->Midland Square, L3->Noritake Garden, L4->SCMAGLEV Railway Park, L5->Sakae & Oasis 21, L6->Osu Shopping Street, L7->Yanagibashi Market, L8->Tsuruma Library, L9->Meijo Park, L10->Golden Clock, L11->Nagoya Castle, L12->Higashiyama Zoo, L13->Nagoya Science Museum, L14->Tsuruma Park, L15->Vantelin Dome (L16, not yet migrated)", () => {
+test("lesson-to-lesson navigation chain matches the real source through Lesson 17: L1->Hisaya-odori Park, L2->Midland Square, L3->Noritake Garden, L4->SCMAGLEV Railway Park, L5->Sakae & Oasis 21, L6->Osu Shopping Street, L7->Yanagibashi Market, L8->Tsuruma Library, L9->Meijo Park, L10->Golden Clock, L11->Nagoya Castle, L12->Higashiyama Zoo, L13->Nagoya Science Museum, L14->Tsuruma Park, L15->Vantelin Dome, L16->Nagoya Port, L17->Mirai Tower — and L18 (the real book-final lesson) honestly has no nextDestination at all", () => {
   assert.equal(MTAU_LESSON_1_1.nextDestination, "Hisaya-odori Park");
   assert.equal(MTAU_LESSON_1_2.nextDestination, "Midland Square");
   assert.equal(MTAU_LESSON_1_3.nextDestination, "Noritake Garden");
@@ -404,13 +461,14 @@ test("lesson-to-lesson navigation chain matches the real source through Lesson 1
   assert.equal(MTAU_LESSON_1_13.nextDestination, "Nagoya Science Museum");
   assert.equal(MTAU_LESSON_1_14.nextDestination, "Tsuruma Park");
   assert.equal(MTAU_LESSON_1_15.nextDestination, "Vantelin Dome");
+  assert.equal(MTAU_LESSON_1_16.nextDestination, "Nagoya Port");
+  assert.equal(MTAU_LESSON_1_17.nextDestination, "Mirai Tower");
+  assert.equal(MTAU_LESSON_1_18.nextDestination, null);
 });
 
-test("getMTAULessonSummary(1, 16) matches MTAU_LESSON_1_15's real nextDestination — Lesson 16's summary is validated even though its full content isn't migrated yet", () => {
-  const l16 = getMTAULessonSummary(1, 16);
-  assert.equal(l16.place, "Vantelin Dome");
-  assert.equal(l16.title, "Do You Like Sports?");
-  assert.equal(getMTAULesson(1, 16), null, "Lesson 16 must not be reachable until it is actually deep-migrated");
+test("getMTAULessonSummary(1, 19) is honestly null — Book 1's real, validated summary has exactly 18 entries, no invented 19th", () => {
+  assert.equal(getMTAULessonSummary(1, 19), null);
+  assert.equal(getMTAULesson(1, 19), null);
 });
 
 // ── Step progression / current-step resume (data-layer contract) ────────
@@ -464,8 +522,9 @@ test("getMTAUCurrentLesson is generic (derives migrated lesson ids from getMigra
   assert.ok(!/lessonId: 2/.test(fnBody) && !/lessonId: 1,/.test(fnBody), "must not hardcode specific lesson numbers in the logic itself");
 });
 
-test("getMigratedLessonIds(1) returns exactly [1..15] — derived from the real data index, not a separately maintained list", () => {
-  assert.deepEqual(getMigratedLessonIds(1), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+test("getMigratedLessonIds(1) returns exactly [1..18] — derived from the real data index, not a separately maintained list — this is now every real Book 1 lesson", () => {
+  assert.deepEqual(getMigratedLessonIds(1), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  assert.equal(getMigratedLessonIds(1).length, getMTAUBookLessonCount(1), "the migrated count and the real total must now match exactly");
 });
 
 test("progression logic: walks migrated lessons in order, returns the first incomplete one as current, and (last migrated + 1) as the honestly-unavailable next lesson once all are complete", () => {
@@ -479,6 +538,53 @@ test("progression logic: walks migrated lessons in order, returns the first inco
   assert.ok(/available: true/.test(fnBody));
   assert.ok(/migratedIds\[migratedIds\.length - 1\] \+ 1/.test(fnBody), "the lesson after the last migrated one must be computed, not hardcoded");
   assert.ok(/available: false/.test(fnBody), "a lesson beyond what's migrated must be honestly marked unavailable");
+});
+
+// ── Book 1 completion (Final Batch) ──────────────────────────────────────
+
+test("isMTAUBookComplete requires the real total lesson count, not just 'every currently migrated lesson done' — this is what stops 15/15 from ever being mistaken for book-complete", () => {
+  const progressSrc = read("src/family/mtauProgress.js");
+  const fnBody = progressSrc.slice(
+    progressSrc.indexOf("export function isMTAUBookComplete"),
+    progressSrc.indexOf("export function isMTAUBookComplete") + 700
+  );
+  assert.ok(/getMTAUBookLessonCount\(bookId\)/.test(fnBody), "must check the real total, not just the migrated count");
+  assert.ok(/migratedIds\.length < totalLessons/.test(fnBody), "must refuse to call it complete while any real lesson is still unmigrated");
+  assert.ok(/migratedIds\.every\(lessonId => progressByLessonId\[lessonId\]\?\.completed\)/.test(fnBody), "every real lesson must actually be completed, not just migrated");
+  assert.ok(!/lessonId === 18/.test(fnBody) && !/=== 18/.test(fnBody), "must not hardcode lesson 18 anywhere — this must work for any real book length");
+});
+
+test("getMTAUBookCompletionRecord is a certificate-ready hook derived purely from real completed-lesson docs, not a temporary UI flag — and returns null until the book is genuinely complete", () => {
+  const progressSrc = read("src/family/mtauProgress.js");
+  assert.ok(/export function getMTAUBookCompletionRecord/.test(progressSrc));
+  const fnBody = progressSrc.slice(progressSrc.indexOf("export function getMTAUBookCompletionRecord"));
+  assert.ok(/if \(!isMTAUBookComplete\(bookId, progressByLessonId\)\) return null;/.test(fnBody), "must gate on the real completion check, not compute a record for an incomplete book");
+  assert.ok(/completedAt/.test(fnBody), "must carry real completedAt data for a future certificate, not just a boolean");
+});
+
+test("MTAUJourney shows a real Book 1 Complete banner (not the old 'All migrated lessons complete' text) once isMTAUBookComplete is true, and honestly teases Book 2 using real book metadata", () => {
+  assert.ok(/isMTAUBookComplete\(1, bookProgress\)/.test(journeySrc));
+  assert.ok(/BOOK 1 COMPLETE/.test(journeySrc));
+  assert.ok(/getMTAUBook\(2\)/.test(journeySrc), "the next-journey teaser must use real Book 2 metadata, not an invented string");
+});
+
+test("FamilyHome's post-completion recommendation shows Book 1 Complete instead of silently falling back to an unrelated Hear/See/Do activity or a nonexistent Lesson 19", () => {
+  assert.ok(/isMTAUBookComplete\(1, mtauBookProgress\)/.test(familyHomeSrc));
+  assert.ok(/mtauBookComplete/.test(familyHomeSrc));
+  assert.ok(!/Lesson 19/.test(familyHomeSrc), "must never reference a nonexistent Lesson 19");
+});
+
+test("FamilyParentView's card shows an explicit Book 1 Complete state, still deriving the migrated count generically (not hardcoding 18)", () => {
+  assert.ok(/isMTAUBookComplete\(1, mtauBookProgress\)/.test(parentViewSrc));
+  assert.ok(/Book 1 Complete/.test(parentViewSrc));
+  assert.ok(/getMigratedLessonIds\(1\)\.length/.test(parentViewSrc), "the denominator must still be derived, never hardcoded to 18");
+});
+
+test("MTAULesson's reflect step distinguishes 'book complete' (no summary exists for lessonId+1 at all) from 'next lesson exists but isn't migrated yet' (summary exists) — purely from curriculum data, not a lessonId===18 check", () => {
+  const fnBody = lessonSrc.slice(lessonSrc.indexOf('case "reflect"'), lessonSrc.indexOf('case "reflect"') + 2200);
+  assert.ok(/getMTAULessonSummary\(bookId, lessonId \+ 1\)/.test(fnBody));
+  assert.ok(/Book \{bookId\} Complete/.test(fnBody));
+  assert.ok(!/lessonId === 18/.test(fnBody), "must not special-case lesson 18 — the distinction comes from whether summary data exists");
 });
 
 // ── Jona MTAU context / no stored child name sent to Jona ───────────────

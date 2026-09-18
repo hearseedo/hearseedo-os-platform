@@ -8,8 +8,8 @@ import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
 import { getActivityProgress, getRecommendedActivity, getLastActivity } from "./familyProgress";
 import { localizedTitle } from "./content";
-import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary } from "./mtauContent";
-import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
+import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary, getMTAUBook } from "./mtauContent";
+import { getMTAUBookProgress, getMTAUCurrentLesson, isMTAUBookComplete } from "./mtauProgress";
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -61,6 +61,7 @@ export default function FamilyHome() {
   // left on the normal Hear/See/Do/Talk/Create loop, not pushed into it.
   const mtauStarted = mtauBookProgress && Object.values(mtauBookProgress).some(p => p !== null);
   const mtauCurrent = mtauStarted ? getMTAUCurrentLesson(1, mtauBookProgress) : null;
+  const mtauBookComplete = mtauStarted && isMTAUBookComplete(1, mtauBookProgress);
   const mtauRecommended = mtauCurrent?.available
     ? { summary: getMTAULessonSummary(1, mtauCurrent.lessonId), lessonId: mtauCurrent.lessonId, inProgress: mtauBookProgress[mtauCurrent.lessonId]?.currentStep != null }
     : null;
@@ -177,7 +178,7 @@ export default function FamilyHome() {
             <div style={{ fontSize: 12, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
               {t("fam_continue_journey")}
             </div>
-            {!mtauRecommended && last && (
+            {!mtauRecommended && !mtauBookComplete && last && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                 {t("fam_last_activity")}: {last.icon} {localizedTitle(last, lang)}
               </div>
@@ -185,6 +186,8 @@ export default function FamilyHome() {
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
               {mtauRecommended
                 ? `🔓 Monkeys Talk & Unlock — Lesson ${mtauRecommended.lessonId}${mtauRecommended.summary ? ` · ${mtauRecommended.summary.title}` : ""}`
+                : mtauBookComplete
+                ? `🎉 Book 1 Complete — Book 2 (${getMTAUBook(2)?.city ?? "next journey"}) coming soon`
                 : recommended ? `${recommended.icon} ${localizedTitle(recommended, lang)}` : "🎉 All caught up!"}
             </div>
           </div>
@@ -194,6 +197,13 @@ export default function FamilyHome() {
               style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
             >
               {mtauRecommended.inProgress ? "Continue" : t("fam_start")} →
+            </button>
+          ) : mtauBookComplete ? (
+            <button
+              onClick={() => navigate("/family/mtau")}
+              style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+            >
+              View journey →
             </button>
           ) : recommended && (
             <button

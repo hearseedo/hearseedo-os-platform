@@ -23,7 +23,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { auth } from "../lib/firebase";
 import { FAMILY_COLORS } from "./theme";
-import { getMTAULesson, getMTAUBook } from "./mtauContent";
+import { getMTAULesson, getMTAUBook, getMTAULessonSummary } from "./mtauContent";
 import { getMTAULessonProgress, recordMTAUStep, recordMTAULessonCompleted, recordMTAUConfidence, mtauDocId } from "./mtauProgress";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "./mtauJona";
 import { SELF_PROFILE_ID } from "../lib/profiles";
@@ -471,7 +471,13 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
         </Centered>
       );
 
-    case "reflect":
+    case "reflect": {
+      // Generic, not lessonId===18: a lesson is the book's real last lesson
+      // when the curriculum's own validated summary has no entry for
+      // lessonId+1 at all — distinct from "exists in the book but isn't
+      // migrated yet" (handled by the existing coming-soon branch below).
+      const nextLessonSummary = getMTAULessonSummary(bookId, lessonId + 1);
+      const nextBook = !nextLessonSummary ? getMTAUBook(bookId + 1) : null;
       return (
         <Centered>
           <Eyebrow>CONFIDENCE AFTER</Eyebrow>
@@ -481,14 +487,26 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
             <div><div style={{ fontSize: 11, color: "#888" }}>AFTER</div><div style={{ fontSize: 22, fontWeight: 800 }}>{confidenceAfter ?? "–"}</div></div>
           </div>
           <ScaleRow value={confidenceAfter} onChange={value => onConfidenceChange("after", value)} labels={[null, null, null, null, null]} />
-          {lesson.nextDestination && (
-            <p style={{ ...noteStyle, marginTop: 20 }}>
-              NEXT DESTINATION: {lesson.nextDestination} (Lesson {lessonId + 1}
-              {getMTAULesson(bookId, lessonId + 1) ? "" : " — coming soon"})
-            </p>
+          {nextLessonSummary ? (
+            lesson.nextDestination && (
+              <p style={{ ...noteStyle, marginTop: 20 }}>
+                NEXT DESTINATION: {lesson.nextDestination} (Lesson {lessonId + 1}
+                {getMTAULesson(bookId, lessonId + 1) ? "" : " — coming soon"})
+              </p>
+            )
+          ) : (
+            <div style={{ marginTop: 20 }}>
+              <p style={{ ...noteStyle, fontSize: 16, fontWeight: 800 }}>🎉 Book {bookId} Complete!</p>
+              {nextBook && (
+                <p style={{ ...noteStyle, marginTop: 6 }}>
+                  Next Journey: Book {nextBook.bookId} — {nextBook.city} — coming soon
+                </p>
+              )}
+            </div>
           )}
         </Centered>
       );
+    }
 
     default:
       return null;

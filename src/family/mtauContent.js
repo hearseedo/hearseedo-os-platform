@@ -2376,6 +2376,459 @@ export const MTAU_LESSON_1_15 = {
   ],
 };
 
+export const MTAU_LESSON_1_16 = {
+  bookId: 1,
+  lessonId: 16,
+  title: "Do You Like Sports?",
+  titleJp: null,
+  topic: "Asking and answering questions about sports and hobbies",
+  location: "Vantelin Dome",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: "Nagoya Port",
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Enter the city mission",
+      heading: "Do You Like Sports?",
+      body: "Hear it, see it, then use it in a real conversation.",
+      cta: "Start Lesson 16",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to ask and answer questions about sports and hobbies?",
+      scaleLabels: ["Not yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Bring back the last lesson",
+      heading: "Quick review",
+      character: "Kiko",
+      bubble: "Invite someone to play catch.",
+      note: "Say your answer, then add one more detail from the last lesson.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen for meaning",
+      heading: "Which sports do the friends like?",
+      dialogue: [
+        { speaker: "Momo", line: "Do you like sports, Lola?" },
+        { speaker: "Lola", line: "Yes, I do. I like running and basketball." },
+        { speaker: "Momo", line: "I like soccer. It's my favourite." },
+        { speaker: "Lola", line: "Do you play after school?" },
+        { speaker: "Momo", line: "Yes, I play with Milo." },
+      ],
+      choices: [{ text: "I found the key meaning.", correct: true }],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Give a fast answer",
+      heading: "Fast response",
+      bubble: "Do you like sports?",
+      note: "Answer: “Yes, I do. Soccer is my favourite.” Then give a different answer.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy the rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["Do you like soccer?", "Yes, I do. / No, I don't.", "I like swimming.", "My favourite sport is tennis."],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Build the pattern",
+      heading: "Build three useful lines.",
+      patternLines: ["Do you like soccer?", "Yes, I do. / No, I don't.", "I like swimming."],
+    },
+    {
+      kind: "item_grid",
+      title: "Mission lab",
+      subtitle: "Collect every clue",
+      heading: "Create a sports lineup.",
+      items: [
+        { label: "soccer" }, { label: "basketball" }, { label: "tennis" },
+        { label: "baseball" }, { label: "running" }, { label: "swimming" },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Ask & switch",
+      subtitle: "Keep the exchange moving",
+      heading: "Find a hobby match.",
+      characterPair: ["Milo", "Lola"],
+      exchange: ["Do you like sports?", "Yes, I do. Soccer is my favourite.", "Ask one follow-up question."],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read, write and connect",
+      heading: "Book 1 · Pages 99–104",
+      pages: "99–104",
+      bridge: [
+        { stage: "99", detail: "Hear" }, { stage: "100", detail: "See" }, { stage: "101", detail: "Do" },
+        { stage: "102", detail: "Read" }, { stage: "103", detail: "Speak + Write" }, { stage: "104", detail: "Unlock" },
+      ],
+      readTitle: "My basketball hobby",
+      readingText: "My hobby is basketball. I practise on Tuesday and Friday. My sister likes tennis, but I don't. On Sunday, we both like watching baseball with our family.",
+      confirmLabel: "I completed the Book 1 workbook task.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Make it personal",
+      heading: "Make the English yours.",
+      instruction: "Make a sports profile for 20–30 seconds. Include preferences, a favourite and when you practise.",
+      prompts: ["I like ______, but I don't like ______.", "My favourite sport is ______.", "I practise on ______."],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Guided practice questions",
+      heading: "Keep the meaning moving.",
+      subheading: "4 scripted practice turns. Less support each time.",
+      objectives: [
+        "Say whether you like sports",
+        "Say which sport you like",
+        "Say when you play or practise",
+        "Say a sport you don't like and why, with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three voice keys",
+      heading: "Three voice keys",
+      instruction: "Ask: Do you like soccer? / Answer: Yes, I do. / Say your favourite sport or hobby.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "How ready are you now?",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
+export const MTAU_LESSON_1_17 = {
+  bookId: 1,
+  lessonId: 17,
+  title: "What's the Weather Like?",
+  titleJp: null,
+  topic: "Describing weather and giving a simple reason for a preference",
+  location: "Nagoya Port",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: "Mirai Tower",
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Enter the city mission",
+      heading: "What's the Weather Like?",
+      body: "Hear it, see it, then use it in a real conversation.",
+      cta: "Start Lesson 17",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to describe weather and give a simple reason for a preference?",
+      scaleLabels: ["Not yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Bring back the last lesson",
+      heading: "Quick review",
+      character: "Milo",
+      bubble: "Say one hobby you like.",
+      note: "Say your answer, then add one more detail from the last lesson.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen for meaning",
+      heading: "What should Kiko take today?",
+      dialogue: [
+        { speaker: "Milo", line: "What's the weather like today?" },
+        { speaker: "Kiko", line: "It's rainy and cool." },
+        { speaker: "Milo", line: "Do you have an umbrella?" },
+        { speaker: "Kiko", line: "Yes, I do. I like rain." },
+        { speaker: "Milo", line: "Really? I like sunny days!" },
+      ],
+      choices: [{ text: "I found the key meaning.", correct: true }],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Give a fast answer",
+      heading: "Fast response",
+      bubble: "What's the weather like?",
+      note: "Answer: “It's rainy and cool.” Then give a different answer.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy the rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["What's the weather like?", "It's sunny and warm.", "I like winter because I like snow.", "Take an umbrella."],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Build the pattern",
+      heading: "Build three useful lines.",
+      patternLines: ["What's the weather like?", "It's sunny and warm.", "I like winter because I like snow."],
+    },
+    {
+      kind: "item_grid",
+      title: "Mission lab",
+      subtitle: "Collect every clue",
+      heading: "Build the week's forecast.",
+      items: [
+        { label: "sunny" }, { label: "rainy" }, { label: "cloudy" },
+        { label: "windy" }, { label: "snowy" }, { label: "hot" },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Ask & switch",
+      subtitle: "Keep the exchange moving",
+      heading: "Choose the right plan.",
+      characterPair: ["Milo", "Lola"],
+      exchange: ["What's the weather like?", "It's rainy and cool.", "Ask one follow-up question."],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read, write and connect",
+      heading: "Book 1 · Pages 105–110",
+      pages: "105–110",
+      bridge: [
+        { stage: "105", detail: "Hear" }, { stage: "106", detail: "See" }, { stage: "107", detail: "Do" },
+        { stage: "108", detail: "Read" }, { stage: "109", detail: "Speak + Write" }, { stage: "110", detail: "Unlock" },
+      ],
+      readTitle: "Four seasons",
+      readingText: "I like spring because the weather is warm. I don't like very hot summer days. In autumn, I like walking in the park. Winter is cold, but I like snow and warm drinks.",
+      confirmLabel: "I completed the Book 1 workbook task.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Make it personal",
+      heading: "Make the English yours.",
+      instruction: "Give a 20–30 second Nagoya forecast. Include today, tomorrow, advice and a preference.",
+      prompts: ["Today it is ______ and ______.", "Tomorrow it will be ______.", "Take / Wear ______.", "I like ______ because ______."],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Guided practice questions",
+      heading: "Keep the meaning moving.",
+      subheading: "4 scripted practice turns. Less support each time.",
+      objectives: [
+        "Say what the weather is like today",
+        "Say what to wear or take",
+        "Say which season you like",
+        "Say why you like it, with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three voice keys",
+      heading: "Three voice keys",
+      instruction: "Complete and say: It is sunny and warm. / Give one weather preference with because. / Ask about today's weather.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "How ready are you now?",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
+// Book 1, Lesson 18 — the reference product's own config carries a real
+// generic "final: true" field on this lesson (not a lessonId===18 check on
+// our side); its effect on Jona is already fully handled by our existing
+// generic architecture, since Jona already receives this lesson's real
+// `topic` field ("Use Book 1 English in one confident real-world
+// conversation"), which itself communicates the celebration/review nature
+// with no special-case code needed. The "Book 1 Complete" behavior (in
+// MTAULesson.jsx's reflect step, MTAUJourney.jsx, FamilyHome.jsx, and
+// FamilyParentView.jsx) is likewise derived generically — from whether
+// getMTAULessonSummary(bookId, lessonId+1) returns real data at all, not
+// from checking lessonId===18 anywhere.
+export const MTAU_LESSON_1_18 = {
+  bookId: 1,
+  lessonId: 18,
+  title: "Review and Unlock Celebration",
+  titleJp: null,
+  topic: "Using Book 1 English in one confident real-world conversation",
+  location: "Mirai Tower",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: null, // honest: the real source's own nextPlace here is "Unlock Nagoya map", not another lesson location — there is no Lesson 19
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Enter the city mission",
+      heading: "Review and Unlock Celebration",
+      body: "Hear it, see it, then use it in a real conversation.",
+      cta: "Start Lesson 18",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to use Book 1 English in one confident real-world conversation?",
+      scaleLabels: ["Not yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Bring back the last lesson",
+      heading: "Quick review",
+      character: "Kiko",
+      bubble: "Describe today's weather, then invite a friend somewhere.",
+      note: "Say your answer, then add one more detail from the last lesson.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen for meaning",
+      heading: "How does a new friendship begin?",
+      dialogue: [
+        { speaker: "Lola", line: "Hi! I'm Lola. What's your name?" },
+        { speaker: "Student", line: "My name is Kai. Nice to meet you." },
+        { speaker: "Lola", line: "What do you like?" },
+        { speaker: "Student", line: "I like basketball. I can play after school." },
+        { speaker: "Lola", line: "Great! Let's play on Friday." },
+        { speaker: "Student", line: "That sounds great!" },
+      ],
+      choices: [{ text: "I found the key meaning.", correct: true }],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Give a fast answer",
+      heading: "Fast response",
+      bubble: "Hi! What's your name?",
+      note: "Answer: “My name is Kai. Nice to meet you.” Then give a different answer.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy the rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["My name is _____.", "I like _____ because _____.", "I can _____.", "Let's _____."],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Build the pattern",
+      heading: "Build three useful lines.",
+      patternLines: ["My name is _____.", "I like _____ because _____.", "I can _____."],
+    },
+    {
+      kind: "item_grid",
+      title: "Mission lab",
+      subtitle: "Collect every clue",
+      heading: "Collect six Book 1 powers.",
+      items: [
+        { label: "introduce" }, { label: "family" }, { label: "school" },
+        { label: "routine" }, { label: "ability" }, { label: "weather" },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Ask & switch",
+      subtitle: "Keep the exchange moving",
+      heading: "Meet a new friend.",
+      characterPair: ["Milo", "Lola"],
+      exchange: ["Hi! What's your name?", "My name is Kai. Nice to meet you.", "Ask one follow-up question."],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read, write and connect",
+      heading: "Book 1 · Pages 111–116",
+      pages: "111–116",
+      bridge: [
+        { stage: "111", detail: "Hear" }, { stage: "112", detail: "See" }, { stage: "113", detail: "Do" },
+        { stage: "114", detail: "Read" }, { stage: "115", detail: "Speak + Write" }, { stage: "116", detail: "Unlock" },
+      ],
+      readTitle: "English Club Day",
+      readingText: "Welcome to our English Club Day! Meet new friends, play word games and talk about your favourite things. The club starts at ten in Room 3. Bring a pencil and a drink. At twelve, let's have lunch in the park. Can you come?",
+      confirmLabel: "I completed the Book 1 workbook task.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Make it personal",
+      heading: "Make the English yours.",
+      instruction: "Prepare your final 30-second voice story. Introduce yourself, share a preference and ability, then make an invitation.",
+      prompts: ["Hello! My name is ______.", "I like ______ because ______.", "I can ______.", "Let's ______!"],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Guided practice questions",
+      heading: "Keep the meaning moving.",
+      subheading: "4 scripted practice turns. Less support each time.",
+      objectives: [
+        "Introduce yourself (a name for practice, not their real identity)",
+        "Say what you like and why",
+        "Say what you can do",
+        "Ask two questions and finish with an invitation, with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three voice keys",
+      heading: "Three voice keys",
+      instruction: "Introduce yourself with confidence. / Ask two different questions. / Complete a 30-second conversation.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "Your Book 1 voice is unlocked.",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
 const MTAU_LESSON_INDEX = {
   "1-1": MTAU_LESSON_1_1,
   "1-2": MTAU_LESSON_1_2,
@@ -2392,6 +2845,9 @@ const MTAU_LESSON_INDEX = {
   "1-13": MTAU_LESSON_1_13,
   "1-14": MTAU_LESSON_1_14,
   "1-15": MTAU_LESSON_1_15,
+  "1-16": MTAU_LESSON_1_16,
+  "1-17": MTAU_LESSON_1_17,
+  "1-18": MTAU_LESSON_1_18,
 };
 
 export function getMTAULesson(bookId, lessonId) {
@@ -2430,6 +2886,18 @@ export const MTAU_BOOK_1_LESSON_SUMMARY = [
 export function getMTAULessonSummary(bookId, lessonId) {
   if (bookId !== 1) return null; // only Book 1's summary list has been extracted/validated so far
   return MTAU_BOOK_1_LESSON_SUMMARY.find(l => l.lessonId === lessonId) ?? null;
+}
+
+// The real, validated total lesson count for a book — derived from the
+// summary list's own length, never a hardcoded "18". Honest null for any
+// book whose summary hasn't been extracted/validated yet, same convention
+// as getMTAULessonSummary above. This is what lets "book complete" detection
+// stay generic: a lesson is the last real lesson in its book when
+// getMTAULessonSummary(bookId, lessonId + 1) returns null, not because
+// lessonId happens to equal some hardcoded number.
+export function getMTAUBookLessonCount(bookId) {
+  if (bookId !== 1) return null;
+  return MTAU_BOOK_1_LESSON_SUMMARY.length;
 }
 
 // Data-driven — derives from MTAU_LESSON_INDEX's own keys rather than a
