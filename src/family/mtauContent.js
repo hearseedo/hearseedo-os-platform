@@ -22,6 +22,15 @@
 // shape. MTAU_STEP_KINDS below lists every kind seen so far as a growing,
 // reusable vocabulary — a future lesson introducing yet another position-8
 // activity adds one more reusable kind here, never lesson-specific code.
+//
+// Batch 2 (Lessons 4-6, 2026-09-18) added "item_grid" as the one new
+// reusable kind — it covers three different position-8 activities
+// (Lesson 4's family map, Lesson 5's object lab, Lesson 6's mission lab)
+// that all turned out to share the same real shape: tap every card in a
+// grid. It also found that the "see" step's interaction genuinely differs
+// per lesson (tiles / pronounCards / possessiveCards / articleCards /
+// patternLines) — each is an optional field on the same "see" kind, not a
+// new kind, since the step's pedagogical role never changes.
 
 export const MTAU_BOOKS = [
   { bookId: 1, city: "Nagoya",   theme: "First conversations",              cefr: "A1",       eiken: "EIKEN 5",     status: "open" },
@@ -44,7 +53,7 @@ export const MTAU_MIN_AGE_BANDS = ["junior_high", "teen"];
 // Hear/See/Do card grid, and must be preserved as such.
 export const MTAU_STEP_KINDS = [
   "arrive", "confidence", "quickstart", "review", "hear", "respond", "shadow", "see",
-  "meet_team", "number_hunt", "repair", "ask_switch", "workbook", "create", "jona", "unlock", "reflect",
+  "meet_team", "number_hunt", "item_grid", "repair", "ask_switch", "workbook", "create", "jona", "unlock", "reflect",
 ];
 
 // ── Book 1, Lesson 1 — the one deeply-integrated pilot lesson ────────────
@@ -530,6 +539,508 @@ export const MTAU_LESSON_1_3 = {
   ],
 };
 
+// ── Book 1, Lesson 4 — extracted verbatim from the compiled bundle's
+// switch(V.id) source (page-DIwxxzrC.js, 2026-09-18). New interaction
+// shapes this lesson introduces: a numbered countdown next to the review
+// character (numberSequence), a possessive-pronoun matching card (see
+// step's possessiveCards), and a 4-role tap grid (family-map) — the last
+// is generalized as the new reusable "item_grid" kind rather than a
+// lesson-specific renderer. ──────────────────────────────────────────────
+export const MTAU_LESSON_1_4 = {
+  bookId: 1,
+  lessonId: 4,
+  title: "My Family",
+  titleJp: null,
+  topic: "Naming family members and showing who belongs to whom",
+  location: "Noritake Garden",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: "SCMAGLEV Railway Park",
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Open the family album",
+      heading: "My Family",
+      body: "Momo brought a photo. Listen, ask who each person is, and share a story of your own.",
+      cta: "Open the family album",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to talk about family?",
+      scaleLabels: ["Not ready yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Use age and numbers",
+      heading: "Quick review",
+      character: "Kiko",
+      numberSequence: "10 · 9 · 8 · 7 · 6 · 5 · 4 · 3 · 2 · 1",
+      note: "Count backward, say your age, then ask Kiko's age.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen to Momo",
+      heading: "Who is Mei?",
+      dialogue: [
+        { speaker: "Momo", line: "This is my family photo." },
+        { speaker: "Lola", line: "Who is she?" },
+        { speaker: "Momo", line: "She is my sister. Her name is Mei." },
+      ],
+      choices: [
+        { text: "His mother", correct: false },
+        { text: "His sister", correct: true },
+        { text: "His grandmother", correct: false },
+      ],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Name a family member",
+      heading: "Respond",
+      character: "Momo",
+      bubble: "Who is she?",
+      note: "Say: “She is Momo's sister. Her name is Mei.” Start with fewer words if needed.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy family rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["This is my mother.", "Who is she?", "She is my sister.", "His name is Ken."],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Notice his and her",
+      heading: "His name or her name?",
+      instruction: "Choose the words",
+      // A different real shape from Lesson 2's pronounCards: each card is a
+      // statement + a blank to fill with a single possessive answer.
+      possessiveCards: [
+        { statement: "Mei is Momo's sister.", blank: "___ name is Mei.", answer: "Her" },
+        { statement: "Ken is Momo's brother.", blank: "___ name is Ken.", answer: "His" },
+      ],
+    },
+    {
+      kind: "item_grid",
+      title: "Family map",
+      subtitle: "Connect four people",
+      heading: "Introduce all four people.",
+      items: [
+        { label: "Mother", sublabel: "Her name is _____." },
+        { label: "Father", sublabel: "His name is _____." },
+        { label: "Sister", sublabel: "Her name is _____." },
+        { label: "Brother", sublabel: "His name is _____." },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Ask & switch",
+      subtitle: "Trade who questions",
+      heading: "Ask, answer, add a name.",
+      characterPair: ["Momo", "Lola"],
+      exchange: ["“Who is he?”", "“He is my grandfather. His name is _____.”"],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read and write",
+      heading: "Book 1 · Pages 27–32",
+      pages: "27–32",
+      bridge: [
+        { stage: "27–28", detail: "Review + Hear" },
+        { stage: "29–30", detail: "See + Do" },
+        { stage: "31–32", detail: "Read + Unlock" },
+      ],
+      readingText: "Aya's mother is a doctor. Her father is a teacher. Aya has one brother. His name is Yuta.",
+      confirmLabel: "I completed pages 27–32.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Share a family story",
+      heading: "Share a family story.",
+      instruction: "Choose a real, chosen, or imagined family. Introduce two people in 20–30 seconds.",
+      prompts: ["This is my ______.", "His / Her name is ______.", "We like to ______ together."],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Four real questions",
+      heading: "Your family story.",
+      subheading: "Four answers. Your meaning.",
+      objectives: [
+        "Name a person in your family or chosen family (a name for practice, not their real identity)",
+        "Say that person's name",
+        "Add an activity you do together",
+        "Tell the full connected story with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three keys",
+      heading: "Three family keys",
+      instruction: "Say: My mother's son is my brother. / Say: This is Momo's family. / Say one sentence about your family.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "How ready are you to talk about family now?",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
+// ── Book 1, Lesson 5 — extracted verbatim from the compiled bundle's
+// switch(U.id) source (page-Cdzmah14.js, 2026-09-18). Introduces
+// articleCards (a/an matching, alongside see's existing tiles and
+// pronounCards) and reuses item_grid for the object-lab step. ──────────
+export const MTAU_LESSON_1_5 = {
+  bookId: 1,
+  lessonId: 5,
+  title: "What's This?",
+  titleJp: null,
+  topic: "Identifying classroom objects and using a / an",
+  location: "SCMAGLEV Railway Park",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: "Sakae & Oasis 21",
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Enter the discovery lab",
+      heading: "What's This?",
+      body: "Explore the railway lab, identify each object, and use every clue in a conversation.",
+      cta: "Begin the discovery",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to identify classroom objects?",
+      scaleLabels: ["Not ready yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Use family English",
+      heading: "Quick review",
+      character: "Momo",
+      bubble: "Who is he?",
+      note: "Use Lesson 4: identify Momo and add one family sentence.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen for objects",
+      heading: "What does Kiko find?",
+      dialogue: [
+        { speaker: "Milo", line: "What's this?" },
+        { speaker: "Kiko", line: "It's a notebook." },
+        { speaker: "Milo", line: "And what's that?" },
+        { speaker: "Kiko", line: "It's an eraser." },
+      ],
+      choices: [
+        { text: "A ruler and book", correct: false },
+        { text: "A notebook and an eraser", correct: true },
+      ],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Name the object",
+      heading: "Respond",
+      // No character avatar in the source for this step — a real object
+      // icon is shown instead, so bubble renders without a character name.
+      bubble: "What's this?",
+      note: "Say: “It's a notebook.” Then ask Kiko if it is hers.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy question rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["What's this?", "It's a book.", "It's an eraser.", "Is this your pen?"],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Choose a or an",
+      heading: "A or an?",
+      instruction: "Choose the words",
+      // A third real shape alongside tiles (L1/L3) and pronounCards (L2):
+      // each card is a word with a correct article to select.
+      articleCards: [
+        { word: "book", answer: "a" },
+        { word: "eraser", answer: "an" },
+        { word: "pencil", answer: "a" },
+        { word: "orange pen", answer: "an" },
+      ],
+    },
+    {
+      kind: "item_grid",
+      title: "Object lab",
+      subtitle: "Identify six objects",
+      heading: "Identify every object.",
+      items: [
+        { label: "a book" },
+        { label: "a notebook" },
+        { label: "a pencil" },
+        { label: "an eraser" },
+        { label: "a ruler" },
+        { label: "a computer" },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Bag check",
+      subtitle: "Ask and answer",
+      heading: "Ask, answer, ask again.",
+      exchange: ["“Is this your pen?”", "“Yes, it is. Thank you.”", "“What's that?”"],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read and write",
+      heading: "Book 1 · Pages 33–38",
+      pages: "33–38",
+      bridge: [
+        { stage: "33–34", detail: "Review + Hear" },
+        { stage: "35–36", detail: "See + Do" },
+        { stage: "37–38", detail: "Read + Unlock" },
+      ],
+      readingText: "The blue school bag has a notebook, two pencils, a ruler, an eraser, and an orange pen. It does not have a computer.",
+      confirmLabel: "I completed pages 33–38.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Describe your bag",
+      heading: "Describe your bag.",
+      instruction: "Speak for 20–30 seconds. Name at least three objects and one thing you do not have.",
+      prompts: ["My bag is ______.", "I have a / an ______.", "I do not have a ______."],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Four real questions",
+      heading: "Object conversation.",
+      subheading: "Four answers. Less support each time.",
+      objectives: [
+        "Name an object you found",
+        "Answer yes or no about the object",
+        "Add two more objects",
+        "Describe your whole bag with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three keys",
+      heading: "Three object keys",
+      instruction: "Say: an eraser. / Ask: What's this? / Name three classroom objects.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "How ready are you to identify objects now?",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
+// ── Book 1, Lesson 6 — extracted from the reference product's own clean
+// RSC config payload (fetched directly from the /book-1/lesson-6 HTML
+// response, 2026-09-18) rather than a compiled bundle switch — the
+// reference product itself refactored to a config-driven generic lesson
+// runner starting at Lesson 6 (kind: "clothes"), which is why this
+// extraction is more direct than Lessons 4/5's. Cross-checked against the
+// generic renderer's switch(K[0]) source (lesson-mission-CIwWZ4yO.js) to
+// confirm exactly how each config field maps to each step. Introduces
+// patternLines (a third "see" shape: select whole sentences, not tiles or
+// cards) and reuses item_grid for the "Mission lab" step. ──────────────
+export const MTAU_LESSON_1_6 = {
+  bookId: 1,
+  lessonId: 6,
+  title: "Colours and Clothes",
+  titleJp: null,
+  topic: "Describing clothes using colours and simple adjectives",
+  location: "Sakae & Oasis 21",
+  cefr: "A1",
+  eiken: "EIKEN 5",
+  nextDestination: "Osu Shopping Street",
+  steps: [
+    {
+      kind: "arrive",
+      title: "Arrive",
+      subtitle: "Enter the city mission",
+      heading: "Colours and Clothes",
+      body: "Hear it, see it, then use it in a real conversation.",
+      cta: "Start Lesson 6",
+    },
+    {
+      kind: "confidence",
+      title: "Confidence",
+      subtitle: "Choose your starting point",
+      heading: "How ready are you to describe clothes using colours and simple adjectives?",
+      scaleLabels: ["Not yet", null, null, null, "Ready to try"],
+      phase: "before",
+    },
+    {
+      kind: "review",
+      title: "Quick review",
+      subtitle: "Bring back the last lesson",
+      heading: "Quick review",
+      character: "Lola",
+      bubble: "What's this? Name it with a or an.",
+      note: "Say your answer, then add one more detail from the last lesson.",
+    },
+    {
+      kind: "hear",
+      title: "Hear",
+      subtitle: "Listen for meaning",
+      heading: "What colours are the clothes?",
+      dialogue: [
+        { speaker: "Lola", line: "Look at this jacket!" },
+        { speaker: "Kiko", line: "It's a cool pink jacket." },
+        { speaker: "Lola", line: "What colour are those shoes?" },
+        { speaker: "Kiko", line: "They are black and yellow." },
+        { speaker: "Lola", line: "I like them!" },
+      ],
+      // The source renders one confirm button here, not multiple options —
+      // kept as a single-item choices array so no new field is needed.
+      choices: [{ text: "I found the key meaning.", correct: true }],
+    },
+    {
+      kind: "respond",
+      title: "Respond",
+      subtitle: "Give a fast answer",
+      heading: "Fast response",
+      bubble: "What colour is the jacket?",
+      note: "Answer: “It's a cool pink jacket.” Then give a different answer.",
+    },
+    {
+      kind: "shadow",
+      title: "Shadow",
+      subtitle: "Copy the rhythm",
+      heading: "Listen. Then speak along.",
+      lines: ["It's a red shirt.", "They are black shoes.", "What colour are they?", "I am wearing a blue jacket."],
+    },
+    {
+      kind: "see",
+      title: "See",
+      subtitle: "Build the pattern",
+      heading: "Build three useful lines.",
+      // A third real "see" shape: select whole sentences from a stack,
+      // rather than build one from tiles or match pronoun/article cards.
+      patternLines: ["It's a red shirt.", "They are black shoes.", "What colour are they?"],
+    },
+    {
+      kind: "item_grid",
+      title: "Mission lab",
+      subtitle: "Collect every clue",
+      heading: "Build three complete looks.",
+      items: [
+        { label: "red shirt" },
+        { label: "blue trousers" },
+        { label: "green hat" },
+        { label: "white shoes" },
+        { label: "pink jacket" },
+        { label: "yellow skirt" },
+      ],
+    },
+    {
+      kind: "ask_switch",
+      title: "Ask & switch",
+      subtitle: "Keep the exchange moving",
+      heading: "Run a fashion interview.",
+      characterPair: ["Milo", "Lola"],
+      exchange: ["What colour is the jacket?", "It's a cool pink jacket.", "Ask one follow-up question."],
+    },
+    {
+      kind: "workbook",
+      title: "Workbook",
+      subtitle: "Read, write and connect",
+      heading: "Book 1 · Pages 39–44",
+      pages: "39–44",
+      // This lesson's real source shape is 6 single pages, not 3 paired
+      // ranges (Lessons 1-5) — genuinely different content, not invented.
+      bridge: [
+        { stage: "39", detail: "Hear" },
+        { stage: "40", detail: "See" },
+        { stage: "41", detail: "Do" },
+        { stage: "42", detail: "Read" },
+        { stage: "43", detail: "Speak + Write" },
+        { stage: "44", detail: "Unlock" },
+      ],
+      readTitle: "Colour Day",
+      readingText: "Today is Colour Day at school. Emi wears a red shirt and blue trousers. Kai wears a green hat and white shoes. Their teacher wears a funny yellow jacket.",
+      confirmLabel: "I completed the Book 1 workbook task.",
+      completionRequirement: "self_report_only",
+    },
+    {
+      kind: "create",
+      title: "Create",
+      subtitle: "Make it personal",
+      heading: "Make the English yours.",
+      instruction: "Describe what you are wearing for 20–30 seconds. Add a colour and one opinion.",
+      prompts: ["I am wearing a ______ ______.", "My ______ are ______.", "I like ______ because ______."],
+      maxSeconds: 30,
+    },
+    {
+      kind: "jona",
+      title: "Talk with Jona",
+      subtitle: "Guided practice questions",
+      heading: "Keep the meaning moving.",
+      subheading: "4 scripted practice turns. Less support each time.",
+      objectives: [
+        "Say what you are wearing today",
+        "Say what colour it is",
+        "Add another item you're wearing",
+        "Say which item you like best and why, with less support",
+      ],
+    },
+    {
+      kind: "unlock",
+      title: "Unlock",
+      subtitle: "Complete three voice keys",
+      heading: "Three voice keys",
+      instruction: "Put in order and say: a red shirt. / Complete and say: They are black shoes. / Describe one thing you are wearing.",
+      cta: "Speak key",
+      keysRequired: 3,
+    },
+    {
+      kind: "reflect",
+      title: "Reflect",
+      subtitle: "See your progress",
+      heading: "How ready are you now?",
+      phase: "after",
+      note: "Compares against the Confidence step's before-rating.",
+    },
+  ],
+};
+
 // Data-driven lookup — adding a lesson means adding one entry here, never
 // touching getMTAULesson's logic. Keyed the same way Firestore doc IDs
 // already are (mtauProgress.js's mtauDocId), for consistency.
@@ -537,6 +1048,9 @@ const MTAU_LESSON_INDEX = {
   "1-1": MTAU_LESSON_1_1,
   "1-2": MTAU_LESSON_1_2,
   "1-3": MTAU_LESSON_1_3,
+  "1-4": MTAU_LESSON_1_4,
+  "1-5": MTAU_LESSON_1_5,
+  "1-6": MTAU_LESSON_1_6,
 };
 
 export function getMTAULesson(bookId, lessonId) {

@@ -8,7 +8,8 @@ import { useLang } from "../hooks/useLang";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "./theme";
 import { getActivityProgress, getRecommendedActivity, getLastActivity } from "./familyProgress";
 import { localizedTitle } from "./content";
-import { MTAU_MIN_AGE_BANDS } from "./mtauContent";
+import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary } from "./mtauContent";
+import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
 import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
@@ -21,9 +22,14 @@ export default function FamilyHome() {
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
+  // undefined = still resolving; null = resolved with no MTAU progress at
+  // all (never started) — same loading-vs-empty convention MTAUJourney.jsx
+  // already uses for its own bookProgress state.
+  const [mtauBookProgress, setMtauBookProgress] = useState(undefined);
 
   const profileId = currentProfile?.id ?? SELF_PROFILE_ID;
   const ageBand = currentProfile?.ageBand ?? "elementary";
+  const mtauAgeAppropriate = MTAU_MIN_AGE_BANDS.includes(ageBand);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -31,10 +37,27 @@ export default function FamilyHome() {
     logPathwayEvent(user.uid, "family_home_viewed", { profileId });
   }, [user?.uid, profileId]);
 
+  useEffect(() => {
+    if (!user?.uid || !mtauAgeAppropriate) return;
+    getMTAUBookProgress(user.uid, profileId, 1).then(setMtauBookProgress).catch(() => setMtauBookProgress({}));
+  }, [user?.uid, profileId, mtauAgeAppropriate]);
+
   if (!user || progress === null) return <FamilyLoading />;
 
   const recommended = getRecommendedActivity(progress, ageBand);
   const last = getLastActivity(progress);
+
+  // Small, presentation-only extension (Summit Sprint, item 8): if this
+  // profile has actually started MTAU, it takes over the "what's next"
+  // hero recommendation — the underlying getRecommendedActivity engine
+  // above is untouched, so every non-MTAU profile's recommendation
+  // behaves exactly as before. A profile that has never opened MTAU is
+  // left on the normal Hear/See/Do/Talk/Create loop, not pushed into it.
+  const mtauStarted = mtauBookProgress && Object.values(mtauBookProgress).some(p => p !== null);
+  const mtauCurrent = mtauStarted ? getMTAUCurrentLesson(1, mtauBookProgress) : null;
+  const mtauRecommended = mtauCurrent?.available
+    ? { summary: getMTAULessonSummary(1, mtauCurrent.lessonId), lessonId: mtauCurrent.lessonId, inProgress: mtauBookProgress[mtauCurrent.lessonId]?.currentStep != null }
+    : null;
 
   return (
     <div className="fam-world-bg" style={{ minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -120,16 +143,25 @@ export default function FamilyHome() {
             <div style={{ fontSize: 12, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
               {t("fam_continue_journey")}
             </div>
-            {last && (
+            {!mtauRecommended && last && (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                 {t("fam_last_activity")}: {last.icon} {localizedTitle(last, lang)}
               </div>
             )}
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
-              {recommended ? `${recommended.icon} ${localizedTitle(recommended, lang)}` : "🎉 All caught up!"}
+              {mtauRecommended
+                ? `🔓 Monkeys Talk & Unlock — Lesson ${mtauRecommended.lessonId}${mtauRecommended.summary ? ` · ${mtauRecommended.summary.title}` : ""}`
+                : recommended ? `${recommended.icon} ${localizedTitle(recommended, lang)}` : "🎉 All caught up!"}
             </div>
           </div>
-          {recommended && (
+          {mtauRecommended ? (
+            <button
+              onClick={() => navigate(`/family/mtau/book/1/lesson/${mtauRecommended.lessonId}`)}
+              style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+            >
+              {mtauRecommended.inProgress ? "Continue" : t("fam_start")} →
+            </button>
+          ) : recommended && (
             <button
               onClick={() => navigate(`/family/activity/${recommended.activityId}`)}
               style={{ padding: "12px 24px", borderRadius: 16, border: "none", background: FAMILY_COLORS.pink, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", flexShrink: 0 }}

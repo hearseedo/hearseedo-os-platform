@@ -17,6 +17,8 @@ import { db } from "../lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import FamilyLoading from "./FamilyLoading";
 import { getCurriculumState, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
+import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary } from "./mtauContent";
+import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
 
 export default function FamilyParentView() {
   const { user, profiles, currentProfile } = useAuth();
@@ -25,6 +27,7 @@ export default function FamilyParentView() {
   const [selectedId, setSelectedId] = useState(currentProfile?.id ?? SELF_PROFILE_ID);
   const [progress, setProgress] = useState(null);
   const [curriculumState, setCurriculumState] = useState(null);
+  const [mtauBookProgress, setMtauBookProgress] = useState(undefined);
   const [feedback, setFeedback] = useState("");
   const [feedbackKind, setFeedbackKind] = useState("general");
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -34,6 +37,12 @@ export default function FamilyParentView() {
     getActivityProgress(user.uid, selectedId).then(setProgress).catch(() => setProgress({}));
     getCurriculumState(user.uid, selectedId, MONKEY_YOGA_CURRICULUM_ID).then(setCurriculumState).catch(() => setCurriculumState(null));
   }, [user?.uid, selectedId]);
+
+  const mtauAgeAppropriate = MTAU_MIN_AGE_BANDS.includes(profiles.find(p => p.id === selectedId)?.ageBand);
+  useEffect(() => {
+    if (!user?.uid || !selectedId || !mtauAgeAppropriate) { setMtauBookProgress(undefined); return; }
+    getMTAUBookProgress(user.uid, selectedId, 1).then(setMtauBookProgress).catch(() => setMtauBookProgress({}));
+  }, [user?.uid, selectedId, mtauAgeAppropriate]);
 
   async function sendFeedback() {
     if (!feedback.trim()) return;
@@ -56,6 +65,13 @@ export default function FamilyParentView() {
   const recommended = getRecommendedActivity(progress, child?.ageBand);
   const recentWins = Object.values(progress).filter(p => p.completed).slice(-5).reverse();
   const weekly = getWeeklySummary(progress);
+
+  // Monkeys Talk & Unlock — same read-only, curriculum-aware card shape as
+  // Monkey Yoga Phonics above (item 9: smallest useful addition, not a new
+  // dashboard). Only shown once the child has actually started a lesson.
+  const mtauStarted = mtauBookProgress && Object.values(mtauBookProgress).some(p => p !== null);
+  const mtauCurrent = mtauStarted ? getMTAUCurrentLesson(1, mtauBookProgress) : null;
+  const mtauCompletedCount = mtauStarted ? Object.values(mtauBookProgress).filter(p => p?.completed).length : 0;
 
   const FEEDBACK_KINDS = [
     { id: "general", label: "General feedback" },
@@ -117,6 +133,20 @@ export default function FamilyParentView() {
                 Class ({curriculumState.classroomPosition.className}) is on Book {curriculumState.classroomPosition.bookId} · {curriculumState.classroomPosition.lessonId}
               </div>
             )}
+          </div>
+        )}
+
+        {mtauStarted && (
+          <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 8 }}>Monkeys Talk &amp; Unlock</div>
+            <div style={{ fontSize: 13, color: FAMILY_COLORS.text, lineHeight: 1.6 }}>
+              {mtauCurrent?.available ? (
+                <>Currently at <strong>Book 1 · Lesson {mtauCurrent.lessonId}</strong>{getMTAULessonSummary(1, mtauCurrent.lessonId) && <> · {getMTAULessonSummary(1, mtauCurrent.lessonId).title}</>}</>
+              ) : (
+                <>Completed every migrated Book 1 lesson so far</>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginTop: 4 }}>{mtauCompletedCount} lesson{mtauCompletedCount === 1 ? "" : "s"} completed</div>
           </div>
         )}
 

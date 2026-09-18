@@ -273,13 +273,14 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
       return (
         <Centered>
           <Eyebrow>{step.kind === "review" ? "QUICK REVIEW" : "RESPOND"}</Eyebrow>
-          {step.character && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>{step.character}</div>
-              {step.bubble && <div style={bubbleStyle}>{step.bubble}</div>}
-            </div>
-          )}
-          {!step.character && <h1 style={headingStyle}>{step.heading}</h1>}
+          {step.character && <div style={{ fontWeight: 800, marginBottom: 6 }}>{step.character}</div>}
+          {/* numberSequence (Lesson 4's countdown) and bubble are each
+              optional and independent of character/one another — real
+              lessons combine them differently (character alone, character
+              + bubble, bubble alone with no character, or neither). */}
+          {step.numberSequence && <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1, marginBottom: 10 }}>{step.numberSequence}</div>}
+          {step.bubble && <div style={{ ...bubbleStyle, marginBottom: 12 }}>{step.bubble}</div>}
+          {!step.character && !step.bubble && <h1 style={headingStyle}>{step.heading}</h1>}
           <MicButton onClick={onVoiceAttempt} />
           {step.note && <p style={noteStyle}>{step.note}</p>}
           {step.successNote && <p style={{ ...noteStyle, color: "#8ee6a8" }}>{step.successNote}</p>}
@@ -308,9 +309,13 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
           <Eyebrow>SEE THE PATTERN</Eyebrow>
           <h1 style={headingStyle}>{step.heading}</h1>
           <p style={bodyStyle}>{step.instruction}</p>
-          {/* Two real shapes seen in the source: a sentence-builder word
-              bank (Lesson 1/3, `tiles`) and pronoun-matching cards
-              (Lesson 2, `pronounCards`) — both generic, neither lesson-specific. */}
+          {/* Five real shapes seen in the source so far: a sentence-builder
+              word bank (Lesson 1/3, `tiles`), pronoun-matching cards
+              (Lesson 2, `pronounCards`), possessive-pronoun cards with a
+              single blank (Lesson 4, `possessiveCards`), a/an matching
+              cards (Lesson 5, `articleCards`), and a stack of selectable
+              whole sentences (Lesson 6, `patternLines`) — all generic
+              optional fields on the same "see" kind, none lesson-specific. */}
           {step.tiles && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               {step.tiles.map((tile, i) => <span key={i} style={tileStyle}>{tile}</span>)}
@@ -327,6 +332,34 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+          {step.possessiveCards && (
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+              {step.possessiveCards.map(card => (
+                <div key={card.statement} style={{ background: "#1e1e2a", borderRadius: 12, padding: 14, textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, marginBottom: 4 }}>{card.statement}</div>
+                  <div style={{ fontSize: 13, color: "#ccc", marginBottom: 8 }}>{card.blank}</div>
+                  <button onClick={onVoiceAttempt} style={{ ...choiceBtn, marginBottom: 0, display: "inline-block", width: "auto" }}>{card.answer}</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {step.articleCards && (
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+              {step.articleCards.map(card => (
+                <div key={card.word} style={{ background: "#1e1e2a", borderRadius: 12, padding: 14, textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>{card.word}</div>
+                  <button onClick={onVoiceAttempt} style={{ ...choiceBtn, marginBottom: 0, display: "inline-block", width: "auto" }}>{card.answer}</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {step.patternLines && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 420, margin: "0 auto" }}>
+              {step.patternLines.map((line, i) => (
+                <button key={i} onClick={onVoiceAttempt} style={choiceBtn}>{line}</button>
               ))}
             </div>
           )}
@@ -367,6 +400,26 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
             {step.items.map(item => (
               <button key={item.label} onClick={onVoiceAttempt} style={{ ...choiceBtn, textAlign: "center" }}>
                 {item.n} {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "item_grid":
+      // Generalizes three real position-8 activities (Lesson 4's family
+      // map, Lesson 5's object lab, Lesson 6's mission lab) that all share
+      // the same real shape: tap every card in a grid. sublabel is
+      // optional — Lesson 4's cards have one, Lessons 5/6's don't.
+      return (
+        <div>
+          <Eyebrow>{step.title?.toUpperCase() ?? "ITEM GRID"}</Eyebrow>
+          <h1 style={headingStyle}>{step.heading}</h1>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {step.items.map(item => (
+              <button key={item.label} onClick={onVoiceAttempt} style={{ ...choiceBtn, textAlign: "center" }}>
+                <div>{item.label}</div>
+                {item.sublabel && <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{item.sublabel}</div>}
               </button>
             ))}
           </div>
@@ -460,6 +513,7 @@ function WorkbookStep({ step }) {
           Lesson 2/3, absent on Lesson 1's simpler workbook step. */}
       {step.readingText && (
         <div style={{ background: "#1e1e2a", borderRadius: 10, padding: 14, marginBottom: 12 }}>
+          {step.readTitle && <div style={{ fontWeight: 800, marginBottom: 6 }}>{step.readTitle}</div>}
           <p style={{ ...bodyStyle, marginBottom: 8 }}>{step.readingText}</p>
           <ListenButton small onClick={() => speak(step.readingText, "Milo")} />
         </div>
