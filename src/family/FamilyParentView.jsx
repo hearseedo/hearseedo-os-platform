@@ -17,7 +17,7 @@ import { db } from "../lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import FamilyLoading from "./FamilyLoading";
 import { getCurriculumState, MONKEY_YOGA_CURRICULUM_ID } from "./curriculumProgress";
-import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary } from "./mtauContent";
+import { MTAU_MIN_AGE_BANDS, getMTAULessonSummary, getMigratedLessonIds } from "./mtauContent";
 import { getMTAUBookProgress, getMTAUCurrentLesson } from "./mtauProgress";
 
 export default function FamilyParentView() {
@@ -72,6 +72,11 @@ export default function FamilyParentView() {
   const mtauStarted = mtauBookProgress && Object.values(mtauBookProgress).some(p => p !== null);
   const mtauCurrent = mtauStarted ? getMTAUCurrentLesson(1, mtauBookProgress) : null;
   const mtauCompletedCount = mtauStarted ? Object.values(mtauBookProgress).filter(p => p?.completed).length : 0;
+  const mtauMigratedCount = getMigratedLessonIds(1).length;
+  // Confidence for the lesson currently in progress (or, once every
+  // migrated lesson is complete, the last one) — real per-lesson data
+  // already on the same doc, not a separate signal to compute.
+  const mtauConfidenceDoc = mtauCurrent?.available ? mtauBookProgress[mtauCurrent.lessonId] : null;
 
   const FEEDBACK_KINDS = [
     { id: "general", label: "General feedback" },
@@ -146,7 +151,13 @@ export default function FamilyParentView() {
                 <>Completed every migrated Book 1 lesson so far</>
               )}
             </div>
-            <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginTop: 4 }}>{mtauCompletedCount} lesson{mtauCompletedCount === 1 ? "" : "s"} completed</div>
+            <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginTop: 4 }}>{mtauCompletedCount} of {mtauMigratedCount} migrated lesson{mtauMigratedCount === 1 ? "" : "s"} completed</div>
+            {mtauConfidenceDoc?.confidenceBefore != null && (
+              <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginTop: 4 }}>
+                Confidence: {mtauConfidenceDoc.confidenceBefore}/5 before this lesson
+                {mtauConfidenceDoc.confidenceAfter != null && <> · {mtauConfidenceDoc.confidenceAfter}/5 after</>}
+              </div>
+            )}
           </div>
         )}
 
