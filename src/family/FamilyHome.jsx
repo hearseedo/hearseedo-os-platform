@@ -19,7 +19,7 @@ const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
 export default function FamilyHome() {
   const { user, profiles, currentProfile, setActiveProfile } = useAuth();
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
   // undefined = still resolving; null = resolved with no MTAU progress at
@@ -75,6 +75,34 @@ export default function FamilyHome() {
         <div style={{ fontSize: 16, fontWeight: 900, color: FAMILY_COLORS.pink }}>HSD Family</div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: FAMILY_COLORS.text, fontWeight: 700 }}>👋 {currentProfile?.name ?? ""}</span>
+          {/* Compact EN/JP toggle — reuses the existing useLang() hook and
+              its hsd-lang localStorage persistence directly; no second
+              language state. Both segments render at all times so the
+              current language is always visually obvious (not just a
+              single "switch to X" button), and switching is a plain
+              setLang() call — the whole app (this header, activity
+              titles, MTAU) re-renders from the same shared context with
+              no page reload. */}
+          <div
+            role="group"
+            aria-label="Language"
+            style={{ display: "flex", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 10, overflow: "hidden" }}
+          >
+            {["en", "jp"].map(l => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                aria-pressed={lang === l}
+                style={{
+                  background: lang === l ? FAMILY_COLORS.pink : "transparent",
+                  color: lang === l ? "#fff" : FAMILY_COLORS.textMuted,
+                  border: "none", padding: "4px 8px", fontSize: 11, fontWeight: 800, cursor: "pointer",
+                }}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
           {/* Parent mode stays a distinct, separate view (item 3) — never
               blended into the child-facing screens above. */}
           <button onClick={() => navigate("/family/parent")} style={{ background: "none", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 10, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>
