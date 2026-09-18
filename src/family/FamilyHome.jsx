@@ -38,6 +38,12 @@ export default function FamilyHome() {
   }, [user?.uid, profileId]);
 
   useEffect(() => {
+    // Reset before fetching for the (possibly new) profile — without this,
+    // switching from an MTAU-eligible profile to one that isn't (or to
+    // another profile before its own fetch resolves) would leave the
+    // PREVIOUS profile's mtauBookProgress in state, leaking their lesson
+    // into this profile's Family Home recommendation.
+    setMtauBookProgress(undefined);
     if (!user?.uid || !mtauAgeAppropriate) return;
     getMTAUBookProgress(user.uid, profileId, 1).then(setMtauBookProgress).catch(() => setMtauBookProgress({}));
   }, [user?.uid, profileId, mtauAgeAppropriate]);

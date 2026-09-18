@@ -70,6 +70,14 @@ test("FamilyHome's MTAU recommendation override is additive: it does not touch g
   assert.ok(!/mtau/i.test(engineSrc), "the generic recommendation engine itself must stay untouched by MTAU — the override lives in FamilyHome.jsx only");
 });
 
+test("REGRESSION: FamilyHome resets mtauBookProgress before fetching for the new profile, so switching away from an MTAU-eligible profile never leaks their lesson into another profile's recommendation", () => {
+  const effectBody = familyHomeSrc.slice(
+    familyHomeSrc.indexOf("useEffect(() => {\n    // Reset before fetching"),
+    familyHomeSrc.indexOf("}, [user?.uid, profileId, mtauAgeAppropriate]")
+  );
+  assert.ok(/setMtauBookProgress\(undefined\);\s*\n\s*if \(!user\?\.uid \|\| !mtauAgeAppropriate\) return;/.test(effectBody), "must clear stale state BEFORE the early return, not only inside a branch that a non-eligible profile never reaches");
+});
+
 const parentViewSrc = read("src/family/FamilyParentView.jsx");
 test("FamilyParentView's MTAU card mirrors the existing Monkey Yoga curriculum card shape (read-only, only shown once started) rather than a new dashboard", () => {
   assert.ok(/getMTAUCurrentLesson\(1, mtauBookProgress\)/.test(parentViewSrc));
