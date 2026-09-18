@@ -12,6 +12,7 @@ import {
   MTAU_BOOKS, MTAU_MIN_AGE_BANDS, MTAU_STEP_KINDS, MTAU_LESSON_1_1,
   MTAU_LESSON_1_2, MTAU_LESSON_1_3, MTAU_LESSON_1_4, MTAU_LESSON_1_5, MTAU_LESSON_1_6,
   MTAU_LESSON_1_7, MTAU_LESSON_1_8, MTAU_LESSON_1_9,
+  MTAU_LESSON_1_10, MTAU_LESSON_1_11, MTAU_LESSON_1_12,
   getMTAULesson, getMTAUBook, getMigratedLessonIds, getMTAULessonSummary,
 } from "../src/family/mtauContent.js";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "../src/family/mtauJona.js";
@@ -105,9 +106,9 @@ test("MTAUJourney's lesson-status list is data-driven over migratedLessonIds.map
 
 // ── Book 1 Lesson 1 loading, all 14 steps present ────────────────────────
 
-test("getMTAULesson(1,1..9) returns the real migrated lessons; any other book/lesson returns null (honest, not invented)", () => {
-  for (let i = 1; i <= 9; i++) assert.ok(getMTAULesson(1, i), `Lesson ${i} should be migrated`);
-  assert.equal(getMTAULesson(1, 10), null, "Lesson 10 is deliberately not migrated this pass");
+test("getMTAULesson(1,1..12) returns the real migrated lessons; any other book/lesson returns null (honest, not invented)", () => {
+  for (let i = 1; i <= 12; i++) assert.ok(getMTAULesson(1, i), `Lesson ${i} should be migrated`);
+  assert.equal(getMTAULesson(1, 13), null, "Lesson 13 is deliberately not migrated this pass");
   assert.equal(getMTAULesson(2, 1), null);
   assert.equal(getMTAULesson(7, 1), null);
 });
@@ -191,6 +192,51 @@ test("Batch 3 (Lessons 7-9) introduced zero new step kinds — every shape (sing
       assert.ok(kindsBeforeBatch3.has(step.kind), `${lesson.title}'s "${step.kind}" step must reuse a kind Lesson 6 already established`);
     }
   }
+});
+
+test("Lesson 10 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_10.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_10.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_10.title, "Everyday Actions");
+  assert.equal(MTAU_LESSON_1_10.location, "Meijo Park");
+});
+
+test("Lesson 11 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_11.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_11.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_11.title, "What Time Is It?");
+  assert.equal(MTAU_LESSON_1_11.location, "Golden Clock");
+});
+
+test("Lesson 12 loads with all 14 real steps", () => {
+  assert.equal(MTAU_LESSON_1_12.steps.length, 14);
+  assert.ok(MTAU_LESSON_1_12.steps.every(s => MTAU_STEP_KINDS.includes(s.kind)));
+  assert.equal(MTAU_LESSON_1_12.title, "Where Is the Monkey?");
+  assert.equal(MTAU_LESSON_1_12.location, "Nagoya Castle");
+});
+
+test("Batch 4 (Lessons 10-12) introduced zero new step kinds despite three new real 'kind' values on the source (routine/time/place) — every UI shape still reuses Lesson 6's vocabulary", () => {
+  const kindsBeforeBatch4 = new Set(MTAU_LESSON_1_6.steps.map(s => s.kind));
+  for (const lesson of [MTAU_LESSON_1_10, MTAU_LESSON_1_11, MTAU_LESSON_1_12]) {
+    for (const step of lesson.steps) {
+      assert.ok(kindsBeforeBatch4.has(step.kind), `${lesson.title}'s "${step.kind}" step must reuse a kind Lesson 6 already established`);
+    }
+  }
+});
+
+test("Lesson 10/11/12 content matches the reference product's own clean RSC config payloads (spot checks, not invented)", () => {
+  const hear10 = MTAU_LESSON_1_10.steps.find(s => s.kind === "hear");
+  assert.equal(hear10.dialogue[1].line, "I get up, eat breakfast and brush my teeth.");
+  assert.equal(MTAU_LESSON_1_10.steps.find(s => s.kind === "workbook").pages, "63–68");
+
+  const hear11 = MTAU_LESSON_1_11.steps.find(s => s.kind === "hear");
+  assert.equal(hear11.dialogue[1].line, "It's half past three.");
+  const grid11 = MTAU_LESSON_1_11.steps.find(s => s.kind === "item_grid");
+  assert.deepEqual(grid11.items.map(i => i.label), ["3 o'clock", "half past 3", "morning", "afternoon", "start", "finish"]);
+
+  const hear12 = MTAU_LESSON_1_12.steps.find(s => s.kind === "hear");
+  assert.equal(hear12.dialogue[3].line, "Look! It's under the chair.");
+  assert.equal(MTAU_LESSON_1_12.steps.find(s => s.kind === "workbook").readTitle, "My room");
 });
 
 test("Lesson 7/8/9 content matches the reference product's own clean RSC config payloads (spot checks, not invented)", () => {
@@ -296,7 +342,7 @@ test("MTAU_BOOK_1_LESSON_SUMMARY (all 18) matches the structured source extracte
   assert.equal(getMTAULessonSummary(2, 1), null, "only Book 1's summary has been extracted/validated so far — honest, not invented for other books");
 });
 
-test("lesson-to-lesson navigation chain matches the real source through Lesson 9: L1->Hisaya-odori Park, L2->Midland Square, L3->Noritake Garden, L4->SCMAGLEV Railway Park, L5->Sakae & Oasis 21, L6->Osu Shopping Street, L7->Yanagibashi Market, L8->Tsuruma Library, L9->Meijo Park (L10, not yet migrated)", () => {
+test("lesson-to-lesson navigation chain matches the real source through Lesson 12: L1->Hisaya-odori Park, L2->Midland Square, L3->Noritake Garden, L4->SCMAGLEV Railway Park, L5->Sakae & Oasis 21, L6->Osu Shopping Street, L7->Yanagibashi Market, L8->Tsuruma Library, L9->Meijo Park, L10->Golden Clock, L11->Nagoya Castle, L12->Higashiyama Zoo (L13, not yet migrated)", () => {
   assert.equal(MTAU_LESSON_1_1.nextDestination, "Hisaya-odori Park");
   assert.equal(MTAU_LESSON_1_2.nextDestination, "Midland Square");
   assert.equal(MTAU_LESSON_1_3.nextDestination, "Noritake Garden");
@@ -306,13 +352,16 @@ test("lesson-to-lesson navigation chain matches the real source through Lesson 9
   assert.equal(MTAU_LESSON_1_7.nextDestination, "Yanagibashi Market");
   assert.equal(MTAU_LESSON_1_8.nextDestination, "Tsuruma Library");
   assert.equal(MTAU_LESSON_1_9.nextDestination, "Meijo Park");
+  assert.equal(MTAU_LESSON_1_10.nextDestination, "Golden Clock");
+  assert.equal(MTAU_LESSON_1_11.nextDestination, "Nagoya Castle");
+  assert.equal(MTAU_LESSON_1_12.nextDestination, "Higashiyama Zoo");
 });
 
-test("getMTAULessonSummary(1, 10) matches MTAU_LESSON_1_9's real nextDestination — Lesson 10's summary is validated even though its full content isn't migrated yet", () => {
-  const l10 = getMTAULessonSummary(1, 10);
-  assert.equal(l10.place, "Meijo Park");
-  assert.equal(l10.title, "Everyday Actions");
-  assert.equal(getMTAULesson(1, 10), null, "Lesson 10 must not be reachable until it is actually deep-migrated");
+test("getMTAULessonSummary(1, 13) matches MTAU_LESSON_1_12's real nextDestination — Lesson 13's summary is validated even though its full content isn't migrated yet", () => {
+  const l13 = getMTAULessonSummary(1, 13);
+  assert.equal(l13.place, "Higashiyama Zoo");
+  assert.equal(l13.title, "My Pets and Animals");
+  assert.equal(getMTAULesson(1, 13), null, "Lesson 13 must not be reachable until it is actually deep-migrated");
 });
 
 // ── Step progression / current-step resume (data-layer contract) ────────
@@ -366,8 +415,8 @@ test("getMTAUCurrentLesson is generic (derives migrated lesson ids from getMigra
   assert.ok(!/lessonId: 2/.test(fnBody) && !/lessonId: 1,/.test(fnBody), "must not hardcode specific lesson numbers in the logic itself");
 });
 
-test("getMigratedLessonIds(1) returns exactly [1..9] — derived from the real data index, not a separately maintained list", () => {
-  assert.deepEqual(getMigratedLessonIds(1), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+test("getMigratedLessonIds(1) returns exactly [1..12] — derived from the real data index, not a separately maintained list", () => {
+  assert.deepEqual(getMigratedLessonIds(1), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 });
 
 test("progression logic: walks migrated lessons in order, returns the first incomplete one as current, and (last migrated + 1) as the honestly-unavailable next lesson once all are complete", () => {
