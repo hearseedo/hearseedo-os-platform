@@ -37,6 +37,9 @@ export const HEAR_ACTIVITIES = [
   { activityId: "hear-phonics-theme",   title: "Monkey Yoga Phonics Theme",   titleJp: "モンキーヨガフォニックス テーマ", category: "hear", ageBands: ["early_years", "elementary"], activityType: "audio", duration: 2, skills: ["listening", "phonics"], media: { audioUrl: `${AUDIO_BASE}/monkey-yoga-phonics-theme.mp3` }, curriculum: { book: "Monkey Yoga Phonics" }, completionCriteria: "audio_played", icon: "🐵" },
   { activityId: "hear-talk-unlock-theme", title: "Monkeys Talk & Unlock Theme", titleJp: "モンキーズ・トーク＆アンロック テーマ", category: "hear", ageBands: ["elementary", "junior_high"], activityType: "audio", duration: 2, skills: ["listening"], media: { audioUrl: `${AUDIO_BASE}/monkeys-talk-unlock-theme.mp3` }, curriculum: { book: "Monkeys Talk & Unlock" }, completionCriteria: "audio_played", icon: "🔓" },
   { activityId: "hear-phonics-app",     title: "Listen with Monkey Yoga Phonics", titleJp: "モンキーヨガフォニックスで聞く", category: "hear", ageBands: ["early_years", "elementary"], activityType: "iframe_app", duration: 10, skills: ["listening", "phonics"], media: { appId: "phonics" }, curriculum: { book: "Monkey Yoga Phonics" }, completionCriteria: "app_progress_event", icon: "🎧" },
+  // Fall seasonal audio (HSD Family Seasonal Audio Integration — Fall, 2026-09-18).
+  { activityId: "hear-apple-tree-yoga",     title: "Apple Tree Yoga Song",         titleJp: "りんごの木のヨガソング", category: "hear", ageBands: ["early_years", "elementary"], activityType: "audio", duration: 3, skills: ["listening", "movement"], media: { audioUrl: `${AUDIO_BASE}/apple-tree-yoga-song.mp3` }, curriculum: { source: "HSD Music", season: "fall" }, completionCriteria: "audio_played", icon: "🍎" },
+  { activityId: "hear-five-little-pumpkins-yoga", title: "Five Little Pumpkins Yoga Song", titleJp: "５つの小さなかぼちゃのヨガソング", category: "hear", ageBands: ["early_years", "elementary"], activityType: "audio", duration: 3, skills: ["listening", "movement", "counting"], media: { audioUrl: `${AUDIO_BASE}/five-little-pumpkins-yoga-song.mp3` }, curriculum: { source: "HSD Music", season: "fall" }, completionCriteria: "audio_played", icon: "🎃" },
 ];
 
 export const SEE_ACTIVITIES = [
@@ -57,6 +60,12 @@ export const DO_ACTIVITIES = [
   // activities (same reuse rationale as the See entries above).
   { activityId: "do-super-kid-power",   title: "Super Kid Power Day",         titleJp: "スーパーキッドパワーデー", category: "do", ageBands: ["early_years", "elementary"], activityType: "instructions", duration: 5, skills: ["movement", "physical_response"], media: { imageUrl: "/assets/hsd/family/backgrounds/family-movement.webp" }, curriculum: { source: "WonderCamp", lesson: "Super Kid Power Day" }, completionCriteria: "manual", icon: "💪" },
   { activityId: "do-frog-pond-splash",  title: "Frog Pond Splash",            titleJp: "カエルの池スプラッシュ", category: "do", ageBands: ["early_years", "elementary"], activityType: "instructions", duration: 5, skills: ["movement", "physical_response"], media: { imageUrl: "/assets/hsd/family/backgrounds/family-movement.webp" }, curriculum: { source: "WonderCamp", lesson: "Frog Pond Splash Camp" }, completionCriteria: "manual", icon: "🐸" },
+  // Fall seasonal audio (HSD Family Seasonal Audio Integration — Fall, 2026-09-18).
+  // Same pattern as do-body-song-action: audio + image + generic follow-along
+  // instructions, manual completion. Ordered together so they appear adjacent
+  // in the Do grid, matching the intended Apple Tree → Five Little Pumpkins flow.
+  { activityId: "do-apple-tree-yoga",   title: "Apple Tree Yoga Song",         titleJp: "りんごの木のヨガソング", category: "do", ageBands: ["early_years", "elementary"], activityType: "instructions", duration: 3, skills: ["movement", "listening"], media: { audioUrl: `${AUDIO_BASE}/apple-tree-yoga-song.mp3`, imageUrl: "/assets/hsd/family/backgrounds/family-movement.webp" }, curriculum: { source: "HSD Music", season: "fall" }, completionCriteria: "manual", icon: "🍎" },
+  { activityId: "do-five-little-pumpkins-yoga", title: "Five Little Pumpkins Yoga Song", titleJp: "５つの小さなかぼちゃのヨガソング", category: "do", ageBands: ["early_years", "elementary"], activityType: "instructions", duration: 3, skills: ["movement", "listening", "counting"], media: { audioUrl: `${AUDIO_BASE}/five-little-pumpkins-yoga-song.mp3`, imageUrl: "/assets/hsd/family/backgrounds/family-movement.webp" }, curriculum: { source: "HSD Music", season: "fall" }, completionCriteria: "manual", icon: "🎃" },
 ];
 
 export const TALK_ACTIVITIES = [
@@ -118,6 +127,8 @@ export const INSTRUCTIONS = {
   "do-family-scavenger":  { en: "Pick 5 English words (e.g. \"chair\", \"window\", \"blue\"). Race around the house to find and point at each one, saying it out loud in English.", jp: "英単語を5つ選ぼう（例：chair, window, blue）。家の中を探して見つけたら、英語で声に出して言おう。" },
   "do-super-kid-power":   { en: "Say \"I am strong!\" and flex your arms. Jump as high as you can 5 times, counting in English.", jp: "「I am strong!」と言って腕を曲げよう。英語で数えながら、できるだけ高くジャンプを5回しよう。" },
   "do-frog-pond-splash":  { en: "Crouch down like a frog and say \"Ribbit, jump!\" — then jump forward. Repeat 5 times, moving across the room.", jp: "カエルのようにしゃがんで「Ribbit, jump!」と言ってから前にジャンプしよう。部屋を移動しながら5回繰り返そう。" },
+  "do-apple-tree-yoga":   { en: "Play the song. Stand tall and stretch your arms up like apple tree branches. Sway side to side in the wind, then reach up high to \"pick\" an apple!", jp: "曲を流して、りんごの木の枝のように腕を高く伸ばして立とう。風に揺れるように左右に揺れて、最後は高く手を伸ばしてりんごを「摘んで」みよう！" },
+  "do-five-little-pumpkins-yoga": { en: "Play the song. Curl up small like a tiny pumpkin seed, then slowly grow round and big. Count to five together in English as you move!", jp: "曲を流して、小さなかぼちゃの種のように丸くなろう。ゆっくり大きく丸く育とう。動きながら英語で一緒に５まで数えよう！" },
   "see-bug-explorer-vocab": { en: "New words: Bug, Butterfly, Flower. Look for a picture or a real one of each — point and say the word in English.", jp: "新しい単語：Bug, Butterfly, Flower。それぞれの絵や実物を探して、指さしながら英語で言おう。" },
   "see-rainy-day-vocab":  { en: "New words: Rain, Umbrella, Jump. Look out the window (or a picture) and describe what you see using these words.", jp: "新しい単語：Rain, Umbrella, Jump。窓の外（または絵）を見て、これらの単語を使って説明しよう。" },
   "hub-family-scavenger": { en: "Everyone picks 3 English words. Race to find and say each one out loud — whoever finishes first picks the next game!", jp: "みんなで英単語を3つずつ選ぼう。見つけて声に出して言う競争をしよう。一番早い人が次のゲームを選ぼう！" },
