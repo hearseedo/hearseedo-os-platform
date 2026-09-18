@@ -47,6 +47,16 @@ test("child profile names are rendered raw, never passed through t() or localize
   assert.ok(/👋 \{currentProfile\?\.name \?\? ""\}/.test(familyHomeSrc));
 });
 
+test("REGRESSION: the header and its right-hand group both wrap instead of overflowing at narrow widths — found live at 390px where the JP segment was clipped off-screen", () => {
+  const headerOpenTag = familyHomeSrc.slice(familyHomeSrc.indexOf("<header"), familyHomeSrc.indexOf(">", familyHomeSrc.indexOf("<header")) + 1);
+  assert.ok(/flexWrap:\s*"wrap"/.test(headerOpenTag), "header must wrap its children rather than force them onto one overflowing row");
+  const rightGroupOpenTag = familyHomeSrc.slice(
+    familyHomeSrc.indexOf('<div style={{ display: "flex", gap: 12, alignItems: "center"'),
+    familyHomeSrc.indexOf(">", familyHomeSrc.indexOf('<div style={{ display: "flex", gap: 12, alignItems: "center"')) + 1
+  );
+  assert.ok(/flexWrap:\s*"wrap"/.test(rightGroupOpenTag), "the name+toggle+parent-mode group must also wrap");
+});
+
 test("FamilySetup's pre-existing language control is confirmed disconnected from the shared state (documents why it doesn't already work)", () => {
   const familySetupSrc = read("src/pages/FamilySetup.jsx");
   assert.ok(/const \[lang, setLang\]\s*=\s*useState\("en"\)/.test(familySetupSrc), "FamilySetup's own local lang state, unrelated to useLang()");

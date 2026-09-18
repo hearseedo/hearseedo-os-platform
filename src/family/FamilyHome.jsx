@@ -68,12 +68,12 @@ export default function FamilyHome() {
   return (
     <div className="fam-world-bg" style={{ minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <GraffitiStyles />
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: FAMILY_COLORS.card, borderBottom: `2px solid ${FAMILY_COLORS.border}` }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 8, padding: "16px 20px", background: FAMILY_COLORS.card, borderBottom: `2px solid ${FAMILY_COLORS.border}` }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", fontSize: 13, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>
           {t("path_switch_pathway")}
         </button>
         <div style={{ fontSize: 16, fontWeight: 900, color: FAMILY_COLORS.pink }}>HSD Family</div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           <span style={{ fontSize: 13, color: FAMILY_COLORS.text, fontWeight: 700 }}>👋 {currentProfile?.name ?? ""}</span>
           {/* Compact EN/JP toggle — reuses the existing useLang() hook and
               its hsd-lang localStorage persistence directly; no second
