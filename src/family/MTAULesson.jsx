@@ -24,6 +24,7 @@ import { useLang } from "../hooks/useLang";
 import { auth } from "../lib/firebase";
 import { FAMILY_COLORS } from "./theme";
 import { getMTAULesson, getMTAUBook, getMTAULessonSummary } from "./mtauContent";
+import { playMTAULine } from "./mtauAudio";
 import { getMTAULessonProgress, recordMTAUStep, recordMTAULessonCompleted, recordMTAUConfidence, mtauDocId } from "./mtauProgress";
 import { buildMTAUJonaPrompt, buildMTAUOpeningMessage } from "./mtauJona";
 import { SELF_PROFILE_ID } from "../lib/profiles";
@@ -241,6 +242,10 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
       );
 
     case "hear":
+      // Static ElevenLabs character voice first (proof of concept: Book 1
+      // Lesson 1 only, see mtauAudio.js), falling back automatically to the
+      // existing browser speak() for every other lesson/step — playMTAULine
+      // decides that per-line, this component doesn't need to know which.
       return (
         <div>
           <Eyebrow>HEAR FOR MEANING</Eyebrow>
@@ -249,10 +254,10 @@ function StepBody({ step, stepIndex, lesson, bookId, lessonId, ageBand, practice
             <div key={i} style={dialogueLineStyle}>
               <strong>{d.speaker}</strong>
               <span style={{ flex: 1 }}>{d.line}</span>
-              <ListenButton small onClick={() => speak(d.line, d.speaker)} />
+              <ListenButton small onClick={() => playMTAULine({ bookId, lessonId, order: i, speaker: d.speaker }, () => speak(d.line, d.speaker))} />
             </div>
           ))}
-          <button onClick={async () => { for (const d of step.dialogue) await speak(d.line, d.speaker); }} style={secondaryBtn}>
+          <button onClick={async () => { for (let i = 0; i < step.dialogue.length; i++) { const d = step.dialogue[i]; await playMTAULine({ bookId, lessonId, order: i, speaker: d.speaker }, () => speak(d.line, d.speaker)); } }} style={secondaryBtn}>
             🔊 Play full conversation
           </button>
           <div style={{ marginTop: 16 }}>
