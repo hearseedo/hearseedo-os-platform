@@ -54,26 +54,26 @@ export default function FamilyHome() {
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 60px" }}>
         {/* Continue Your Journey — item 6, never leave "what's next" empty.
-            family-hero.webp as the full illustrated banner background. */}
+            The page backdrop itself (fam-world-bg, above) now carries the
+            photo full-bleed, so this card floats on top of it as a solid
+            surface rather than repeating the image in a small box. */}
         <section
-          className="fam-hero-banner"
           style={{
-            backgroundImage: "url('/assets/hsd/family/backgrounds/family-hero.webp')",
+            background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)",
             border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 24, padding: 20, marginBottom: 28,
-            display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap",
-            aspectRatio: "16 / 7", minHeight: 220,
+            display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
           }}
         >
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
               {t("fam_continue_journey")}
             </div>
             {last && (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+              <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginBottom: 4 }}>
                 {t("fam_last_activity")}: {last.icon} {last.title}
               </div>
             )}
-            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: FAMILY_COLORS.text }}>
               {recommended ? `${recommended.icon} ${recommended.title}` : "🎉 All caught up!"}
             </div>
           </div>

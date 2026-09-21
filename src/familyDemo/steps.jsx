@@ -75,40 +75,41 @@ export function StepFamilyHome() {
       <PageTitle eyebrow="Step 2" title="Family Home" subtitle={`What ${DEMO_CHILD.name} sees when they sign in.`} />
       <JonaBubble text={JONA_LINES.home} audioKey="home" voiceOn={voiceOn} />
 
-      {/* Same family-hero.webp background as the real Family Home
-          (src/family/FamilyHome.jsx) — kept in sync so the demo matches
-          what users actually see. */}
+      {/* Same photo as the real Family Home's full-page backdrop
+          (src/family/FamilyHome.jsx's fam-world-bg) — the whole preview
+          panel below is the backdrop, not a small boxed-in image, so the
+          demo matches what users actually see. */}
       <div
         style={{
-          backgroundImage: "url('/assets/hsd/family/backgrounds/family-hero.webp')",
+          backgroundImage:
+            "linear-gradient(180deg, rgba(255,248,240,0.55), rgba(255,248,240,0.88) 75%), url('/assets/hsd/family/backgrounds/family-bg-world.webp')",
           backgroundSize: "cover", backgroundPosition: "center",
-          border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 20, padding: 20, marginBottom: 24,
-          display: "flex", alignItems: "flex-end", aspectRatio: "16 / 7", minHeight: 180,
+          border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 24, padding: 20,
         }}
       >
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+        <div style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 4 }}>
             Continue Your Journey
           </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+          <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginBottom: 4 }}>
             Last activity: {CONTINUE_JOURNEY.lastActivity.icon} {CONTINUE_JOURNEY.lastActivity.title}
           </div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: FAMILY_COLORS.text }}>
             {CONTINUE_JOURNEY.recommended.icon} {CONTINUE_JOURNEY.recommended.title}
           </div>
         </div>
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14 }}>
-        {MAIN_CATEGORIES.map((cat) => {
-          const style = CATEGORY_STYLE[cat];
-          return (
-            <div key={cat} style={{ background: style.soft, border: `2px solid ${style.color}33`, borderRadius: 18, padding: "16px 10px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>{style.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: style.color, textTransform: "capitalize" }}>{cat}</div>
-            </div>
-          );
-        })}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14 }}>
+          {MAIN_CATEGORIES.map((cat) => {
+            const style = CATEGORY_STYLE[cat];
+            return (
+              <div key={cat} style={{ background: style.soft, border: `2px solid ${style.color}33`, borderRadius: 18, padding: "16px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>{style.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: style.color, textTransform: "capitalize" }}>{cat}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

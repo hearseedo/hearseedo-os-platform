@@ -40,10 +40,21 @@ export default function JonaBubble({ text, audioKey, voiceOn }) {
     audioRef.current?.pause();
 
     if (audioKey) {
+      // A missing/failed clip can trigger both the element's "error" event
+      // and a rejected play() promise for the same failure — guard so the
+      // browser-TTS fallback only ever fires once. Firing speak() twice in
+      // quick succession is enough to make some browsers' speech engines
+      // cancel themselves into silence.
+      let fellBack = false;
+      const fallback = () => {
+        if (fellBack) return;
+        fellBack = true;
+        speakWithBrowserTts(text);
+      };
       const audio = new Audio(`/assets/hsd/family/audio/jona-demo/${audioKey}.mp3`);
       audioRef.current = audio;
-      audio.addEventListener("error", () => speakWithBrowserTts(text), { once: true });
-      audio.play().catch(() => speakWithBrowserTts(text));
+      audio.addEventListener("error", fallback, { once: true });
+      audio.play().catch(fallback);
     } else {
       speakWithBrowserTts(text);
     }
