@@ -39,7 +39,19 @@ export default function FamilyDemoShell() {
   return (
     <VoiceContext.Provider value={{ voiceOn, toggleVoice: () => setVoiceOn((v) => !v) }}>
       <style>{".family-demo-step-nav::-webkit-scrollbar { display: none; }"}</style>
-      <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, color: FAMILY_COLORS.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <div style={{ minHeight: "100vh", color: FAMILY_COLORS.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        {/* Full-viewport backdrop for every step — same photo the real
+            Family Home bleeds behind its whole page (fam-world-bg). Fixed
+            so it stays put behind the scrolling content on every one of
+            the 8 steps, not just Family Home. */}
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 0,
+            backgroundImage:
+              "linear-gradient(180deg, rgba(255,248,240,0.55), rgba(255,248,240,0.88) 75%), url('/assets/hsd/family/backgrounds/family-bg-world.webp')",
+            backgroundSize: "cover", backgroundPosition: "center",
+          }}
+        />
         <header
           style={{
             position: "sticky", top: 0, zIndex: 10, minHeight: 60,
@@ -82,7 +94,7 @@ export default function FamilyDemoShell() {
 
         <nav
           className="family-demo-step-nav"
-          style={{ display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${FAMILY_COLORS.border}`, background: FAMILY_COLORS.bg, scrollbarWidth: "none", msOverflowStyle: "none" }}
+          style={{ position: "relative", zIndex: 1, display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${FAMILY_COLORS.border}`, background: FAMILY_COLORS.bg, scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {STEPS.map((step, i) => {
             const active = i === currentIndex;
@@ -115,13 +127,13 @@ export default function FamilyDemoShell() {
           })}
         </nav>
 
-        <main style={{ flex: 1, padding: "28px 20px 110px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
+        <main style={{ position: "relative", zIndex: 1, flex: 1, padding: "28px 20px 110px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
           <Outlet />
         </main>
 
         <footer
           style={{
-            position: "fixed", bottom: 0, left: 0, right: 0, height: 68,
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 2, height: 68,
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "0 20px", borderTop: `2px solid ${FAMILY_COLORS.border}`, background: FAMILY_COLORS.card,
           }}
