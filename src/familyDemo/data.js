@@ -1,7 +1,9 @@
 // HSD Family Demo — scripted content only. Every string, number, and
 // "AI response" on this page is fixed data, not a live model or database
 // call. It exists to show what the HSD Family pathway does without
-// depending on Gemini, Firestore, Stripe, or ElevenLabs being up.
+// depending on Gemini, Firestore, Stripe, or a live ElevenLabs call being
+// up — Jona's narration audio is pre-rendered offline (see
+// scripts/generate-family-demo-audio.mjs), not fetched live.
 //
 // Persona is intentionally fictional/composite, not a real family.
 

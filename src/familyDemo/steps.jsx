@@ -1,6 +1,7 @@
 // Step screens for the HSD Family demo. Every value rendered here comes
 // from src/familyDemo/data.js — fixed, scripted data. Nothing on this page
-// calls Gemini, Firestore, Stripe, or ElevenLabs.
+// makes a live call to Gemini, Firestore, Stripe, or ElevenLabs — Jona's
+// audio is pre-rendered (see JonaBubble.jsx).
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FAMILY_COLORS, CATEGORY_STYLE } from "../family/theme";
@@ -49,7 +50,7 @@ export function StepWelcome() {
   return (
     <div>
       <PageTitle eyebrow="HSD Family" title="Welcome to the HSD Family Demo" subtitle="A guided, pre-scripted walkthrough using a sample family. Nothing here calls a live AI model or database, so the experience is identical every time." />
-      <JonaBubble text={JONA_LINES.welcome} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.welcome} audioKey="welcome" voiceOn={voiceOn} />
       <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 20, marginBottom: 20, display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{ fontSize: 40 }}>👩‍👦</div>
         <div>
@@ -72,7 +73,7 @@ export function StepFamilyHome() {
   return (
     <div>
       <PageTitle eyebrow="Step 2" title="Family Home" subtitle={`What ${DEMO_CHILD.name} sees when they sign in.`} />
-      <JonaBubble text={JONA_LINES.home} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.home} audioKey="home" voiceOn={voiceOn} />
 
       <div style={{ background: FAMILY_COLORS.pinkSoft, border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 20, padding: 20, marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 6 }}>Continue Your Journey</div>
@@ -116,7 +117,7 @@ export function StepAskJona() {
   return (
     <div>
       <PageTitle eyebrow="Step 3" title="Parent View — Ask Jona" subtitle={`${DEMO_PARENT.name} wants to know what ${DEMO_CHILD.name} should do today.`} />
-      <JonaBubble text={JONA_LINES.askJona} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.askJona} audioKey="askJona" voiceOn={voiceOn} />
 
       <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 20 }}>
         {!asked && !thinking && (
@@ -147,7 +148,7 @@ export function StepActivity() {
   return (
     <div>
       <PageTitle eyebrow="Step 4" title={ACTIVITY_SCRIPT.title} subtitle={ACTIVITY_SCRIPT.subtitle} />
-      <JonaBubble text={JONA_LINES.activity} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.activity} audioKey="activity" voiceOn={voiceOn} />
 
       <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 13, color: FAMILY_COLORS.textMuted, marginBottom: 8 }}>{ACTIVITY_SCRIPT.prompt}</div>
@@ -189,7 +190,7 @@ export function StepConfidence() {
   return (
     <div>
       <PageTitle eyebrow="Step 5" title="Confidence Check-in" subtitle={`A quick, child-friendly check — not a test score.`} />
-      <JonaBubble text={JONA_LINES.confidence} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.confidence} audioKey="confidence" voiceOn={voiceOn} />
 
       <div style={{ background: FAMILY_COLORS.pinkSoft, border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 20, textAlign: "center" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: FAMILY_COLORS.text, marginBottom: 14 }}>How did that feel, {DEMO_CHILD.name}?</div>
@@ -224,7 +225,7 @@ export function StepProgress() {
   return (
     <div>
       <PageTitle eyebrow="Step 6" title="Progress Updates" subtitle="Parent View, right after the lesson and check-in above." />
-      <JonaBubble text={JONA_LINES.progress} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.progress} audioKey="progress" voiceOn={voiceOn} />
 
       <div style={{ background: "#fff", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 18, marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 10 }}>This Week</div>
@@ -268,7 +269,7 @@ export function StepPrograms() {
   return (
     <div>
       <PageTitle eyebrow="Step 7" title="The HSD Family Toolkit" subtitle="Five ways to practice, all guided by Jona." />
-      <JonaBubble text={JONA_LINES.programs} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.programs} audioKey="programs" voiceOn={voiceOn} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
         {PROGRAMS.map((p) => {
@@ -293,7 +294,7 @@ export function StepComplete() {
   return (
     <div style={{ textAlign: "center" }}>
       <PageTitle eyebrow="Demo Complete" title="That's HSD Family" subtitle="Every step you just saw was scripted demo data." />
-      <JonaBubble text={JONA_LINES.complete} voiceOn={voiceOn} />
+      <JonaBubble text={JONA_LINES.complete} audioKey="complete" voiceOn={voiceOn} />
       <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 10 }}>
         <PrimaryButton onClick={() => navigate("/family-demo")}>Restart Demo</PrimaryButton>
         <button

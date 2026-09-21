@@ -4,8 +4,10 @@
 // instead of the dark Confidence look, and a family storyline instead of
 // an adult job-interview storyline.
 //
-// Runs entirely on scripted data (src/familyDemo/data.js) — no Gemini,
-// Firestore, Stripe, or ElevenLabs calls anywhere in this feature.
+// Runs entirely on scripted data (src/familyDemo/data.js) — no live Gemini,
+// Firestore, Stripe, or ElevenLabs calls anywhere in this feature. Jona's
+// narration is pre-rendered audio (src/familyDemo/JonaBubble.jsx), not a
+// live TTS call.
 import { createContext, useContext, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { FAMILY_COLORS } from "../family/theme";

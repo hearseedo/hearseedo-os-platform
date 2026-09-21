@@ -1,5 +1,5 @@
 // Netlify Function — ElevenLabs TTS proxy
-const VOICE_ID_EN  = "BnRBNgpLmN6RYIWw3eEw"; // Jona's voice (English)
+const VOICE_ID_EN  = "nzFihrBIvB34imQBuxub"; // Jona's voice (English)
 const VOICE_ID_JP  = "5FNeYl6NmyAXYQWW7CEV"; // Jona's voice (Japanese only)
 const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
 const MAX_CHARS    = 1200;
