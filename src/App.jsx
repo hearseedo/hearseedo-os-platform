@@ -48,15 +48,15 @@ const FamilyHub          = lazy(() => import("./family/FamilyHub"));
 const ChildProfileCreate = lazy(() => import("./family/ChildProfileCreate"));
 const FamilyParentView   = lazy(() => import("./family/FamilyParentView"));
 const FamilyInvite       = lazy(() => import("./family/FamilyInvite"));
-import DemoShell        from "./demo/DemoShell";
-import DemoStart        from "./demo/DemoStart";
-import DemoAssessment   from "./demo/DemoAssessment";
-import DemoJonaDecision from "./demo/DemoJonaDecision";
-import DemoApps         from "./demo/DemoApps";
-import DemoEngine       from "./demo/DemoEngine";
-import DemoLearning     from "./demo/DemoLearning";
-import DemoProgress     from "./demo/DemoProgress";
-import DemoComplete     from "./demo/DemoComplete";
+// HSD Family Demo — replaces the old XPRIZE-era Confidence Adult demo
+// (archived at git branch archive/xprize-confidence-adult-demo). Scripted,
+// no-auth walkthrough of the HSD Family pathway; no live Gemini, Firestore,
+// Stripe, or ElevenLabs dependency.
+import FamilyDemoShell from "./familyDemo/FamilyDemoShell";
+import {
+  StepWelcome, StepFamilyHome, StepAskJona, StepActivity,
+  StepConfidence, StepProgress, StepPrograms, StepComplete,
+} from "./familyDemo/steps";
 import { isPhonicsV2PreviewEnabled } from "./lib/phonicsV2PreviewFlag";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
 import PreviewHome         from "./livingBlueprint/PreviewHome";
@@ -319,17 +319,22 @@ export default function App() {
           <Route path="/preview/more-dev"       element={<PreviewMore />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
-        {/* Demo Mode — scripted, no-auth walkthrough for pitch videos and judges. */}
-        <Route path="/demo" element={<DemoShell />}>
-          <Route index element={<DemoStart />} />
-          <Route path="assessment" element={<DemoAssessment />} />
-          <Route path="jona" element={<DemoJonaDecision />} />
-          <Route path="apps" element={<DemoApps />} />
-          <Route path="engine" element={<DemoEngine />} />
-          <Route path="learning" element={<DemoLearning />} />
-          <Route path="progress" element={<DemoProgress />} />
-          <Route path="complete" element={<DemoComplete />} />
+        {/* HSD Family Demo — scripted, no-auth walkthrough for pitch videos,
+            judges, and prospective families. /demo redirects here; the old
+            XPRIZE-era Confidence Adult demo is archived, not deleted, at
+            git branch archive/xprize-confidence-adult-demo. */}
+        <Route path="/family-demo" element={<FamilyDemoShell />}>
+          <Route index element={<StepWelcome />} />
+          <Route path="home" element={<StepFamilyHome />} />
+          <Route path="ask-jona" element={<StepAskJona />} />
+          <Route path="activity" element={<StepActivity />} />
+          <Route path="confidence" element={<StepConfidence />} />
+          <Route path="progress" element={<StepProgress />} />
+          <Route path="programs" element={<StepPrograms />} />
+          <Route path="complete" element={<StepComplete />} />
         </Route>
+        <Route path="/demo" element={<Navigate to="/family-demo" replace />} />
+        <Route path="/demo/*" element={<Navigate to="/family-demo" replace />} />
         <Route path="/terms"      element={<Terms />} />
         <Route path="/privacy"    element={<Privacy />} />
         <Route path="/disclaimer" element={<Disclaimer />} />
