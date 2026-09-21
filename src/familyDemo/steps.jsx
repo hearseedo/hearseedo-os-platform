@@ -75,13 +75,27 @@ export function StepFamilyHome() {
       <PageTitle eyebrow="Step 2" title="Family Home" subtitle={`What ${DEMO_CHILD.name} sees when they sign in.`} />
       <JonaBubble text={JONA_LINES.home} audioKey="home" voiceOn={voiceOn} />
 
-      <div style={{ background: FAMILY_COLORS.pinkSoft, border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 20, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 6 }}>Continue Your Journey</div>
-        <div style={{ fontSize: 12, color: FAMILY_COLORS.textMuted, marginBottom: 4 }}>
-          Last activity: {CONTINUE_JOURNEY.lastActivity.icon} {CONTINUE_JOURNEY.lastActivity.title}
-        </div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: FAMILY_COLORS.text }}>
-          {CONTINUE_JOURNEY.recommended.icon} {CONTINUE_JOURNEY.recommended.title}
+      {/* Same family-hero.webp background as the real Family Home
+          (src/family/FamilyHome.jsx) — kept in sync so the demo matches
+          what users actually see. */}
+      <div
+        style={{
+          backgroundImage: "url('/assets/hsd/family/backgrounds/family-hero.webp')",
+          backgroundSize: "cover", backgroundPosition: "center",
+          border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 20, padding: 20, marginBottom: 24,
+          display: "flex", alignItems: "flex-end", aspectRatio: "16 / 7", minHeight: 180,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#fce8f2", textTransform: "uppercase", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+            Continue Your Journey
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+            Last activity: {CONTINUE_JOURNEY.lastActivity.icon} {CONTINUE_JOURNEY.lastActivity.title}
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>
+            {CONTINUE_JOURNEY.recommended.icon} {CONTINUE_JOURNEY.recommended.title}
+          </div>
         </div>
       </div>
 
