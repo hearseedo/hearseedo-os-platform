@@ -11,11 +11,24 @@ export default function JonaBubble({ text, voiceOn }) {
     if (!voiceOn || typeof window === "undefined" || !window.speechSynthesis) return;
     if (spoken.current === text) return;
     spoken.current = text;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    window.speechSynthesis.speak(utterance);
-    return () => window.speechSynthesis.cancel();
+    // Some browsers (autoplay/gesture-blocking policies, kiosk/presentation
+    // modes) throw synchronously from speak()/cancel() instead of failing
+    // silently — never let that take down the whole demo.
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Voice is best-effort only; the demo reads fine without it.
+    }
+    return () => {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    };
   }, [text, voiceOn]);
 
   return (

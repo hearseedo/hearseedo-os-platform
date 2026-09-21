@@ -36,6 +36,7 @@ export default function FamilyDemoShell() {
 
   return (
     <VoiceContext.Provider value={{ voiceOn, toggleVoice: () => setVoiceOn((v) => !v) }}>
+      <style>{".family-demo-step-nav::-webkit-scrollbar { display: none; }"}</style>
       <div style={{ minHeight: "100vh", background: FAMILY_COLORS.bg, color: FAMILY_COLORS.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
         <header
           style={{
@@ -77,7 +78,10 @@ export default function FamilyDemoShell() {
           </div>
         </header>
 
-        <nav style={{ display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${FAMILY_COLORS.border}`, background: FAMILY_COLORS.bg }}>
+        <nav
+          className="family-demo-step-nav"
+          style={{ display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${FAMILY_COLORS.border}`, background: FAMILY_COLORS.bg, scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
           {STEPS.map((step, i) => {
             const active = i === currentIndex;
             const complete = i < currentIndex;
