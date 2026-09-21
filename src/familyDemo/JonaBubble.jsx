@@ -9,13 +9,41 @@
 import { useEffect, useRef } from "react";
 import { FAMILY_COLORS } from "../family/theme";
 
-function speakWithBrowserTts(text) {
+// Chrome (and others) silently drop the first speak() call of a session if
+// it fires before the voice list has finished loading — getVoices() often
+// returns [] synchronously right after page load, and only populates once
+// the async "voiceschanged" event fires. Wait for it (briefly) so the very
+// first utterance is actually audible, not just queued-and-dropped.
+function getVoicesReady() {
+  const synth = window.speechSynthesis;
+  const existing = synth.getVoices();
+  if (existing.length > 0) return Promise.resolve(existing);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(synth.getVoices()), 500);
+    synth.addEventListener(
+      "voiceschanged",
+      () => {
+        clearTimeout(timer);
+        resolve(synth.getVoices());
+      },
+      { once: true }
+    );
+  });
+}
+
+async function speakWithBrowserTts(text) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   try {
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    const voices = await getVoicesReady();
+    synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
-    window.speechSynthesis.speak(utterance);
+    utterance.volume = 1;
+    utterance.pitch = 1;
+    const preferred = voices.find((v) => /en[-_]?(US|GB)/i.test(v.lang)) || voices[0];
+    if (preferred) utterance.voice = preferred;
+    synth.speak(utterance);
   } catch {
     // Voice is best-effort only; the demo reads fine without it.
   }

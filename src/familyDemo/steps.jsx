@@ -72,21 +72,25 @@ export function StepFamilyHome() {
   const { voiceOn } = useVoice();
   return (
     <div>
-      <PageTitle eyebrow="Step 2" title="Family Home" subtitle={`What ${DEMO_CHILD.name} sees when they sign in.`} />
-      <JonaBubble text={JONA_LINES.home} audioKey="home" voiceOn={voiceOn} />
-
-      {/* Same photo as the real Family Home's full-page backdrop
-          (src/family/FamilyHome.jsx's fam-world-bg) — the whole preview
-          panel below is the backdrop, not a small boxed-in image, so the
-          demo matches what users actually see. */}
+      {/* Fixed, full-viewport layer — this is the actual browser
+          background for as long as this step is showing (matches how the
+          real Family Home's fam-world-bg bleeds behind the whole page, not
+          a bounded card within the content column). Sits behind the
+          shell's header/nav/footer, which keep their own solid
+          backgrounds, and behind this step's own content below. */}
       <div
         style={{
+          position: "fixed", inset: 0, zIndex: 0,
           backgroundImage:
             "linear-gradient(180deg, rgba(255,248,240,0.55), rgba(255,248,240,0.88) 75%), url('/assets/hsd/family/backgrounds/family-bg-world.webp')",
           backgroundSize: "cover", backgroundPosition: "center",
-          border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 24, padding: 20,
         }}
-      >
+      />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <PageTitle eyebrow="Step 2" title="Family Home" subtitle={`What ${DEMO_CHILD.name} sees when they sign in.`} />
+        <JonaBubble text={JONA_LINES.home} audioKey="home" voiceOn={voiceOn} />
+
         <div style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 18, padding: 16, marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: FAMILY_COLORS.pink, textTransform: "uppercase", marginBottom: 4 }}>
             Continue Your Journey
