@@ -89,7 +89,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
         {open ? (
           <span style={{ color: "#fff", fontSize: 22, fontWeight: 700 }}>✕</span>
         ) : (
-          <img src="/assets/hsd/family/characters/family-jona.webp" alt="Jona" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src="/assets/hsd/jona/jona-avatar.png" alt="Jona" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         )}
       </button>
 
@@ -104,7 +104,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
           }}
         >
           <div style={{ background: accent, color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/assets/hsd/family/characters/family-jona.webp" alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            <img src="/assets/hsd/jona/jona-avatar.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 14 }}>Jona</div>
               <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? `Helping with ${context.appName}` : "Your guide across HSD OS AI"}</div>
