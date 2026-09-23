@@ -32,7 +32,17 @@ export default function AdultHome() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div style={{ minHeight: "100vh", color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", position: "relative" }}>
+      {/* Full-viewport hero photo (2026-09-23), same fixed-backdrop
+          pattern as HSD Family and Student. */}
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 0,
+          backgroundImage: "linear-gradient(180deg, rgba(10,10,10,0.55), rgba(10,10,10,0.88) 70%), url('/assets/hsd/pathways/adult-hero.webp')",
+          backgroundSize: "cover", backgroundPosition: "center",
+        }}
+      />
+      <div style={{ position: "relative", zIndex: 1 }}>
       <header style={{ padding: "20px 20px 0" }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer" }}>
           ← Switch pathway
@@ -44,7 +54,7 @@ export default function AdultHome() {
           {pathway.displayName}
         </div>
         <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>{pathway.tagline}</h1>
-        <p style={{ color: "#999", fontSize: 15, marginBottom: 36, maxWidth: 560 }}>{pathway.description}</p>
+        <p style={{ color: "#ccc", fontSize: 15, marginBottom: 36, maxWidth: 560 }}>{pathway.description}</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
           {APPS.map((app) => {
@@ -56,7 +66,8 @@ export default function AdultHome() {
                 key={app.id}
                 onClick={() => open(app)}
                 style={{
-                  textAlign: "left", background: "#141414", border: `1px solid ${pathway.accent.primary}33`, borderRadius: 16,
+                  textAlign: "left", background: "rgba(20,20,20,0.75)", backdropFilter: "blur(6px)",
+                  border: `1px solid ${pathway.accent.primary}55`, borderRadius: 16,
                   padding: 22, cursor: "pointer", color: "#fff",
                 }}
               >
@@ -68,6 +79,7 @@ export default function AdultHome() {
             );
           })}
         </div>
+      </div>
       </div>
 
       <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={null} />
