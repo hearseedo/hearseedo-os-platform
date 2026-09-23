@@ -311,8 +311,11 @@ export default function Admin() {
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: COLORS.textMuted }}>{user.email}</span>
-        <button onClick={() => navigate("/dashboard")} style={{ padding: "5px 14px", background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>
-          ← Dashboard
+        {/* Points at the real pathway selector (2026-09-23) rather than
+            the generic /dashboard — this is what you actually want to land
+            on to demo Family/Student/Adult/Educator. */}
+        <button onClick={() => navigate("/choose-path")} style={{ padding: "5px 14px", background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>
+          ← Explore HSD
         </button>
         <button onClick={handleLogout} style={{ padding: "5px 14px", background: "none", border: `1px solid rgba(224,16,16,0.4)`, borderRadius: 6, color: COLORS.red, fontSize: 12, cursor: "pointer" }}>
           Sign out

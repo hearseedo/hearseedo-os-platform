@@ -1,16 +1,15 @@
 // Living Blueprint rebuild — feature flag
-// Phase 7 cutover (2026-07-25): flipped to enabled-for-everyone. This does
-// NOT replace any live route — /dashboard, /welcome etc. are untouched.
-// It only makes /preview/* reachable for every signed-in user instead of
-// just admins/dev. Full authenticated-flow testing (real subscriptions,
-// real family data, real AI credits) was NOT completed before this flip —
-// acceptable here because there are no paying users yet, but revisit before
-// ever doing a real route-replacement cutover.
+// Phase 7 cutover (2026-07-25) flipped this to enabled-for-everyone; rolled
+// back 2026-09-23 ahead of the October AI Summit — the real Student/Adult/
+// Educator pathway pages (src/pathways/) are now the thing people should
+// land on, and Living Blueprint's own /preview/* experience was causing
+// confusion (looks like a second, older site). Code is untouched, nothing
+// deleted — only unreachable for everyone except the owner-preview
+// allowlist below, same as before the July flip.
 //
-// To roll back instantly: change ENABLED_FOR_ALL to false below — every
-// /preview/* route immediately falls back to /dashboard for non-admins.
+// To re-enable for everyone: change ENABLED_FOR_ALL back to true.
 
-const ENABLED_FOR_ALL = true;
+const ENABLED_FOR_ALL = false;
 
 const OWNER_PREVIEW_EMAILS = [
   import.meta.env?.VITE_ADMIN_EMAIL,
