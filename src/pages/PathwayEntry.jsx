@@ -13,6 +13,17 @@ import { useLang } from "../hooks/useLang";
 import { PATHWAYS } from "../constants/pathways";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 
+// Same photo each pathway's real Home page uses — this entry screen used
+// to be flat black with no imagery at all, which read as an empty
+// placeholder ("just says next") next to a pathway's actual Home.
+// 2026-09-23.
+const HERO_BY_PATHWAY = {
+  family:   "/assets/hsd/family/backgrounds/family-bg-world.webp",
+  student:  "/assets/hsd/pathways/student-hero.webp",
+  adult:    "/assets/hsd/pathways/adult-hero.webp",
+  educator: "/assets/hsd/pathways/educator-hero.webp",
+};
+
 export default function PathwayEntry({ pathwayId }) {
   const { user, profiles, currentProfile, setActiveProfile, setActivePathway } = useAuth();
   const { t } = useLang();
@@ -50,20 +61,32 @@ export default function PathwayEntry({ pathwayId }) {
     setActiveProfile(profileId);
   }
 
+  const heroUrl = HERO_BY_PATHWAY[pathwayId];
+
   return (
     <div style={{
-      minHeight: "100vh", background: "#0a0a0a", color: "#fff",
+      minHeight: "100vh", color: "#fff",
       padding: "48px 20px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       display: "flex", flexDirection: "column", alignItems: "center",
+      position: "relative",
     }}>
+      {heroUrl && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 0,
+            backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.55), rgba(10,10,10,0.9) 75%), url('${heroUrl}')`,
+            backgroundSize: "cover", backgroundPosition: "center",
+          }}
+        />
+      )}
       <button
         onClick={() => navigate("/choose-path")}
-        style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer", marginBottom: 32 }}
+        style={{ position: "relative", zIndex: 1, alignSelf: "flex-start", background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer", marginBottom: 32 }}
       >
         {t("path_back_to_selector")}
       </button>
 
-      <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 480, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: pathway.accent.primary, marginBottom: 10 }}>
           {pathway.displayName}
         </div>
@@ -79,7 +102,7 @@ export default function PathwayEntry({ pathwayId }) {
                   onClick={() => choose(p.id)}
                   style={{
                     padding: "14px 20px", borderRadius: 12, border: `1px solid ${pathway.accent.primary}55`,
-                    background: "#141414", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                    background: "rgba(20,20,20,0.75)", backdropFilter: "blur(6px)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
                   {p.name}{p.id === SELF_PROFILE_ID ? ` (${user.name?.split(" ")[0] ?? "Me"} — ${t("path_state_continue")})` : ""}
