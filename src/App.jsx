@@ -70,6 +70,14 @@ import {
   StepWelcome, StepFamilyHome, StepAskJona, StepActivity,
   StepConfidence, StepProgress, StepPrograms, StepComplete,
 } from "./familyDemo/steps";
+// HSD OS AI ecosystem demo (2026-09-24) — the new /demo. Introduces all
+// four real pathways with Jona as the throughline, not just Family.
+// /family-demo above is untouched and still fully reachable directly —
+// it becomes the Family example this demo walks through, not deleted.
+import EcosystemDemoShell from "./ecosystemDemo/EcosystemDemoShell";
+import {
+  Step1Welcome, Step2Journey, Step3Discover, Step4MeetJona, Step5Confidence, Step6Connected,
+} from "./ecosystemDemo/steps";
 import { isPhonicsV2PreviewEnabled } from "./lib/phonicsV2PreviewFlag";
 import PreviewShell        from "./livingBlueprint/PreviewShell";
 import PreviewHome         from "./livingBlueprint/PreviewHome";
@@ -349,10 +357,11 @@ export default function App() {
           <Route path="/preview/more-dev"       element={<PreviewMore />} />
         )}
         <Route path="/admin/access-codes"  element={<AdminRoute><AdminAccessCodes /></AdminRoute>} />
-        {/* HSD Family Demo — scripted, no-auth walkthrough for pitch videos,
-            judges, and prospective families. /demo redirects here; the old
-            XPRIZE-era Confidence Adult demo is archived, not deleted, at
-            git branch archive/xprize-confidence-adult-demo. */}
+        {/* HSD Family Demo — scripted, no-auth walkthrough of the Family
+            pathway specifically. Kept fully intact and directly reachable
+            (2026-09-24) — it's now also reused as the Family example
+            inside /eco-demo's steps 3-5, not deleted. No longer what
+            /demo redirects to — see /eco-demo below. */}
         <Route path="/family-demo" element={<FamilyDemoShell />}>
           <Route index element={<StepWelcome />} />
           <Route path="home" element={<StepFamilyHome />} />
@@ -363,8 +372,20 @@ export default function App() {
           <Route path="programs" element={<StepPrograms />} />
           <Route path="complete" element={<StepComplete />} />
         </Route>
-        <Route path="/demo" element={<Navigate to="/family-demo" replace />} />
-        <Route path="/demo/*" element={<Navigate to="/family-demo" replace />} />
+        {/* HSD OS AI ecosystem demo (2026-09-24) — the new /demo. Scripted,
+            no-auth, no live Gemini/Firestore/Stripe/ElevenLabs dependency,
+            same reliability principle as /family-demo. Introduces all four
+            real pathways with Jona as the throughline. */}
+        <Route path="/eco-demo" element={<EcosystemDemoShell />}>
+          <Route index element={<Step1Welcome />} />
+          <Route path="journey" element={<Step2Journey />} />
+          <Route path="discover" element={<Step3Discover />} />
+          <Route path="meet-jona" element={<Step4MeetJona />} />
+          <Route path="confidence" element={<Step5Confidence />} />
+          <Route path="connected" element={<Step6Connected />} />
+        </Route>
+        <Route path="/demo" element={<Navigate to="/eco-demo" replace />} />
+        <Route path="/demo/*" element={<Navigate to="/eco-demo" replace />} />
         <Route path="/terms"      element={<Terms />} />
         <Route path="/privacy"    element={<Privacy />} />
         <Route path="/disclaimer" element={<Disclaimer />} />

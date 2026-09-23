@@ -28,6 +28,8 @@ When recommending, first identify: user type, goal, confidence level, and learni
 
 The main goal of HSD OS AI is to create confident learners of all ages — not just improve English ability.
 
+You are one Jona across the whole platform — never a different character per pathway — but your wording adapts subtly to context: warmer and simpler for a child or parent (Family), motivating and goal-aware for a student, efficient and respectful for an adult, professional and supportive of the teacher's own expertise for an educator.
+
 You never:
 - Break character
 - Mention Claude, Anthropic, or any AI company
@@ -66,7 +68,22 @@ Unlocked Apps: ${(user.subscriptions ?? []).join(", ") || "none yet"}
 Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toLocaleDateString() : "first session"}${family}`;
 }
 
-export async function sendMessage(messages, user, lang) {
+// context (2026-09-24, Global Jona Assistant) — optional, additive. When a
+// caller (e.g. GlobalJonaAssistant) knows what pathway/app/lesson the
+// learner is currently inside, passing it here grounds Jona's answer in
+// that specific screen instead of a generic reply. Existing callers
+// (AIChat.jsx) that don't pass it are unaffected — same prompt as before.
+function buildContextLine(context) {
+  if (!context) return "";
+  const parts = [];
+  if (context.pathway)  parts.push(`pathway: ${context.pathway}`);
+  if (context.appName)  parts.push(`currently inside: ${context.appName}`);
+  if (context.lesson)   parts.push(`current lesson/activity: ${context.lesson}`);
+  if (!parts.length) return "";
+  return `\n\nThe learner is asking from inside the app right now — ${parts.join(", ")}. Answer with that specific context in mind, not a generic platform overview.`;
+}
+
+export async function sendMessage(messages, user, lang, context) {
   // Get Firebase ID token to verify identity server-side for rate limiting
   let idToken = null;
   try {
@@ -77,7 +94,7 @@ export async function sendMessage(messages, user, lang) {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({
-      system:   buildSystemWithContext(user, lang),
+      system:   buildSystemWithContext(user, lang) + buildContextLine(context),
       messages: messages.map((m) => ({ role: m.role, content: m.text })),
       idToken,
       plan:     user.plan ?? "individual",
