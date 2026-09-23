@@ -81,8 +81,14 @@ export const PATHWAYS = {
     route:       "/educator",
     heroAsset:   `${HERO_BASE}/path-educator-hero.webp`,
     accent:      { primary: "#2f9e5c", soft: "#e6f5ec" }, // green
-    enabled:     false, // no educator environment exists yet — shown as Coming Soon
-    releaseStage: null,
+    // 2026-09-23 — enabled for the October AI Summit: organizes existing
+    // curriculum (WonderCamp's Seasonal Lessons), books, and Jona into a
+    // real Educators experience (src/pathways/educator/). Non-admin
+    // accounts still need an explicit pathwayAccess.educator grant to see
+    // it as anything but "Coming Soon" — see lib/pathwayAccess.js, which
+    // deliberately never infers educator access automatically.
+    enabled:     true,
+    releaseStage: "alpha",
   },
 };
 

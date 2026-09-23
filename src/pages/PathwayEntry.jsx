@@ -94,7 +94,7 @@ export default function PathwayEntry({ pathwayId }) {
           </>
         ) : (
           <button
-            onClick={() => navigate(pathwayId === "family" ? "/family/home" : "/dashboard")}
+            onClick={() => navigate(`/${pathwayId}/home`)}
             style={{
               width: "100%", padding: 16, borderRadius: 12, border: "none",
               background: pathway.accent.primary, color: "#0a0700", fontSize: 16, fontWeight: 800, cursor: "pointer",

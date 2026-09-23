@@ -48,6 +48,19 @@ const FamilyHub          = lazy(() => import("./family/FamilyHub"));
 const ChildProfileCreate = lazy(() => import("./family/ChildProfileCreate"));
 const FamilyParentView   = lazy(() => import("./family/FamilyParentView"));
 const FamilyInvite       = lazy(() => import("./family/FamilyInvite"));
+// HSD Students / Adults / Educators — same lazy-loading rationale as
+// Family above. Student/Adult are single curated landing pages over
+// existing apps; Educator is a small nested shell (Home/Plan/Teach/
+// Students/Resources/Jona) over existing curriculum/Jona (2026-09-23).
+const StudentHome         = lazy(() => import("./pathways/StudentHome"));
+const AdultHome            = lazy(() => import("./pathways/AdultHome"));
+const EducatorShell        = lazy(() => import("./pathways/educator/EducatorShell"));
+const EducatorHome         = lazy(() => import("./pathways/educator/EducatorHome"));
+const EducatorPlan         = lazy(() => import("./pathways/educator/EducatorPlan"));
+const EducatorTeach        = lazy(() => import("./pathways/educator/EducatorTeach"));
+const EducatorStudents     = lazy(() => import("./pathways/educator/EducatorStudents"));
+const EducatorResources    = lazy(() => import("./pathways/educator/EducatorResources"));
+const EducatorJona         = lazy(() => import("./pathways/educator/EducatorJona"));
 // HSD Family Demo — replaces the old XPRIZE-era Confidence Adult demo
 // (archived at git branch archive/xprize-confidence-adult-demo). Scripted,
 // no-auth walkthrough of the HSD Family pathway; no live Gemini, Firestore,
@@ -241,8 +254,25 @@ export default function App() {
         <Route path="/family/activity/:activityId" element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityPlayer /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/family/:category"      element={<ProtectedRoute><PathwayRoute pathwayId="family"><Suspense fallback={<ChunkLoading />}><ActivityGrid /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/student"     element={<ProtectedRoute><PathwayRoute pathwayId="student"><PathwayEntry pathwayId="student" /></PathwayRoute></ProtectedRoute>} />
+        <Route path="/student/home" element={<ProtectedRoute><PathwayRoute pathwayId="student"><Suspense fallback={<ChunkLoading />}><StudentHome /></Suspense></PathwayRoute></ProtectedRoute>} />
         <Route path="/adult"       element={<ProtectedRoute><PathwayRoute pathwayId="adult"><PathwayEntry pathwayId="adult" /></PathwayRoute></ProtectedRoute>} />
-        <Route path="/educator"    element={<ProtectedRoute><PathwayRoute pathwayId="educator"><PathwayEntry pathwayId="educator" /></PathwayRoute></ProtectedRoute>} />
+        <Route path="/adult/home"  element={<ProtectedRoute><PathwayRoute pathwayId="adult"><Suspense fallback={<ChunkLoading />}><AdultHome /></Suspense></PathwayRoute></ProtectedRoute>} />
+        {/* HSD Educators (2026-09-23) — bare /educator still records the
+            visit and shows the same entry screen every other pathway uses
+            (PathwayEntry, as an index route here so it renders inside the
+            shell rather than colliding with a second /educator route);
+            /educator/home etc. are the real Home/Plan/Teach/Students/
+            Resources/Jona tabs, same PathwayRoute guard as every other
+            pathway's real home. */}
+        <Route path="/educator" element={<ProtectedRoute><PathwayRoute pathwayId="educator"><Suspense fallback={<ChunkLoading />}><EducatorShell /></Suspense></PathwayRoute></ProtectedRoute>}>
+          <Route index          element={<PathwayEntry pathwayId="educator" />} />
+          <Route path="home"      element={<EducatorHome />} />
+          <Route path="plan"      element={<EducatorPlan />} />
+          <Route path="teach"     element={<EducatorTeach />} />
+          <Route path="students"  element={<EducatorStudents />} />
+          <Route path="resources" element={<EducatorResources />} />
+          <Route path="jona"      element={<EducatorJona />} />
+        </Route>
         <Route path="/wondercamp"    element={<ProtectedRoute><WonderCamp /></ProtectedRoute>} />
         <Route path="/career-ready"        element={<ProtectedRoute><CareerReady /></ProtectedRoute>} />
         <Route path="/global-ready"        element={<ProtectedRoute><GlobalReady /></ProtectedRoute>} />
