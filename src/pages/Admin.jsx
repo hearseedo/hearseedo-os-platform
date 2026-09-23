@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { collection, doc, updateDoc, onSnapshot, query, orderBy, addDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db, logout } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
-import { COLORS } from "../constants/colors";
 import { APPS } from "../constants/apps";
 import { PLANS, FAMILY_PLANS } from "../constants/plans";
 import { APP_REGISTRY } from "../constants/appRegistry";
@@ -11,6 +10,31 @@ import { confidenceLabel, trendIcon } from "../lib/confidenceEngine";
 import { FOUNDING_LIMIT, FOUNDING_BADGE, REFERRAL_BADGES, LEGACY_FOUNDER_BADGE } from "../lib/founding";
 import FoundingBadge from "../components/FoundingBadge";
 import { PATHWAYS } from "../constants/pathways";
+
+// Admin-only light theme (2026-09-23) — same key names as
+// constants/colors.js's shared dark COLORS (which the rest of the
+// platform still uses), redefined locally so every existing COLORS.xxx
+// reference throughout this file resolves to a white/cream palette
+// instead. Deliberately NOT changed in constants/colors.js itself — that
+// would flip Dashboard.jsx, AIChat.jsx, and everywhere else that imports
+// it too.
+const COLORS = {
+  bg: "#fff8f0",
+  surface: "#ffffff",
+  card: "#ffffff",
+  cardHover: "#fdf6ec",
+  border: "#e7ded0",
+  red: "#e01010",
+  redBright: "#ff2020",
+  redGlow: "rgba(224,16,16,0.12)",
+  redDim: "#c23a3a",
+  text: "#1c1a16",
+  textMuted: "#786f60",
+  textDim: "#a89d89",
+  success: "#1f9950",
+  gold: "#b3760f",
+  purple: "#6a4e96",
+};
 
 // Tabs whose content is really about one specific pathway pick up that
 // pathway's own accent color (2026-09-23) instead of the flat red brand
@@ -311,9 +335,9 @@ export default function Admin() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0b0c14", color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column" }}>
 
-      <header style={{ height: 56, background: "rgba(22,24,42,0.95)", backdropFilter: "blur(6px)", borderBottom: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center", padding: "0 24px", gap: 14, position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
+      <header style={{ height: 56, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(6px)", borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 14, position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.red, boxShadow: "0 0 8px #e01010", animation: "pulse 2s ease-in-out infinite" }} />
           <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 3, textTransform: "uppercase" }}>HSD OS Command Center</span>
@@ -323,7 +347,7 @@ export default function Admin() {
         {/* Points at the real pathway selector (2026-09-23) rather than
             the generic /dashboard — this is what you actually want to land
             on to demo Family/Student/Adult/Educator. */}
-        <button onClick={() => navigate("/choose-path")} style={{ padding: "5px 14px", background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>
+        <button onClick={() => navigate("/choose-path")} style={{ padding: "5px 14px", background: "none", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>
           ← Explore HSD
         </button>
         <button onClick={handleLogout} style={{ padding: "5px 14px", background: "none", border: `1px solid rgba(224,16,16,0.4)`, borderRadius: 6, color: COLORS.red, fontSize: 12, cursor: "pointer" }}>
@@ -333,7 +357,7 @@ export default function Admin() {
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-        <aside style={{ width: 210, background: "rgba(18,20,34,0.8)", borderRight: "1px solid rgba(255,255,255,0.12)", padding: "16px 8px", flexShrink: 0, overflowY: "auto" }}>
+        <aside style={{ width: 210, background: COLORS.cardHover, borderRight: `1px solid ${COLORS.border}`, padding: "16px 8px", flexShrink: 0, overflowY: "auto" }}>
           {TABS.map(t => {
             const isWarningTab = t.id === "warnings";
             const isSupportTab = t.id === "support";
@@ -368,7 +392,7 @@ export default function Admin() {
             );
           })}
 
-          <div style={{ margin: "20px 8px 0", padding: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 12 }}>
+          <div style={{ margin: "20px 8px 0", padding: 12, background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 12 }}>
             <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 8, letterSpacing: 1 }}>LIVE STATS</div>
             <Stat label="Users"        value={loading ? "…" : totalUsers} />
             <Stat label="Paid"         value={loading ? "…" : paidUsers} color={COLORS.success} />
@@ -484,7 +508,7 @@ function OverviewTab({ users, planCounts, platform, pageViews, loading, mrr, pai
 
       {/* Founding Member Banner */}
       {foundingCount !== null && (
-        <div style={{ marginBottom: 28, background: "linear-gradient(135deg,#1a0000,#0d0d0d)", border: "1px solid rgba(224,16,16,0.3)", borderRadius: 12, padding: "18px 24px" }}>
+        <div style={{ marginBottom: 28, background: "linear-gradient(135deg,#fde8e8,#fff5f0)", border: "1px solid rgba(224,16,16,0.3)", borderRadius: 12, padding: "18px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>Founding Member Window — First 200 Paying Users</div>
@@ -502,7 +526,7 @@ function OverviewTab({ users, planCounts, platform, pageViews, loading, mrr, pai
               <div style={{ fontSize: 10, color: COLORS.textDim }}>founding members</div>
             </div>
           </div>
-          <div style={{ marginTop: 12, height: 6, background: "#1e1e1e", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ marginTop: 12, height: 6, background: "#eee6d6", borderRadius: 3, overflow: "hidden" }}>
             <div style={{
               height: "100%",
               width: `${Math.min(100, (foundingCount / FOUNDING_LIMIT) * 100)}%`,
@@ -518,10 +542,10 @@ function OverviewTab({ users, planCounts, platform, pageViews, loading, mrr, pai
           {loading ? <Skeleton /> : Object.entries(planCounts).length === 0
             ? <Empty>No subscribers yet</Empty>
             : Object.entries(planCounts).sort((a,b) => b[1]-a[1]).map(([plan, count]) => (
-              <div key={plan} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1e1e1e" }}>
+              <div key={plan} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #eee6d6" }}>
                 <span style={{ fontSize: 13, color: COLORS.textMuted, textTransform: "capitalize" }}>{plan.replace(/_/g, " ")}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 60, height: 4, background: "#1e1e1e", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: 60, height: 4, background: "#eee6d6", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${Math.min(100, (count / users.length) * 100)}%`, background: COLORS.red, borderRadius: 2 }} />
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, minWidth: 20, textAlign: "right" }}>{count}</span>
@@ -552,7 +576,7 @@ function OverviewTab({ users, planCounts, platform, pageViews, loading, mrr, pai
             { label: "App iframe URLs",            done: true  },
             { label: "Custom domain (hsdos.ai)",   done: true  },
           ].map(item => (
-            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #1a1a1a" }}>
+            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #eee6d6" }}>
               <span style={{ fontSize: 12, color: item.done ? COLORS.success : "#f59e0b" }}>{item.done ? "✓" : "○"}</span>
               <span style={{ fontSize: 12, color: item.done ? COLORS.text : COLORS.textMuted, flex: 1 }}>{item.label}</span>
               {!item.done && item.note && <span style={{ fontSize: 9, color: "#f59e0b", letterSpacing: 0.5 }}>{item.note}</span>}
@@ -607,7 +631,7 @@ function FoundingTab({ users, loading, foundingCount }) {
             <strong style={{ color: COLORS.red }}>{foundingCount ?? 0}</strong> / {FOUNDING_LIMIT} paying members
           </div>
         </div>
-        <div style={{ height: 8, background: "#1e1e1e", borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ height: 8, background: "#eee6d6", borderRadius: 4, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${Math.min(100, ((foundingCount ?? 0) / FOUNDING_LIMIT) * 100)}%`, background: windowClosed ? "#555" : "linear-gradient(90deg,#e01010,#ff4444)", borderRadius: 4, transition: "width 0.4s" }} />
         </div>
         {windowClosed && <div style={{ marginTop: 8, fontSize: 12, color: COLORS.red, fontWeight: 600 }}>Window closed — 200 Founding Members confirmed.</div>}
@@ -623,7 +647,7 @@ function FoundingTab({ users, loading, foundingCount }) {
             { ...REFERRAL_BADGES.visionary,  note: "250+ referrals" },
             { ...LEGACY_FOUNDER_BADGE,       note: "Top 100 referrers" },
           ].map(b => (
-            <div key={b.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 12, background: "#111", borderRadius: 10, border: `1px solid ${b.color}33` }}>
+            <div key={b.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 12, background: "#ffffff", borderRadius: 10, border: `1px solid ${b.color}33` }}>
               <FoundingBadge badgeId={b.id} size="sm" />
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: b.color }}>{b.name}</div>
@@ -643,12 +667,12 @@ function FoundingTab({ users, loading, foundingCount }) {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>{["#", "Name", "Email", "Plan", "Claimed"].map(h => (
-                    <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+                    <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
                   {foundingMembers.map(u => (
-                    <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                    <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
                       <td style={{ padding: "9px 0", fontSize: 13, color: COLORS.red, fontWeight: 700 }}>#{String(u.foundingMemberNumber).padStart(3, "0")}</td>
                       <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
                       <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.email}</td>
@@ -671,12 +695,12 @@ function FoundingTab({ users, loading, foundingCount }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>{["Rank", "Name", "Email", "Badge", "Referrals"].map(h => (
-                  <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+                  <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {referralLeaders.slice(0, 50).map((u, i) => (
-                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                  <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
                     <td style={{ padding: "9px 0", fontSize: 13, color: i < 3 ? "#C9A84C" : COLORS.textMuted, fontWeight: 700 }}>#{i + 1}</td>
                     <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
                     <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.email}</td>
@@ -726,10 +750,10 @@ function IntelligenceTab({ users, platform, loading, avgConfidence }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
         <Card title="Confidence Distribution">
           {loading ? <Skeleton /> : Object.entries(confidenceDistribution).map(([label, count]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1e1e1e" }}>
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #eee6d6" }}>
               <span style={{ fontSize: 12, color: COLORS.textMuted }}>{label}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 80, height: 4, background: "#1e1e1e", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: 80, height: 4, background: "#eee6d6", borderRadius: 2, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: users.length ? `${(count / users.length) * 100}%` : "0%", background: "#a855f7", borderRadius: 2 }} />
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, minWidth: 20, textAlign: "right" }}>{count}</span>
@@ -748,7 +772,7 @@ function IntelligenceTab({ users, platform, loading, avgConfidence }) {
               { label: "App Events Logged",  value: totalEvents.toLocaleString(), color: COLORS.red },
               { label: "Founding Members",   value: users.filter(u => u.isFoundingMember).length, color: COLORS.red },
             ].map(item => (
-              <div key={item.label} style={{ background: "#111", borderRadius: 8, padding: "10px 12px" }}>
+              <div key={item.label} style={{ background: "#ffffff", borderRadius: 8, padding: "10px 12px" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: item.color }}>{loading ? "—" : item.value}</div>
                 <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 3 }}>{item.label}</div>
               </div>
@@ -762,18 +786,18 @@ function IntelligenceTab({ users, platform, loading, avgConfidence }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>{["User", "Confidence", "Level", "Streak", "XP", "Lessons", "Plan"].map(h => (
-                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {[...users].sort((a,b) => (b.confidenceScore ?? 50) - (a.confidenceScore ?? 50)).slice(0, 20).map(u => {
                 const score = u.confidenceScore ?? 50;
                 return (
-                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                  <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
                     <td style={{ padding: "9px 0", fontSize: 12 }}>{u.name ?? u.email?.split("@")[0] ?? "—"}</td>
                     <td style={{ padding: "9px 0" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 50, height: 4, background: "#1e1e1e", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ width: 50, height: 4, background: "#eee6d6", borderRadius: 2, overflow: "hidden" }}>
                           <div style={{ height: "100%", width: `${score}%`, background: score >= 70 ? COLORS.success : score >= 40 ? "#a855f7" : COLORS.red, borderRadius: 2 }} />
                         </div>
                         <span style={{ fontSize: 11, color: COLORS.textMuted }}>{score}%</span>
@@ -859,14 +883,14 @@ function EikenTeacherTab({ users, loading }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>{["Name", "Grade", "Readiness", "Last Active"].map(h => (
-                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {eikenUsers
                 .sort((a, b) => (b.eikenSummary.readinessScore ?? 0) - (a.eikenSummary.readinessScore ?? 0))
                 .map(u => (
-                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                  <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
                     <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
                     <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.eikenSummary.grade ?? "Not set"}</td>
                     <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.gold }}>{u.eikenSummary.readinessScore ?? 0}%</td>
@@ -893,7 +917,7 @@ function EikenTeacherTab({ users, loading }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>{["Name", "Last Game", "Topic", "Last Score", "Last Played"].map(h => (
-                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+                <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
@@ -901,7 +925,7 @@ function EikenTeacherTab({ users, loading }) {
                 .sort((a, b) => new Date(b.monkeyPartySummary.lastPlayedAt || 0) - new Date(a.monkeyPartySummary.lastPlayedAt || 0))
                 .slice(0, 20)
                 .map(u => (
-                  <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                  <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
                     <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
                     <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted, textTransform: "capitalize" }}>{(u.monkeyPartySummary.lastGameMode ?? "—").replace(/_/g, " ")}</td>
                     <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.monkeyPartySummary.lastTopic ?? "—"}</td>
@@ -976,9 +1000,9 @@ function UsersTab({ users, loading, setUsers }) {
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or email…"
-          style={{ flex: 1, padding: "10px 14px", background: COLORS.card, border: "1px solid #2a2a2a", borderRadius: 8, color: COLORS.text, fontSize: 13 }} />
+          style={{ flex: 1, padding: "10px 14px", background: COLORS.card, border: "1px solid #e3d9c6", borderRadius: 8, color: COLORS.text, fontSize: 13 }} />
         <select value={filter} onChange={e => setFilter(e.target.value)}
-          style={{ padding: "10px 14px", background: COLORS.card, border: "1px solid #2a2a2a", borderRadius: 8, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
+          style={{ padding: "10px 14px", background: COLORS.card, border: "1px solid #e3d9c6", borderRadius: 8, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
           <option value="all">All users</option>
           <option value="paid">Paid subscribers</option>
           <option value="free">Free users</option>
@@ -989,7 +1013,7 @@ function UsersTab({ users, loading, setUsers }) {
       {loading ? <Skeleton /> : filtered.length === 0 ? <Empty>No users match</Empty> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {filtered.map(u => (
-            <div key={u.id} style={{ background: COLORS.card, border: `1px solid ${u.hasContributorBadge ? "rgba(6,182,212,0.25)" : "#1e1e1e"}`, borderRadius: 12, padding: 16 }}>
+            <div key={u.id} style={{ background: COLORS.card, border: `1px solid ${u.hasContributorBadge ? "rgba(6,182,212,0.25)" : "#eee6d6"}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#4a0000,#8b0000)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
                   {(u.name || u.email)?.[0]?.toUpperCase() ?? "?"}
@@ -1009,7 +1033,7 @@ function UsersTab({ users, loading, setUsers }) {
                         <button key={app.id} onClick={() => toggleApp(u.id, app.id, has)}
                           style={{ padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, cursor: "pointer",
                             background: has ? `${app.accent}22` : "transparent",
-                            border: `1px solid ${has ? app.accent : "#2a2a2a"}`,
+                            border: `1px solid ${has ? app.accent : "#e3d9c6"}`,
                             color: has ? app.accent : COLORS.textDim }}>
                           {app.id}
                         </button>
@@ -1039,7 +1063,7 @@ function UsersTab({ users, loading, setUsers }) {
 
               {/* Inline compose area */}
               {thankingUid === u.id && (
-                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #1e1e1e" }}>
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #eee6d6" }}>
                   <div style={{ fontSize: 11, color: "#06b6d4", fontWeight: 700, marginBottom: 8, letterSpacing: 0.5 }}>
                     💌 Personal note to {u.name || u.email?.split("@")[0]}
                   </div>
@@ -1047,11 +1071,11 @@ function UsersTab({ users, loading, setUsers }) {
                     value={noteText}
                     onChange={e => setNoteText(e.target.value)}
                     rows={3}
-                    style={{ width: "100%", padding: "10px 12px", background: "#0d0d0d", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 8, color: COLORS.text, fontSize: 13, resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "10px 12px", background: "#f5efe3", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 8, color: COLORS.text, fontSize: 13, resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" }}
                   />
                   <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
                     <button onClick={() => setThankingUid(null)}
-                      style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: "transparent", border: "1px solid #2a2a2a", color: COLORS.textMuted }}>
+                      style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: "transparent", border: "1px solid #e3d9c6", color: COLORS.textMuted }}>
                       Cancel
                     </button>
                     <button onClick={() => sendThankYou(u.id)} disabled={sending || !noteText.trim()}
@@ -1076,7 +1100,7 @@ function AppsTab({ users }) {
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageTitle>App Registry</PageTitle>
-      <div style={{ marginBottom: 20, padding: 14, background: "#0a0a0a", border: "1px solid #1e1e1e", borderRadius: 10, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.7 }}>
+      <div style={{ marginBottom: 20, padding: 14, background: "#f5efe3", border: "1px solid #eee6d6", borderRadius: 10, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.7 }}>
         The App Registry is the OS integration layer. Each registered app can push learning events to the OS via <code style={{ color: COLORS.red }}>POST /api/intelligence</code> and receive learner profile data in return. Future third-party apps register here to connect.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1084,21 +1108,21 @@ function AppsTab({ users }) {
           const subscribers = users.filter(u => u.subscriptions?.includes(app.appId)).length;
           const appDef      = APPS.find(a => a.id === app.appId);
           return (
-            <div key={app.appId} style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 18 }}>
+            <div key={app.appId} style={{ background: COLORS.card, border: "1px solid #eee6d6", borderRadius: 12, padding: 18 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#1a1a1a", border: "1px solid #2a2a2a", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#eee6d6", border: "1px solid #e3d9c6", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {appDef?.image ? <img src={appDef.image} alt={app.appName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}>{appDef?.icon ?? "📱"}</span>}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{app.appName}</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: app.status === "active" ? "rgba(34,197,94,0.15)" : "#1a1a1a", color: app.status === "active" ? COLORS.success : COLORS.textDim, border: `1px solid ${app.status === "active" ? "rgba(34,197,94,0.3)" : "#2a2a2a"}`, textTransform: "uppercase", letterSpacing: 1 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: app.status === "active" ? "rgba(34,197,94,0.15)" : "#eee6d6", color: app.status === "active" ? COLORS.success : COLORS.textDim, border: `1px solid ${app.status === "active" ? "rgba(34,197,94,0.3)" : "#e3d9c6"}`, textTransform: "uppercase", letterSpacing: 1 }}>
                       {app.status}
                     </span>
-                    <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 20, background: "#1a1a1a", color: COLORS.textDim, border: "1px solid #2a2a2a", textTransform: "uppercase", letterSpacing: 1 }}>
+                    <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 20, background: "#eee6d6", color: COLORS.textDim, border: "1px solid #e3d9c6", textTransform: "uppercase", letterSpacing: 1 }}>
                       {app.category}
                     </span>
-                    <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 20, background: app.analyticsEnabled ? "rgba(168,85,247,0.1)" : "#1a1a1a", color: app.analyticsEnabled ? "#a855f7" : COLORS.textDim, border: "1px solid #2a2a2a" }}>
+                    <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 20, background: app.analyticsEnabled ? "rgba(168,85,247,0.1)" : "#eee6d6", color: app.analyticsEnabled ? "#a855f7" : COLORS.textDim, border: "1px solid #e3d9c6" }}>
                       {app.analyticsEnabled ? "🧠 Intelligence ON" : "Intelligence OFF"}
                     </span>
                   </div>
@@ -1150,7 +1174,7 @@ function RevenueTab({ users, planCounts, mrr }) {
             const count   = planCounts[p.id] ?? 0;
             const revenue = count * p.price_monthly;
             return (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #1e1e1e" }}>
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #eee6d6" }}>
                 <div>
                   <div style={{ fontSize: 12, color: COLORS.text }}>{p.name}</div>
                   <div style={{ fontSize: 10, color: COLORS.textMuted }}>¥{p.price_monthly.toLocaleString()}/mo × {count}</div>
@@ -1163,7 +1187,7 @@ function RevenueTab({ users, planCounts, mrr }) {
           })}
           {/* Organization — contact-only, custom pricing */}
           {(() => { const c = planCounts["organization"] ?? 0; return c > 0 ? (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #1e1e1e" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #eee6d6" }}>
               <div>
                 <div style={{ fontSize: 12, color: COLORS.text }}>Organization</div>
                 <div style={{ fontSize: 10, color: COLORS.textMuted }}>Custom pricing × {c}</div>
@@ -1179,7 +1203,7 @@ function RevenueTab({ users, planCounts, mrr }) {
                 const count   = planCounts[p.id] ?? 0;
                 const revenue = count * p.price_monthly;
                 return (
-                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #1a1a1a" }}>
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #eee6d6" }}>
                     <div>
                       <div style={{ fontSize: 11, color: COLORS.textMuted }}>{p.name}</div>
                       <div style={{ fontSize: 10, color: COLORS.textDim }}>¥{p.price_monthly.toLocaleString()}/mo × {count}</div>
@@ -1197,7 +1221,7 @@ function RevenueTab({ users, planCounts, mrr }) {
             const count = users.filter(u => (u.planStatus ?? "—") === status).length;
             const colors = { active: COLORS.success, past_due: "#f59e0b", cancelled: COLORS.red, "—": COLORS.textDim };
             return (
-              <div key={status} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #1e1e1e" }}>
+              <div key={status} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee6d6" }}>
                 <span style={{ fontSize: 12, color: colors[status], textTransform: "capitalize" }}>{status === "—" ? "Free / No plan" : status.replace(/_/g, " ")}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>{count}</span>
               </div>
@@ -1248,7 +1272,7 @@ function GeminiActivityTab() {
           { label: "Unique Users", value: uniqueUids.length },
           { label: "Total Tokens Used", value: totalTokens.toLocaleString() },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+          <div key={label} style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{value}</div>
             <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{label}</div>
           </div>
@@ -1277,7 +1301,7 @@ function GeminiActivityTab() {
             const ts = e.timestamp ? new Date(Number(e.timestamp)).toLocaleString("en-US", { timeZone: "Asia/Tokyo", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
             const color = FN_COLORS[e.fn] ?? "#888";
             return (
-              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8, fontSize: 12 }}>
+              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f5efe3", border: "1px solid #eee6d6", borderRadius: 8, fontSize: 12 }}>
                 <span style={{ background: `${color}22`, color, border: `1px solid ${color}44`, borderRadius: 4, padding: "2px 7px", fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
                   {FN_LABELS[e.fn] ?? e.fn}
                 </span>
@@ -1331,7 +1355,7 @@ function AuditTab() {
       {loading ? <Skeleton /> : logs.length === 0 ? <Empty>No audit events yet</Empty> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {logs.map(log => (
-            <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 10 }}>
+            <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", background: COLORS.card, border: "1px solid #eee6d6", borderRadius: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: log.action === "account_deleted" ? COLORS.red : "#22c55e", flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>{ACTION_LABELS[log.action] ?? log.action}</div>
@@ -1380,7 +1404,7 @@ function SettingsTab() {
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageTitle>Platform Settings</PageTitle>
 
-      <div style={{ marginBottom: 20, padding: 14, background: "#0a0a0a", border: "1px solid rgba(224,16,16,0.2)", borderRadius: 10, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.7 }}>
+      <div style={{ marginBottom: 20, padding: 14, background: "#f5efe3", border: "1px solid rgba(224,16,16,0.2)", borderRadius: 10, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.7 }}>
         All secrets are stored in <strong style={{ color: COLORS.text }}>Netlify → Site config → Environment variables</strong>.<br />
         After adding or updating a key, redeploy for it to take effect: <code style={{ color: COLORS.red }}>Netlify → Deploys → Trigger deploy</code>.<br />
         Keys with <code style={{ color: "#4488ff" }}>VITE_</code> prefix are readable in the browser. Keys without it are server-side only (Netlify Functions).
@@ -1388,7 +1412,7 @@ function SettingsTab() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
         {envVars.map(v => (
-          <div key={v.key} style={{ background: COLORS.card, border: `1px solid ${v.status === "set" ? "rgba(34,197,94,0.2)" : "#1e1e1e"}`, borderRadius: 10, padding: "11px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+          <div key={v.key} style={{ background: COLORS.card, border: `1px solid ${v.status === "set" ? "rgba(34,197,94,0.2)" : "#eee6d6"}`, borderRadius: 10, padding: "11px 16px", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: v.status === "set" ? COLORS.success : "#333" }} />
             <div style={{ flex: 1 }}>
               <code style={{ fontSize: 12, color: v.status === "set" ? COLORS.red : COLORS.textMuted }}>{v.key}</code>
@@ -1404,7 +1428,7 @@ function SettingsTab() {
       <Card title="Intelligence API — App Integration">
         <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.8 }}>
           <div style={{ marginBottom: 10 }}>Apps push learning events to the OS via:</div>
-          <pre style={{ background: "#0a0a0a", border: "1px solid #1e1e1e", borderRadius: 8, padding: 14, fontSize: 11, color: "#4488ff", overflowX: "auto" }}>{`POST https://app.hsdos.ai/api/intelligence
+          <pre style={{ background: "#f5efe3", border: "1px solid #eee6d6", borderRadius: 8, padding: 14, fontSize: 11, color: "#4488ff", overflowX: "auto" }}>{`POST https://app.hsdos.ai/api/intelligence
 
 {
   "idToken": "firebase-id-token",
@@ -1442,7 +1466,7 @@ const DPA_VENDORS = [
 
 const DPA_STATUS_CYCLE = ["not_started", "pending", "signed"];
 const DPA_STATUS_META  = {
-  not_started: { label: "Not started", color: "#555",          bg: "#1a1a1a",                    border: "#2a2a2a" },
+  not_started: { label: "Not started", color: "#555",          bg: "#eee6d6",                    border: "#e3d9c6" },
   pending:     { label: "Pending",     color: "#f59e0b",       bg: "rgba(245,158,11,0.08)",      border: "rgba(245,158,11,0.3)" },
   signed:      { label: "✓ Signed",   color: COLORS.success,  bg: "rgba(34,197,94,0.08)",       border: "rgba(34,197,94,0.3)" },
 };
@@ -1488,7 +1512,7 @@ function DpaCard() {
           const meta   = DPA_STATUS_META[status];
           const updatedAt = dpa[v.id]?.updatedAt;
           return (
-            <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 10 }}>
+            <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: COLORS.card, border: "1px solid #eee6d6", borderRadius: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 2 }}>{v.name}</div>
                 <div style={{ fontSize: 11, color: COLORS.textMuted }}>{v.purpose}</div>
@@ -1562,7 +1586,7 @@ function WarningsTab({ warnings, loading }) {
           { id: "info",     label: "Info",     color: LEVEL_CONFIG.info.color },
         ].map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)} style={{
-            padding: "7px 16px", borderRadius: 8, border: `1px solid ${filter === f.id ? f.color : "#2a2a2a"}`,
+            padding: "7px 16px", borderRadius: 8, border: `1px solid ${filter === f.id ? f.color : "#e3d9c6"}`,
             background: filter === f.id ? `${f.color}15` : "transparent",
             color: filter === f.id ? f.color : COLORS.textMuted,
             fontSize: 12, fontWeight: filter === f.id ? 700 : 400, cursor: "pointer",
@@ -1715,7 +1739,7 @@ function SupportTab() {
             <button key={t.id} onClick={() => setSelected(t)} style={{
               textAlign: "left", padding: "12px 14px",
               background: selected?.id === t.id ? "#1a0000" : COLORS.card,
-              border: `1px solid ${selected?.id === t.id ? COLORS.red + "55" : "#1e1e1e"}`,
+              border: `1px solid ${selected?.id === t.id ? COLORS.red + "55" : "#eee6d6"}`,
               borderRadius: 10, cursor: "pointer", color: COLORS.text,
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
@@ -1736,7 +1760,7 @@ function SupportTab() {
 
         {/* Conversation */}
         <div style={{
-          flex: 1, background: COLORS.card, border: "1px solid #1e1e1e",
+          flex: 1, background: COLORS.card, border: "1px solid #eee6d6",
           borderRadius: 12, display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
           {!selected ? (
@@ -1746,7 +1770,7 @@ function SupportTab() {
           ) : (
             <>
               {/* Conv header */}
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid #1e1e1e" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #eee6d6" }}>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>{selected.name || selected.email}</div>
                 <div style={{ fontSize: 11, color: COLORS.textMuted }}>{selected.email}</div>
               </div>
@@ -1762,11 +1786,11 @@ function SupportTab() {
                     <div style={{
                       maxWidth: "75%", padding: "9px 13px",
                       borderRadius: m.from === "admin" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                      background: m.from === "admin" ? COLORS.red : "#1e1e1e",
-                      color: "#fff", fontSize: 13, lineHeight: 1.5,
+                      background: m.from === "admin" ? COLORS.red : "#eee6d6",
+                      color: m.from === "admin" ? "#fff" : COLORS.text, fontSize: 13, lineHeight: 1.5,
                     }}>
                       {m.text}
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 4, textAlign: m.from === "admin" ? "right" : "left" }}>
+                      <div style={{ fontSize: 9, color: m.from === "admin" ? "rgba(255,255,255,0.65)" : COLORS.textDim, marginTop: 4, textAlign: m.from === "admin" ? "right" : "left" }}>
                         {m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
                       </div>
                     </div>
@@ -1776,7 +1800,7 @@ function SupportTab() {
               </div>
 
               {/* Reply */}
-              <div style={{ padding: "10px 12px", borderTop: "1px solid #1e1e1e", display: "flex", gap: 8 }}>
+              <div style={{ padding: "10px 12px", borderTop: "1px solid #eee6d6", display: "flex", gap: 8 }}>
                 <textarea
                   value={reply}
                   onChange={e => setReply(e.target.value)}
@@ -1785,7 +1809,7 @@ function SupportTab() {
                   rows={1}
                   style={{
                     flex: 1, padding: "9px 12px",
-                    background: "#1a1a1a", border: "1px solid #2a2a2a",
+                    background: "#eee6d6", border: "1px solid #e3d9c6",
                     borderRadius: 10, color: COLORS.text, fontSize: 13,
                     resize: "none", outline: "none", fontFamily: "inherit",
                   }}
@@ -1795,8 +1819,8 @@ function SupportTab() {
                   disabled={!reply.trim() || sending}
                   style={{
                     padding: "9px 16px", borderRadius: 10, flexShrink: 0,
-                    background: reply.trim() ? COLORS.red : "#1a1a1a",
-                    border: "none", color: "#fff", fontSize: 13, fontWeight: 600,
+                    background: reply.trim() ? COLORS.red : "#eee6d6",
+                    border: "none", color: reply.trim() ? "#fff" : COLORS.textDim, fontSize: 13, fontWeight: 600,
                     cursor: "pointer", transition: "background 0.15s",
                   }}
                 >Send</button>
@@ -1816,17 +1840,16 @@ function PageTitle({ children }) {
 }
 
 // Ink-navy translucent surface + accent glow, matching PathwayCard.jsx's
-// card treatment on /choose-path (2026-09-23) — used by every StatCard/
-// Card across every Admin tab. First pass here (0.035 bg, 33-40 alpha
-// border) was too subtle to read as "changed" against an already-dark
-// page with no photo behind it for contrast — bumped up and added the
-// actual glow box-shadow PathwayCard uses so the accent color is
-// unmistakable at a glance, not just technically present.
+// card treatment on /choose-path (2026-09-23), adapted for the white/
+// cream light theme — white surface, colored border, a soft colored drop
+// shadow standing in for PathwayCard's dark-mode glow (a glow reads as
+// "lit up" on a dark page; on white/cream the equivalent is a gentle
+// tinted shadow lifting the card off the page).
 function StatCard({ label, value, sub, color = COLORS.red }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.07)", border: `1.5px solid ${color}99`, borderRadius: 16, padding: 20,
-      backdropFilter: "blur(6px)", boxShadow: `0 0 0 1px ${color}22, 0 14px 32px -14px ${color}66`,
+      background: COLORS.card, border: `1.5px solid ${color}55`, borderRadius: 16, padding: 20,
+      boxShadow: `0 8px 20px -12px ${color}66`,
     }}>
       <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
@@ -1838,8 +1861,8 @@ function StatCard({ label, value, sub, color = COLORS.red }) {
 function Card({ title, children, accent = COLORS.red }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}80`, borderRadius: 16, padding: 20,
-      backdropFilter: "blur(6px)", boxShadow: `0 0 0 1px ${accent}22, 0 14px 32px -14px ${accent}66`,
+      background: COLORS.card, border: `1.5px solid ${accent}45`, borderRadius: 16, padding: 20,
+      boxShadow: `0 8px 20px -12px ${accent}55`,
     }}>
       {title && <div style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 14 }}>{title}</div>}
       {children}
@@ -1863,7 +1886,7 @@ function Empty({ children }) {
 function Skeleton() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {[1,2,3].map(i => <div key={i} style={{ height: 40, background: "#1a1a1a", borderRadius: 8, opacity: 0.5 }} />)}
+      {[1,2,3].map(i => <div key={i} style={{ height: 40, background: "#eee6d6", borderRadius: 8, opacity: 0.5 }} />)}
     </div>
   );
 }
@@ -1884,12 +1907,12 @@ function UserTable({ users }) {
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr>{["Name", "Email", "Plan", "Confidence", "Streak", "Joined"].map(h => (
-          <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #2a2a2a" }}>{h}</th>
+          <th key={h} style={{ textAlign: "left", fontSize: 10, color: COLORS.textDim, letterSpacing: 1, textTransform: "uppercase", padding: "0 0 10px", borderBottom: "1px solid #e3d9c6" }}>{h}</th>
         ))}</tr>
       </thead>
       <tbody>
         {users.map(u => (
-          <tr key={u.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+          <tr key={u.id} style={{ borderBottom: "1px solid #eee6d6" }}>
             <td style={{ padding: "9px 0", fontSize: 13 }}>{u.name ?? "—"}</td>
             <td style={{ padding: "9px 0", fontSize: 12, color: COLORS.textMuted }}>{u.email}</td>
             <td style={{ padding: "9px 0" }}><PlanBadge plan={u.plan} /></td>
@@ -2005,7 +2028,7 @@ function FamilyBetaTab() {
           { label: "Jona Family AI calls",   value: jonaCalls },
           { label: "Beta feedback items",    value: feedback.length },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+          <div key={label} style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{value}</div>
             <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{label}</div>
           </div>
@@ -2014,15 +2037,15 @@ function FamilyBetaTab() {
 
       {/* Phase 4 — beta cohort + AI economics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
-        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{invitesUsed} / {invitesTotal}</div>
           <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Beta invites redeemed</div>
         </div>
-        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.gold }}>${geminiUSDTotal.toFixed(2)}</div>
           <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Family Jona AI spend (all-time, last 500 calls)</div>
         </div>
-        <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>${costPerFamily.toFixed(3)}</div>
           <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Avg AI cost per active family</div>
         </div>
@@ -2040,7 +2063,7 @@ function FamilyBetaTab() {
                 <span>{step.label}</span>
                 <span style={{ fontWeight: 700 }}>{step.value} {i > 0 && <span style={{ color: COLORS.textMuted, fontWeight: 400 }}>({pct}%)</span>}</span>
               </div>
-              <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3 }}>
+              <div style={{ height: 6, background: "#eee6d6", borderRadius: 3 }}>
                 <div style={{ height: "100%", width: `${pct}%`, background: COLORS.success, borderRadius: 3, transition: "width 0.6s" }} />
               </div>
             </div>
@@ -2052,7 +2075,7 @@ function FamilyBetaTab() {
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>MOST-COMPLETED ACTIVITIES</div>
           {topActivities.map(([id, count]) => (
-            <div key={id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1a1a1a", fontSize: 13 }}>
+            <div key={id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #eee6d6", fontSize: 13 }}>
               <span style={{ color: COLORS.text }}>{id}</span>
               <span style={{ color: COLORS.success, fontWeight: 700 }}>{count}</span>
             </div>
@@ -2066,10 +2089,10 @@ function FamilyBetaTab() {
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 10 }}>FAMILY BETA FEEDBACK</div>
           {feedback.slice(0, 15).map(f => (
-            <div key={f.id} style={{ padding: "10px 0", borderBottom: "1px solid #1a1a1a" }}>
+            <div key={f.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee6d6" }}>
               <span style={{
                 fontSize: 10, fontWeight: 800, textTransform: "uppercase", padding: "2px 8px", borderRadius: 10, marginRight: 8,
-                background: f.kind === "problem" ? "rgba(224,16,16,0.15)" : f.kind === "idea" ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.08)",
+                background: f.kind === "problem" ? "rgba(224,16,16,0.15)" : f.kind === "idea" ? "rgba(168,85,247,0.15)" : "#eee6d6",
                 color: f.kind === "problem" ? COLORS.red : f.kind === "idea" ? "#a855f7" : COLORS.textMuted,
               }}>{f.kind ?? "general"}</span>
               <span style={{ fontSize: 13, color: COLORS.text }}>{f.text}</span>
@@ -2141,7 +2164,7 @@ function ClassesTab() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="New class name (e.g. Murakumo Nenchu)"
-          style={{ flex: 1, padding: "8px 12px", background: COLORS.card, border: "1px solid #2a2a2a", borderRadius: 8, color: COLORS.text, fontSize: 13 }} />
+          style={{ flex: 1, padding: "8px 12px", background: COLORS.card, border: "1px solid #e3d9c6", borderRadius: 8, color: COLORS.text, fontSize: 13 }} />
         <button onClick={createClass} style={{ padding: "8px 16px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>+ Create Class</button>
       </div>
 
@@ -2161,16 +2184,16 @@ function ClassCard({ cls, onUpdatePosition, onAddLearner, onRemoveLearner }) {
   const [newProfileId, setNewProfileId] = useState("");
 
   return (
-    <div style={{ background: COLORS.card, border: "1px solid #1e1e1e", borderRadius: 12, padding: 16 }}>
+    <div style={{ background: COLORS.card, border: "1px solid #eee6d6", borderRadius: 12, padding: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>{cls.name}</div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, color: COLORS.textMuted }}>Book</span>
-        <select value={bookId} onChange={e => setBookId(e.target.value)} style={{ padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }}>
+        <select value={bookId} onChange={e => setBookId(e.target.value)} style={{ padding: "5px 8px", background: "#ffffff", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, fontSize: 12 }}>
           {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         <span style={{ fontSize: 11, color: COLORS.textMuted }}>Lesson ID</span>
         <input value={lessonId} onChange={e => setLessonId(e.target.value)} placeholder="e.g. b2-h"
-          style={{ padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12, width: 90 }} />
+          style={{ padding: "5px 8px", background: "#ffffff", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, fontSize: 12, width: 90 }} />
         <button onClick={() => onUpdatePosition(cls.classId, bookId, lessonId)} style={{ padding: "5px 12px", background: "rgba(224,16,16,0.15)", border: "1px solid rgba(224,16,16,0.4)", borderRadius: 6, color: COLORS.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Update Position</button>
         {cls.currentLessonId && <span style={{ fontSize: 11, color: COLORS.success }}>Currently: Book {cls.currentBookId} · {cls.currentLessonId}</span>}
       </div>
@@ -2185,9 +2208,9 @@ function ClassCard({ cls, onUpdatePosition, onAddLearner, onRemoveLearner }) {
         ))}
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <input value={newUid} onChange={e => setNewUid(e.target.value)} placeholder="learner uid" style={{ flex: 1, padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
-        <input value={newProfileId} onChange={e => setNewProfileId(e.target.value)} placeholder="profile id (default: self)" style={{ flex: 1, padding: "5px 8px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
-        <button onClick={() => { onAddLearner(cls.classId, newUid, newProfileId); setNewUid(""); setNewProfileId(""); }} style={{ padding: "5px 12px", background: "none", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, fontSize: 12, cursor: "pointer" }}>+ Add</button>
+        <input value={newUid} onChange={e => setNewUid(e.target.value)} placeholder="learner uid" style={{ flex: 1, padding: "5px 8px", background: "#ffffff", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
+        <input value={newProfileId} onChange={e => setNewProfileId(e.target.value)} placeholder="profile id (default: self)" style={{ flex: 1, padding: "5px 8px", background: "#ffffff", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, fontSize: 12 }} />
+        <button onClick={() => { onAddLearner(cls.classId, newUid, newProfileId); setNewUid(""); setNewProfileId(""); }} style={{ padding: "5px 12px", background: "none", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, fontSize: 12, cursor: "pointer" }}>+ Add</button>
       </div>
     </div>
   );
@@ -2228,7 +2251,7 @@ function FeedbackTab() {
             <div style={{ fontSize: 22, fontWeight: 800, color: m.color, marginBottom: 2 }}>{counts[id]}</div>
             <div style={{ fontSize: 11, color: COLORS.textMuted }}>{m.label}</div>
             {total > 0 && (
-              <div style={{ marginTop: 8, height: 3, background: "#1a1a1a", borderRadius: 2 }}>
+              <div style={{ marginTop: 8, height: 3, background: "#eee6d6", borderRadius: 2 }}>
                 <div style={{ height: "100%", width: `${Math.round((counts[id] / total) * 100)}%`, background: m.color, borderRadius: 2, transition: "width 0.6s" }} />
               </div>
             )}
@@ -2258,7 +2281,7 @@ function FeedbackTab() {
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text }}>{r.name ?? r.email ?? "Anonymous"}</span>
                       <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: `${m.color}18`, border: `1px solid ${m.color}44`, color: m.color, fontWeight: 700 }}>{m.label}</span>
-                      {r.trigger && <span style={{ fontSize: 10, color: COLORS.textDim, padding: "2px 6px", border: "1px solid #2a2a2a", borderRadius: 20 }}>{r.trigger}</span>}
+                      {r.trigger && <span style={{ fontSize: 10, color: COLORS.textDim, padding: "2px 6px", border: "1px solid #e3d9c6", borderRadius: 20 }}>{r.trigger}</span>}
                       {r.lang && <span style={{ fontSize: 10, color: COLORS.textDim }}>{r.lang === "jp" ? "🇯🇵" : "🇬🇧"}</span>}
                     </div>
                     {date && (
@@ -2268,7 +2291,7 @@ function FeedbackTab() {
                     )}
                   </div>
                   {r.comment && (
-                    <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.6, background: "#0d0d0d", padding: "8px 10px", borderRadius: 7, borderLeft: `3px solid ${m.color}55` }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.6, background: "#f5efe3", padding: "8px 10px", borderRadius: 7, borderLeft: `3px solid ${m.color}55` }}>
                       "{r.comment}"
                     </div>
                   )}
@@ -2395,7 +2418,7 @@ function ApiCostsTab() {
       </div>
 
       {/* Budget + progress bar */}
-      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
+      <div style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>This Month — {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2404,11 +2427,11 @@ function ApiCostsTab() {
               type="number"
               value={budget}
               onChange={e => setBudget(Number(e.target.value) || 5000)}
-              style={{ width: 80, background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.text, padding: "4px 8px", fontSize: 12 }}
+              style={{ width: 80, background: "#f5efe3", border: "1px solid #e3d9c6", borderRadius: 6, color: COLORS.text, padding: "4px 8px", fontSize: 12 }}
             />
           </div>
         </div>
-        <div style={{ height: 10, background: "#1e1e1e", borderRadius: 5, overflow: "hidden", marginBottom: 8 }}>
+        <div style={{ height: 10, background: "#eee6d6", borderRadius: 5, overflow: "hidden", marginBottom: 8 }}>
           <div style={{ height: "100%", width: `${budgetPct}%`, background: barColor, borderRadius: 5, transition: "width 0.5s" }} />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
@@ -2423,7 +2446,7 @@ function ApiCostsTab() {
       {/* Cost cards */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
         {/* Gemini */}
-        <div style={{ background: "#111", border: `1px solid ${isGeminiStopped ? COLORS.red + "44" : "#1e1e1e"}`, borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ background: "#ffffff", border: `1px solid ${isGeminiStopped ? COLORS.red + "44" : "#eee6d6"}`, borderRadius: 10, padding: "14px 16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: "#7B5EA7", fontWeight: 700, letterSpacing: 1 }}>GEMINI 2.5 FLASH</div>
             {isGeminiStopped && <span style={{ fontSize: 9, background: "#e0101022", color: COLORS.red, border: `1px solid ${COLORS.red}44`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAUSED</span>}
@@ -2445,13 +2468,13 @@ function ApiCostsTab() {
         </div>
 
         {/* ElevenLabs TTS */}
-        <div style={{ background: "#111", border: `1px solid ${isTTSStopped ? COLORS.red + "44" : "#1e1e1e"}`, borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ background: "#ffffff", border: `1px solid ${isTTSStopped ? COLORS.red + "44" : "#eee6d6"}`, borderRadius: 10, padding: "14px 16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: "#3b82f6", fontWeight: 700, letterSpacing: 1 }}>ELEVENLABS TTS</div>
             {isTTSStopped && <span style={{ fontSize: 9, background: "#e0101022", color: COLORS.red, border: `1px solid ${COLORS.red}44`, borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>PAUSED</span>}
           </div>
           {/* Fixed plan fee — always paid, not usage cost */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#0d0d0d", borderRadius: 6, marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#f5efe3", borderRadius: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 11, color: COLORS.textMuted }}>Creator plan (fixed/mo)</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>¥{ttsPlanJPY.toLocaleString()}</span>
           </div>
@@ -2482,13 +2505,13 @@ function ApiCostsTab() {
       </div>
 
       {/* 7-day breakdown */}
-      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+      <div style={{ background: "#ffffff", border: "1px solid #eee6d6", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>LAST 7 DAYS</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {byDay.map(({ date, calls, tokens, geminiJPY: gJPY, ttsChars }) => {
             const label = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
             return (
-              <div key={date} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", background: "#0d0d0d", borderRadius: 7, fontSize: 11 }}>
+              <div key={date} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", background: "#f5efe3", borderRadius: 7, fontSize: 11 }}>
                 <span style={{ minWidth: 90, color: COLORS.textMuted, fontSize: 10 }}>{label}</span>
                 <span style={{ minWidth: 60, color: "#7B5EA7" }}>{calls} calls</span>
                 <span style={{ minWidth: 80, color: COLORS.textDim }}>{tokens.toLocaleString()} tok</span>
@@ -2501,7 +2524,7 @@ function ApiCostsTab() {
       </div>
 
       {/* Emergency Kill Switch */}
-      <div style={{ background: isAllStopped ? "#e0101010" : "#111", border: `1px solid ${isAllStopped ? COLORS.red : "#2a2a2a"}`, borderRadius: 10, padding: "18px 20px" }}>
+      <div style={{ background: isAllStopped ? "#e0101010" : "#ffffff", border: `1px solid ${isAllStopped ? COLORS.red : "#e3d9c6"}`, borderRadius: 10, padding: "18px 20px" }}>
         <div style={{ fontSize: 11, color: COLORS.red, fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>EMERGENCY CONTROLS</div>
         <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 14 }}>
           Kill switch state:{" "}
@@ -2518,7 +2541,7 @@ function ApiCostsTab() {
             value={passcode}
             onChange={e => setPasscode(e.target.value)}
             placeholder="Enter shutdown passcode"
-            style={{ width: "100%", background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 7, color: COLORS.text, padding: "9px 12px", fontSize: 13, boxSizing: "border-box" }}
+            style={{ width: "100%", background: "#f5efe3", border: "1px solid #e3d9c6", borderRadius: 7, color: COLORS.text, padding: "9px 12px", fontSize: 13, boxSizing: "border-box" }}
           />
         </div>
 
