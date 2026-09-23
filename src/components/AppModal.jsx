@@ -8,6 +8,7 @@ import { db, auth } from "../lib/firebase";
 import { processAppEvent } from "../lib/appEvents";
 import { recordCurriculumProgressEvent } from "../family/curriculumProgress";
 import { isPlausibleProgressPayload, handleProgressMessage } from "../lib/progressMessageHandler";
+import { sendMessage } from "../lib/claude";
 
 const EikenApp = lazy(() => import("../pages/EikenApp"));
 
@@ -209,7 +210,7 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
 
       const data = e.data;
       if (!data || typeof data !== "object" || typeof data.type !== "string") return;
-      if (data.type !== "HSD_OS_READY" && data.type !== "HSD_OS_PROGRESS") return; // reject unknown message types
+      if (data.type !== "HSD_OS_READY" && data.type !== "HSD_OS_PROGRESS" && data.type !== "HSD_OS_ASK_JONA") return; // reject unknown message types
 
       if (data.type === "HSD_OS_READY") {
         const authPayload = {
@@ -256,6 +257,28 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
           processEvent: () => processAppEvent(user.uid, enrichedEvent),
         });
         syncCurriculumStatus(enrichedEvent, result?.curriculumSync);
+      }
+
+      // Cross-origin Global Jona Assistant bridge (2026-09-24) — a young-
+      // child sub-app (Monkey Yoga V2, Monkeys Unlock) has no Firebase
+      // session of its own and must never receive one just to talk to
+      // Jona. Instead it posts the question here; THIS already-
+      // authenticated parent makes the real sendMessage() call and posts
+      // only the answer back — the API key, rate limiting, and the user's
+      // Firebase identity never cross the origin boundary at all.
+      if (data.type === "HSD_OS_ASK_JONA" && user && typeof data.requestId === "string" && typeof data.prompt === "string") {
+        const reply = { type: "HSD_OS_JONA_REPLY", requestId: data.requestId };
+        try {
+          reply.reply = await sendMessage(
+            [{ role: "user", text: data.prompt.slice(0, 500) }],
+            user,
+            undefined,
+            { appName: app.name, lesson: typeof data.lesson === "string" ? data.lesson.slice(0, 200) : undefined }
+          );
+        } catch (err) {
+          reply.error = err?.message ?? "Jona is taking a quick break — try again in a moment.";
+        }
+        iframeRef.current?.contentWindow?.postMessage(reply, expectedOrigin);
       }
     };
 

@@ -31,7 +31,10 @@ export function openGlobalJona() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed" }) {
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true }) {
+  // freeText=false (2026-09-24) — for young-child apps (Phonics V2, ages
+  // 4-8): tap a suggested prompt only, no free-text input to an AI. Caller
+  // must pass suggestedPrompts in this mode.
   // anchor: "fixed" (default) docks to the browser viewport — right for a
   // page that fills the window. "absolute" docks to the nearest positioned
   // ancestor instead — for an app rendered inside a constrained box (e.g.
@@ -159,7 +162,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
             <div ref={bottomRef} />
           </div>
 
-          {suggestedPrompts?.length > 0 && messages.length === 0 && (
+          {suggestedPrompts?.length > 0 && (freeText ? messages.length === 0 : !sending) && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 14px 10px" }}>
               {suggestedPrompts.map((p) => (
                 <button
@@ -173,22 +176,24 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
             </div>
           )}
 
-          <div style={{ padding: 10, borderTop: "1px solid #eee", display: "flex", gap: 8 }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Ask Jona…"
-              style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13, outline: "none" }}
-            />
-            <button
-              onClick={() => send()}
-              disabled={!input.trim() || sending}
-              style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: input.trim() ? accent : "#eee", color: input.trim() ? "#fff" : "#999", fontWeight: 700, fontSize: 13, cursor: input.trim() ? "pointer" : "default" }}
-            >
-              Send
-            </button>
-          </div>
+          {freeText && (
+            <div style={{ padding: 10, borderTop: "1px solid #eee", display: "flex", gap: 8 }}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                placeholder="Ask Jona…"
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13, outline: "none" }}
+              />
+              <button
+                onClick={() => send()}
+                disabled={!input.trim() || sending}
+                style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: input.trim() ? accent : "#eee", color: input.trim() ? "#fff" : "#999", fontWeight: 700, fontSize: 13, cursor: input.trim() ? "pointer" : "default" }}
+              >
+                Send
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
