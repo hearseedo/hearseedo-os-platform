@@ -23,7 +23,21 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { sendMessage } from "../lib/claude";
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20 }) {
+// Lets any button anywhere in the app open the assistant without prop-
+// drilling — e.g. EikenApp's dashboard "Chat with Jona" CTA lives several
+// components away from where <GlobalJonaAssistant/> itself is mounted.
+const OPEN_EVENT = "hsd:open-jona";
+export function openGlobalJona() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed" }) {
+  // anchor: "fixed" (default) docks to the browser viewport — right for a
+  // page that fills the window. "absolute" docks to the nearest positioned
+  // ancestor instead — for an app rendered inside a constrained box (e.g.
+  // EikenApp's phone-frame shell inside AppModal), so the bubble sits at
+  // that box's corner instead of the far corner of the whole browser
+  // window. Caller must give that ancestor position:relative.
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -31,6 +45,12 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,7 +98,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close Jona" : "Ask Jona"}
         style={{
-          position: "fixed", bottom: bottomOffset, right: 20, zIndex: 999,
+          position: anchor, bottom: bottomOffset, right: 20, zIndex: 999,
           width: 60, height: 60, borderRadius: "50%", border: "none", cursor: "pointer",
           background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
           boxShadow: `0 6px 20px ${accent}66`,
@@ -96,8 +116,9 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       {open && (
         <div
           style={{
-            position: "fixed", bottom: bottomOffset + 72, right: 20, zIndex: 999,
-            width: "min(360px, calc(100vw - 40px))", maxHeight: "min(520px, calc(100vh - 140px))",
+            position: anchor, bottom: bottomOffset + 72, right: 20, zIndex: 999,
+            width: anchor === "absolute" ? "calc(100% - 40px)" : "min(360px, calc(100vw - 40px))",
+            maxHeight: anchor === "absolute" ? "min(460px, calc(100% - 140px))" : "min(520px, calc(100vh - 140px))",
             background: "#fff", borderRadius: 20, boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
             display: "flex", flexDirection: "column", overflow: "hidden",
             fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

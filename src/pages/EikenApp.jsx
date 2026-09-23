@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import GlobalJonaAssistant, { openGlobalJona } from "../jona/GlobalJonaAssistant";
 import { LEVELS, MODULES, LISTENING_BANK, READING_BANK, SPEAKING_BANK, WRITING_BANK, VOCABULARY_BANK, GRAMMAR_BANK, CEFR_TO_EIKEN, ACHIEVEMENTS, MOCK_TESTS } from "../eiken/data";
 import { MONKEY_IMAGES, MONKEYS } from "../eiken/companions";
 import { speakElevenLabs, stopSpeaking, askJonathan } from "../eiken/jonathan";
@@ -1444,15 +1445,17 @@ function DashboardScreen({ user, onNavigate }) {
         })}
       </div>
 
-      {/* Chat button */}
-      <button onClick={() => onNavigate("chat")} style={{
+      {/* Chat button — opens the platform-wide Global Jona Assistant
+          (floating bubble, rendered once at EikenApp's root) rather than
+          a separate in-app chat screen. One Jona across HSD OS AI. */}
+      <button onClick={openGlobalJona} style={{
         width:"100%", background:`linear-gradient(135deg,${m.color}30,${m.color}12)`,
         border:`1.5px solid ${m.color}40`, borderRadius:16, padding:"14px", marginBottom:10,
         cursor:"pointer", color:"#fff", fontFamily:"'Fredoka One',cursive", fontSize:17,
         boxShadow:`0 4px 20px ${m.color}20`, display:"flex", alignItems:"center", justifyContent:"center", gap:10
       }}>
         <MonkeyImg monkey={user.coach} size={32} />
-        Chat with Jonathan AI
+        Chat with Jona
       </button>
 
       {/* Interview Island button */}
@@ -2183,109 +2186,6 @@ function InterviewSimulator({ user, plan, uid, onBack, onXP }) {
   );
 }
 
-function ChatScreen({ user, plan, uid, onBack }) {
-  const m = MONKEYS[user.coach];
-  const [messages, setMessages] = useState([
-    { role:"assistant", text:`Hi! I'm Jonathan AI! 🐵 What would you like to practice today?` }
-  ]);
-  const [input, setInput]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
-
-  const send = useCallback(async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    setInput("");
-    const newMsgs = [...messages, { role:"user", text }];
-    setMessages(newMsgs);
-    setLoading(true);
-    try {
-      const history = newMsgs.map(msg => ({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
-      const { content: reply } = await askJonathan({
-        taskType: "conversation_reply",
-        system:`You are Jonathan AI, an energetic warm EIKEN English teacher for Japanese students at ${user.level} level.
-Keep replies short (2-4 sentences), encouraging, and conversational.
-Gently correct English mistakes. Use vocabulary appropriate for ${user.level}. Occasionally use 🐵🍌 emoji.`,
-        messages: history,
-        user: { plan },
-      });
-      const finalReply = reply || "Let's keep going! 🐵";
-      setMessages(prev => [...prev, { role:"assistant", text:finalReply }]);
-      speakElevenLabs(finalReply, {}, uid);
-    } catch (err) {
-      console.error("Chat API error:", err);
-      setMessages(prev => [...prev, { role:"assistant", text:`Hmm, I had a connection hiccup! 🐵 Please try again in a moment.` }]);
-    }
-    setLoading(false);
-  }, [input, messages, loading, user, plan, uid]);
-
-  const handleKey = e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-      {/* Header */}
-      <div style={{
-        padding:"14px 16px", display:"flex", alignItems:"center", gap:10,
-        borderBottom:"1px solid rgba(255,255,255,0.07)",
-        background:`linear-gradient(135deg,${m.color}14,transparent)`
-      }}>
-        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.08)", border:"none", borderRadius:10, padding:"6px 12px", color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700 }}>←</button>
-        <MonkeyImg monkey={user.coach} size={46} floating />
-        <div>
-          <div style={{ fontFamily:"'Fredoka One',cursive", fontSize:17, color:m.color }}>{m.name}</div>
-          <div style={{ fontSize:11, opacity:0.55 }}>{loading ? "typing..." : "Your EIKEN Coach"}</div>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div style={{ flex:1, overflowY:"auto", padding:"14px 13px", display:"flex", flexDirection:"column", gap:11 }}>
-        {messages.map((msg,i) => (
-          <div key={i} style={{ display:"flex", justifyContent:msg.role==="user"?"flex-end":"flex-start", animation:"slideUp 0.3s ease", gap:8 }}>
-            {msg.role==="assistant" && <MonkeyImg monkey={user.coach} size={28} style={{ flexShrink:0, alignSelf:"flex-end" }} />}
-            <div style={{
-              maxWidth:"78%",
-              background: msg.role==="user" ? `linear-gradient(135deg,${m.color},${m.color}cc)` : "rgba(255,255,255,0.09)",
-              borderRadius: msg.role==="user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-              padding:"10px 14px", fontSize:13, lineHeight:1.65,
-              border: msg.role==="assistant" ? "1px solid rgba(255,255,255,0.1)" : "none",
-              boxShadow: msg.role==="user" ? `0 4px 14px ${m.color}40` : "none"
-            }}>
-              {msg.text}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div style={{ display:"flex", gap:5, alignItems:"center", paddingLeft:38 }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background:m.color, animation:`bounce 0.8s ease ${i*0.15}s infinite` }} />
-            ))}
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input */}
-      <div style={{ padding:"11px 13px 14px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:9 }}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
-          placeholder={`Message ${m.name}...`}
-          style={{
-            flex:1, background:"rgba(255,255,255,0.07)", border:"1.5px solid rgba(255,255,255,0.12)",
-            borderRadius:14, padding:"11px 14px", color:"#fff", fontSize:14,
-            fontFamily:"'Nunito',sans-serif",
-          }} />
-        <button onClick={send} disabled={loading || !input.trim()} style={{
-          background: input.trim() ? `linear-gradient(135deg,${m.color},${m.color}cc)` : "rgba(255,255,255,0.08)",
-          border:"none", borderRadius:14, padding:"0 18px", color:"#fff",
-          fontSize:19, cursor:input.trim()?"pointer":"not-allowed", transition:"all 0.2s",
-          boxShadow: input.trim() ? `0 4px 14px ${m.color}40` : "none"
-        }}>➤</button>
-      </div>
-    </div>
-  );
-}
-
 // ─── ROOT APP ────────────────────────────────────────────────────────────────
 
 export default function EikenApp({ user: platformUser, activeMember }) {
@@ -2459,7 +2359,6 @@ export default function EikenApp({ user: platformUser, activeMember }) {
           )}
           {screen==="dashboard" && <DashboardScreen user={user} onNavigate={navigate} />}
           {screen==="lesson"    && <LessonScreen user={user} plan={platformUser?.plan} uid={platformUser?.uid} moduleId={lessonModule} onBack={()=>setScreen("dashboard")} onXP={addXP} />}
-          {screen==="chat"      && <ChatScreen user={user} plan={platformUser?.plan} uid={platformUser?.uid} onBack={()=>setScreen("dashboard")} />}
           {screen==="interview" && <InterviewSimulator user={user} plan={platformUser?.plan} uid={platformUser?.uid} onBack={()=>setScreen("dashboard")} onXP={addXP} />}
           {screen==="mocktest"  && <MockTestScreen user={user} plan={platformUser?.plan} uid={platformUser?.uid} activeMember={activeMember} onBack={()=>setScreen("dashboard")} onXP={addXP} />}
           {screen==="monkeyPartySetup" && (
@@ -2516,7 +2415,6 @@ export default function EikenApp({ user: platformUser, activeMember }) {
             {[
               { id:"dashboard", icon:"🏠", label:"Home" },
               { id:"lesson",    icon:"📚", label:"Practice" },
-              { id:"chat",      icon:"💬", label:"Chat" },
             ].map(tab => (
               <button key={tab.id} onClick={()=>navigate(tab.id)} style={{
                 background:"none", border:"none", cursor:"pointer",
@@ -2530,6 +2428,17 @@ export default function EikenApp({ user: platformUser, activeMember }) {
             ))}
           </div>
         )}
+
+        {/* Global Jona Assistant (2026-09-24) — replaces the old separate
+            "Chat with Jonathan AI" screen/tab. Docked to this phone-frame
+            shell (anchor="absolute", shellStyle above is position:relative)
+            rather than the browser viewport, so it sits at this app's own
+            corner instead of the far corner of the page on desktop. */}
+        <GlobalJonaAssistant
+          anchor="absolute"
+          context={{ appName: "EIKEN", lesson: screen !== "dashboard" && screen !== "onboarding" ? screen : undefined }}
+          bottomOffset={screen !== "onboarding" ? 82 : 20}
+        />
       </div>
     </div>
   );
