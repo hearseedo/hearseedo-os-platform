@@ -1,30 +1,20 @@
 // Living Blueprint rebuild — feature flag
-// Phase 7 cutover (2026-07-25) flipped this to enabled-for-everyone; rolled
-// back 2026-09-23 ahead of the October AI Summit — the real Student/Adult/
-// Educator pathway pages (src/pathways/) are now the thing people should
-// land on, and Living Blueprint's own /preview/* experience was causing
-// confusion (looks like a second, older site). Code is untouched, nothing
-// deleted — only unreachable for everyone except the owner-preview
-// allowlist below, same as before the July flip.
+// Phase 7 cutover (2026-07-25) flipped this to enabled-for-everyone; fully
+// retired 2026-09-23 ahead of the October AI Summit, including the
+// owner-preview allowlist that used to keep it reachable for the admin
+// account — no one needs to reach it anymore. The real Student/Adult/
+// Educator pathway pages (src/pathways/) are the thing people should land
+// on now. Code is untouched, nothing deleted — every /preview/* route
+// simply falls back to /dashboard, unconditionally.
 //
-// To re-enable for everyone: change ENABLED_FOR_ALL back to true.
+// To bring it back for everyone: change ENABLED_FOR_ALL back to true.
+// To bring it back just for yourself while testing: re-add an allowlist
+// check here rather than flipping the global flag.
 
 const ENABLED_FOR_ALL = false;
 
-const OWNER_PREVIEW_EMAILS = [
-  import.meta.env?.VITE_ADMIN_EMAIL,
-  "waltho79@gmail.com",
-  "hearseedo.english@gmail.com",
-].filter(Boolean);
-
 export const LIVING_BLUEPRINT_PREVIEW_ROUTE = "/preview/shell";
 
-export function isLivingBlueprintEnabled(user) {
-  if (ENABLED_FOR_ALL) return true;
-  try {
-    if (import.meta.env?.DEV) return true;
-    if (typeof localStorage !== "undefined" && localStorage.getItem("living_blueprint_preview") === "1") return true;
-  } catch {}
-  if (user?.email && OWNER_PREVIEW_EMAILS.includes(user.email)) return true;
-  return false;
+export function isLivingBlueprintEnabled() {
+  return ENABLED_FOR_ALL;
 }
