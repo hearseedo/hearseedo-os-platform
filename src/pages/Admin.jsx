@@ -313,7 +313,7 @@ export default function Admin() {
   return (
     <div style={{ minHeight: "100vh", background: "#0b0c14", color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column" }}>
 
-      <header style={{ height: 56, background: "rgba(11,12,20,0.9)", backdropFilter: "blur(6px)", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", padding: "0 24px", gap: 14, position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
+      <header style={{ height: 56, background: "rgba(22,24,42,0.95)", backdropFilter: "blur(6px)", borderBottom: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center", padding: "0 24px", gap: 14, position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.red, boxShadow: "0 0 8px #e01010", animation: "pulse 2s ease-in-out infinite" }} />
           <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.red, letterSpacing: 3, textTransform: "uppercase" }}>HSD OS Command Center</span>
@@ -333,7 +333,7 @@ export default function Admin() {
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-        <aside style={{ width: 210, background: "rgba(255,255,255,0.02)", borderRight: "1px solid rgba(255,255,255,0.08)", padding: "16px 8px", flexShrink: 0, overflowY: "auto" }}>
+        <aside style={{ width: 210, background: "rgba(18,20,34,0.8)", borderRight: "1px solid rgba(255,255,255,0.12)", padding: "16px 8px", flexShrink: 0, overflowY: "auto" }}>
           {TABS.map(t => {
             const isWarningTab = t.id === "warnings";
             const isSupportTab = t.id === "support";
@@ -368,7 +368,7 @@ export default function Admin() {
             );
           })}
 
-          <div style={{ margin: "20px 8px 0", padding: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12 }}>
+          <div style={{ margin: "20px 8px 0", padding: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 12 }}>
             <div style={{ fontSize: 10, color: COLORS.textDim, marginBottom: 8, letterSpacing: 1 }}>LIVE STATS</div>
             <Stat label="Users"        value={loading ? "…" : totalUsers} />
             <Stat label="Paid"         value={loading ? "…" : paidUsers} color={COLORS.success} />
@@ -1815,13 +1815,19 @@ function PageTitle({ children }) {
   return <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, color: COLORS.text }}>{children}</div>;
 }
 
-// Ink-navy translucent surface + accent-tinted border, matching
-// PathwayCard.jsx's card treatment on /choose-path (2026-09-23) — used by
-// every StatCard/Card across every Admin tab, so this one change carries
-// the new look through the whole panel.
+// Ink-navy translucent surface + accent glow, matching PathwayCard.jsx's
+// card treatment on /choose-path (2026-09-23) — used by every StatCard/
+// Card across every Admin tab. First pass here (0.035 bg, 33-40 alpha
+// border) was too subtle to read as "changed" against an already-dark
+// page with no photo behind it for contrast — bumped up and added the
+// actual glow box-shadow PathwayCard uses so the accent color is
+// unmistakable at a glance, not just technically present.
 function StatCard({ label, value, sub, color = COLORS.red }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.035)", border: `1px solid ${color}40`, borderRadius: 16, padding: 20, backdropFilter: "blur(6px)" }}>
+    <div style={{
+      background: "rgba(255,255,255,0.07)", border: `1.5px solid ${color}99`, borderRadius: 16, padding: 20,
+      backdropFilter: "blur(6px)", boxShadow: `0 0 0 1px ${color}22, 0 14px 32px -14px ${color}66`,
+    }}>
       <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{sub}</div>}
@@ -1831,7 +1837,10 @@ function StatCard({ label, value, sub, color = COLORS.red }) {
 
 function Card({ title, children, accent = COLORS.red }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.035)", border: `1px solid ${accent}33`, borderRadius: 16, padding: 20, backdropFilter: "blur(6px)" }}>
+    <div style={{
+      background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}80`, borderRadius: 16, padding: 20,
+      backdropFilter: "blur(6px)", boxShadow: `0 0 0 1px ${accent}22, 0 14px 32px -14px ${accent}66`,
+    }}>
       {title && <div style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 14 }}>{title}</div>}
       {children}
     </div>
