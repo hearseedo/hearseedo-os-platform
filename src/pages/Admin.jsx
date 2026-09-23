@@ -10,6 +10,15 @@ import { APP_REGISTRY } from "../constants/appRegistry";
 import { confidenceLabel, trendIcon } from "../lib/confidenceEngine";
 import { FOUNDING_LIMIT, FOUNDING_BADGE, REFERRAL_BADGES, LEGACY_FOUNDER_BADGE } from "../lib/founding";
 import FoundingBadge from "../components/FoundingBadge";
+import { PATHWAYS } from "../constants/pathways";
+
+// Tabs whose content is really about one specific pathway pick up that
+// pathway's own accent color (2026-09-23) instead of the flat red brand
+// accent, matching the pathway selector's color language.
+const PATHWAY_TAB_ACCENT = {
+  family_beta: PATHWAYS.family.accent.primary,
+  classes:     PATHWAYS.educator.accent.primary,
+};
 
 const TABS = [
   { id: "overview",      label: "Overview",       icon: "📊" },
@@ -329,13 +338,20 @@ export default function Admin() {
             const isWarningTab = t.id === "warnings";
             const isSupportTab = t.id === "support";
             const badgeCount   = isWarningTab ? warnings.length : isSupportTab ? supportUnread : 0;
-            const badgeColor   = isWarningTab ? (criticalCount > 0 ? COLORS.red : "#f59e0b") : COLORS.red;
+            // Tabs that belong to one specific pathway pick up that
+            // pathway's own accent color (constants/pathways.js) instead of
+            // the flat red brand accent — same color language as the
+            // pathway selector/cards, applied where it's actually
+            // meaningful (a tab about one pathway's data), not everywhere.
+            const pathwayAccent = PATHWAY_TAB_ACCENT[t.id];
+            const activeColor = isWarningTab ? "#f59e0b" : pathwayAccent ?? COLORS.red;
+            const badgeColor   = isWarningTab ? (criticalCount > 0 ? COLORS.red : "#f59e0b") : (pathwayAccent ?? COLORS.red);
             return (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 8, marginBottom: 2,
-                background: tab === t.id ? (isWarningTab ? "rgba(245,158,11,0.12)" : "rgba(224,16,16,0.15)") : "none",
+                background: tab === t.id ? `${activeColor}26` : "none",
                 border: "none",
-                color: tab === t.id ? (isWarningTab ? "#f59e0b" : COLORS.red) : COLORS.textMuted,
+                color: tab === t.id ? activeColor : COLORS.textMuted,
                 fontSize: 13, fontWeight: tab === t.id ? 600 : 400, cursor: "pointer", transition: "all 0.15s",
                 display: "flex", alignItems: "center", gap: 8,
               }}>
