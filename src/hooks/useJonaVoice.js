@@ -53,7 +53,18 @@ export async function speakWithJona(text, uid, lang) {
   const url   = URL.createObjectURL(blob);
   const audio = new Audio(url);
   audio.onended = () => URL.revokeObjectURL(url);
-  await audio.play();
+  try {
+    await audio.play();
+  } catch (err) {
+    // Autoplay was blocked (typically NotAllowedError) — the audio itself
+    // is valid and ready, it just needs a direct user tap to actually play
+    // (see useJonaVoice's playBlockedAudio). Surface that distinction to
+    // the caller instead of treating this the same as a real failure.
+    const blockedError = new Error("Autoplay blocked");
+    blockedError.blocked = true;
+    blockedError.audio = audio;
+    throw blockedError;
+  }
   return audio;
 }
 
@@ -81,6 +92,17 @@ export function startJonaListening({ lang, onResult, onStart, onEnd, onError } =
 export function useJonaVoice({ uid, lang, mode = "full" } = {}) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking]   = useState(false);
+  // Autoplay-block fallback (2026-09-24 fix) — speak() fires after an
+  // async reply (and its own async /api/tts fetch), which is well outside
+  // the synchronous "direct user gesture" window Chrome/Safari require to
+  // guarantee autoplay. A first-time visitor (exactly what a demo visitor
+  // always is) reliably gets audio.play() silently rejected — previously
+  // swallowed with zero visible error, reading as "voice doesn't work" for
+  // no discoverable reason. Rather than trying to defeat the browser's
+  // autoplay heuristics, this exposes the blocked audio so the UI can offer
+  // one real, direct tap to play it — which always works, in every browser,
+  // by design (that tap IS the user gesture the browser was waiting for).
+  const [blockedAudio, setBlockedAudio] = useState(null); // HTMLAudioElement | null
   const audioRef = useRef(null);
 
   const sttEnabled = mode === "full";
@@ -93,6 +115,7 @@ export function useJonaVoice({ uid, lang, mode = "full" } = {}) {
       audioRef.current = null;
     }
     setSpeaking(false);
+    setBlockedAudio(null);
   }, []);
 
   const startListening = useCallback((onResult) => {
@@ -114,10 +137,28 @@ export function useJonaVoice({ uid, lang, mode = "full" } = {}) {
       const audio = await speakWithJona(text, uid, lang);
       audioRef.current = audio;
       audio.onended = () => { setSpeaking(false); audioRef.current = null; };
-    } catch {
+    } catch (err) {
       setSpeaking(false);
+      // NotAllowedError specifically = autoplay was blocked, not a real
+      // failure — the audio is ready, it just needs a direct tap to play.
+      // Any other error (network/TTS failure) has nothing to retry.
+      if (err?.audio && err?.blocked) {
+        audioRef.current = err.audio;
+        setBlockedAudio(err.audio);
+      }
     }
   }, [ttsEnabled, uid, lang, stopSpeaking]);
 
-  return { listening, speaking, sttEnabled, sttSupported, ttsEnabled, startListening, speak, stopSpeaking };
+  // The one direct, synchronous user gesture that reliably satisfies every
+  // browser's autoplay requirement — call this from an onClick handler.
+  const playBlockedAudio = useCallback(() => {
+    const audio = blockedAudio;
+    if (!audio) return;
+    setBlockedAudio(null);
+    setSpeaking(true);
+    audio.onended = () => { setSpeaking(false); audioRef.current = null; };
+    audio.play().catch(() => setSpeaking(false));
+  }, [blockedAudio]);
+
+  return { listening, speaking, sttEnabled, sttSupported, ttsEnabled, startListening, speak, stopSpeaking, blockedAudio, playBlockedAudio };
 }

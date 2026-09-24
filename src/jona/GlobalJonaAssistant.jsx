@@ -204,6 +204,23 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
             ))}
             {sending && <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>{t("jona_thinking")}</div>}
             {!sending && voice.speaking && <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>🔊 {t("jona_speaking")}</div>}
+            {/* Autoplay-block fallback (2026-09-24 fix) — browsers can
+                silently refuse to autoplay Jona's spoken reply; this is
+                the one direct, synchronous tap that reliably works
+                everywhere, since it IS the user gesture the browser
+                needed. */}
+            {voice.blockedAudio && (
+              <button
+                onClick={voice.playBlockedAudio}
+                style={{
+                  alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 20,
+                  border: `1px solid ${accent}55`, background: `${accent}11`, color: accent, cursor: "pointer",
+                }}
+              >
+                🔊 {t("jona_tap_to_hear")}
+              </button>
+            )}
             {error && <div style={{ fontSize: 12, color: "#c23a3a" }}>{error}</div>}
             <div ref={bottomRef} />
           </div>

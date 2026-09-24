@@ -535,6 +535,7 @@ export const STRINGS = {
     jona_talk:           "Talk to Jona",
     jona_mute_on:        "Voice on — tap to mute",
     jona_mute_off:       "Voice muted — tap to unmute",
+    jona_tap_to_hear:    "Tap to hear Jona",
 
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "Who's learning today?",
@@ -1116,6 +1117,7 @@ export const STRINGS = {
     jona_talk:           "Jonaと話す",
     jona_mute_on:        "音声オン — タップでミュート",
     jona_mute_off:       "音声ミュート中 — タップで解除",
+    jona_tap_to_hear:    "タップしてJonaの声を聞く",
 
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "今日は誰が学習しますか？",

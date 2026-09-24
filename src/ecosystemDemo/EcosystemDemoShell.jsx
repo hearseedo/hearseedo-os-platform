@@ -5,9 +5,10 @@
 // src/familyDemo/FamilyDemoShell.jsx, generalized: no single pathway's
 // color owns this shell, so it uses a neutral dark-gold platform identity
 // instead of any one pathway's accent.
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMobile } from "../hooks/useMobile";
+import { cancelBrowserTts } from "../lib/browserNarration";
 
 // Background fix (2026-09-24) — this shell previously had no imagery at
 // all, just a flat ECO.bg fill, which looked unfinished next to
@@ -39,22 +40,28 @@ const STEPS = [
   { path: "/eco-demo/connected", key: "Connected" },
 ];
 
-const JourneyContext = createContext({ pathwayId: "family", setPathwayId: () => {} });
+const JourneyContext = createContext({ pathwayId: "family", setPathwayId: () => {}, voiceOn: true });
 export function useJourney() {
   return useContext(JourneyContext);
 }
 
 export default function EcosystemDemoShell() {
   const [pathwayId, setPathwayId] = useState("family");
+  // Step narration voice (2026-09-24, "voice needs to follow through, each
+  // step") — on by default so it's felt immediately, same "core
+  // interaction, not an opt-in" reasoning as GlobalJonaAssistant's own
+  // voiceOn default; a mute toggle still exists for a shared/public device.
+  const [voiceOn, setVoiceOn] = useState(true);
+  useEffect(() => cancelBrowserTts, []); // stop narration if the whole demo unmounts (e.g. back button)
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMobile();
   const currentIndex = Math.max(0, STEPS.findIndex((s) => s.path === location.pathname));
 
-  const goTo = (i) => navigate(STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)].path);
+  const goTo = (i) => { cancelBrowserTts(); navigate(STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)].path); };
 
   return (
-    <JourneyContext.Provider value={{ pathwayId, setPathwayId }}>
+    <JourneyContext.Provider value={{ pathwayId, setPathwayId, voiceOn }}>
       <style>{".eco-step-nav::-webkit-scrollbar { display: none; }"}</style>
       <div
         aria-hidden="true"
@@ -68,8 +75,18 @@ export default function EcosystemDemoShell() {
         <header style={{ position: "sticky", top: 0, zIndex: 10, minHeight: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.85)", backdropFilter: "blur(6px)", flexWrap: "wrap", gap: 10 }}>
           <span style={{ fontWeight: 900, letterSpacing: 0.5, color: ECO.gold, fontSize: 16 }}>HSD OS AI</span>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <button onClick={() => navigate("/eco-demo")} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
-            <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Exit</button>
+            <button
+              onClick={() => { if (voiceOn) cancelBrowserTts(); setVoiceOn((v) => !v); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, background: voiceOn ? "rgba(201,168,76,0.12)" : "transparent",
+                border: `1px solid ${voiceOn ? ECO.gold : ECO.border}`, borderRadius: 20, padding: "4px 10px",
+                color: voiceOn ? ECO.gold : ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {voiceOn ? "🔊" : "🔇"} Jona's voice
+            </button>
+            <button onClick={() => { cancelBrowserTts(); navigate("/eco-demo"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
+            <button onClick={() => { cancelBrowserTts(); navigate("/"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Exit</button>
           </div>
         </header>
 

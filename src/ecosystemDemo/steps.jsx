@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ECO, useJourney } from "./EcosystemDemoShell";
 import { PATHWAYS_DEMO, JONA_HELP_SCRIPT, CONFIDENCE_EXAMPLE } from "./data";
 import { ACTIVITY_SCRIPT } from "../familyDemo/data";
 import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
+import { speakWithBrowserTts } from "../lib/browserNarration";
 
 function PageTitle({ eyebrow, title, subtitle }) {
   return (
@@ -15,7 +16,22 @@ function PageTitle({ eyebrow, title, subtitle }) {
   );
 }
 
+// Narrates its own text via browser speechSynthesis when the demo's voice
+// toggle is on (2026-09-24, "voice needs to follow through, each step") —
+// same proven pattern as src/familyDemo/JonaBubble.jsx. Only handles a
+// plain-string child (every real call site passes one); silently skips
+// narration for anything else rather than risk reading raw JSX/markup aloud.
 function JonaLine({ children }) {
+  const { voiceOn } = useJourney();
+  const spoken = useRef("");
+  const text = typeof children === "string" ? children : null;
+
+  useEffect(() => {
+    if (!voiceOn || !text || spoken.current === text) return;
+    spoken.current = text;
+    speakWithBrowserTts(text);
+  }, [voiceOn, text]);
+
   return (
     <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 24 }}>
       <img src="/assets/hsd/family/characters/family-jona.webp" alt="Jona" width={56} height={56} style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
