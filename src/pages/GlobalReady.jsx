@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
@@ -183,7 +184,7 @@ function BadgeToast({ badge, lang }) {
 }
 
 function Home({ user, navigate, setView, lang }) {
-  const progress = getProgress(user?.uid);
+  const progress = getProgress(profileScopedStorageUid(user?.uid, user?.activeProfileId));
   const level    = getLevelInfo(user?.uid);
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const totalSessions = Object.values(progress.sessionsCompleted).reduce((a, b) => a + b, 0);

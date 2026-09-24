@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { CATEGORY_MAP } from "./data";
@@ -9,9 +10,9 @@ export default function SavedAnswers({ user, onExit }) {
   const { lang } = useLang();
   const tr = (k) => crt(lang, k);
   const jp = lang === "jp";
-  const [answers, setAnswers] = useState(() => getSavedAnswers(user?.uid));
+  const [answers, setAnswers] = useState(() => getSavedAnswers(profileScopedStorageUid(user?.uid, user?.activeProfileId)));
 
-  const remove = (id) => setAnswers(deleteSavedAnswer(user?.uid, id));
+  const remove = (id) => setAnswers(deleteSavedAnswer(profileScopedStorageUid(user?.uid, user?.activeProfileId), id));
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px 60px" }}>

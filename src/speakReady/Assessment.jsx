@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { MOTIVATIONS, ASSESSMENT_QUESTIONS, buildAssessmentSystemPrompt, buildAssessmentUserMessage, parseAssessmentResult } from "./assessmentData";
@@ -72,7 +73,7 @@ export default function Assessment({ user, onFinish, onStartCategory }) {
       );
       const parsed = parseAssessmentResult(raw);
       setResult(parsed);
-      savePlacement(user?.uid, { ...parsed, motivation: motivation.id });
+      savePlacement(profileScopedStorageUid(user?.uid, user?.activeProfileId), { ...parsed, motivation: motivation.id });
       setStep("results");
     } catch (e) {
       setError(e.message || tr("coach_unavailable"));

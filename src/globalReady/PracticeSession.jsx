@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { CATEGORY_MAP, PRACTICE_BANKS } from "./data";
@@ -51,7 +52,7 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
 
   useEffect(() => {
     (async () => {
-      memoryRef.current = await getMemorySummary(user?.uid);
+      memoryRef.current = await getMemorySummary(user?.uid, user?.activeProfileId);
       openScenario(0);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,7 +74,7 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
     if (!note) return;
     const merged = mergeMemoryNote(memoryRef.current.summary, note);
     memoryRef.current = { summary: merged, sessionsCount: memoryRef.current.sessionsCount };
-    updateMemorySummary(user?.uid, merged, memoryRef.current.sessionsCount);
+    updateMemorySummary(user?.uid, merged, memoryRef.current.sessionsCount, user?.activeProfileId);
   }
 
   async function openScenario(idx) {
@@ -115,7 +116,7 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
       setMessages([...next, { role: "assistant", en: parsed.reply_en, jp: parsed.reply_jp, phrases: parsed.phrases }]);
       speak(parsed.reply_en);
       saveMemoryNote(parsed.memory_note);
-      const { newBadges } = recordPracticeResult(user?.uid, {
+      const { newBadges } = recordPracticeResult(profileScopedStorageUid(user?.uid, user?.activeProfileId), {
         category: categoryId,
         scenarioId: scenario.id,
         confidenceScore: parsed.pulse ?? 60,
@@ -147,7 +148,7 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
   }
 
   function savePhrase(phrase) {
-    addSavedPhrase(user?.uid, { category: categoryId, situation: jp && scenario.promptJp ? scenario.promptJp : scenario.prompt, phrase });
+    addSavedPhrase(profileScopedStorageUid(user?.uid, user?.activeProfileId), { category: categoryId, situation: jp && scenario.promptJp ? scenario.promptJp : scenario.prompt, phrase });
     setSavedPhrases((prev) => ({ ...prev, [phrase]: true }));
   }
 

@@ -2,15 +2,20 @@
 // Unlike progress/badges (localStorage, device-bound), this is the AI's running
 // understanding of the student — stored in Firestore so it grows with them
 // across sessions and devices, the same account-bound way the rest of HSDOS.AI works.
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { profileScopedDocRef } from "../lib/profileScope";
 
-const memoryRef = (uid) => doc(db, "users", uid, "speakReady", "memory");
+// Profile-scoped (P0, 2026-09-24) — see src/lib/profileScope.js. Self
+// profile keeps the exact legacy path (users/{uid}/speakReady/memory),
+// unchanged; a real family-member profile gets its own doc under
+// users/{uid}/familyMembers/{profileId}/speakReadyProfile/current.
+const memoryRef = (uid, profileId) =>
+  profileScopedDocRef(uid, profileId, "speakReady", "memory", "speakReadyProfile");
 
-export async function getMemorySummary(uid) {
+export async function getMemorySummary(uid, profileId) {
   if (!uid) return { summary: "", sessionsCount: 0 };
   try {
-    const snap = await getDoc(memoryRef(uid));
+    const snap = await getDoc(memoryRef(uid, profileId));
     if (!snap.exists()) return { summary: "", sessionsCount: 0 };
     const data = snap.data();
     return { summary: data.summary ?? "", sessionsCount: data.sessionsCount ?? 0 };
@@ -20,10 +25,10 @@ export async function getMemorySummary(uid) {
 }
 
 // Fire-and-forget — never blocks the conversation on a Firestore write.
-export function updateMemorySummary(uid, summary, prevSessionsCount = 0) {
+export function updateMemorySummary(uid, summary, prevSessionsCount = 0, profileId) {
   if (!uid || !summary) return;
   setDoc(
-    memoryRef(uid),
+    memoryRef(uid, profileId),
     { summary, sessionsCount: prevSessionsCount + 1, updatedAt: serverTimestamp() },
     { merge: true }
   ).catch(() => {});

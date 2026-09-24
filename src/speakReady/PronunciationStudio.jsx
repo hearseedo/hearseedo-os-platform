@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { PRONUNCIATION_DRILLS } from "./data";
@@ -97,7 +98,7 @@ export default function PronunciationStudio({ user, onExit, onBadgesEarned }) {
       );
       const parsed = parsePronunciationFeedback(raw);
       setFeedback(parsed);
-      const { newBadges } = recordPracticeResult(user?.uid, { category: "pronunciation", scenarioId: drill.id, confidenceScore: 70 });
+      const { newBadges } = recordPracticeResult(profileScopedStorageUid(user?.uid, user?.activeProfileId), { category: "pronunciation", scenarioId: drill.id, confidenceScore: 70 });
       if (newBadges.length) onBadgesEarned?.(newBadges);
     } catch (e) {
       setError(jp ? tr("coach_unavailable") : (e.message || tr("coach_unavailable")));

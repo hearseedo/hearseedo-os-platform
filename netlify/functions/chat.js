@@ -1,6 +1,8 @@
 const crypto = require("crypto");
-const { firestoreFetch } = require("./_firebaseAdmin");
+const { firestoreFetch, fromFirestoreFields } = require("./_firebaseAdmin");
 const { classifyRisk } = require("./_safetyClassifier");
+const { resolveProfileContext: resolveProfileContextWith, buildProfileContextLine } = require("./_profileContext");
+const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
 
 // Phase 4 (Jona adversarial safety testing) — the `system` prompt is
 // client-supplied (see body destructuring below), which means a signed-in
@@ -253,12 +255,18 @@ exports.handler = async (event) => {
   let uid = null;
   let plan = "free";
   let isSafetyPath = false;
+  let resolvedProfile = null;
   try {
     const firebaseUser = await verifyIdToken(idToken);
     if (!firebaseUser) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid session. Please sign in again." }) };
     }
     uid = firebaseUser.localId;
+
+    // Who is actually talking to Jona right now (P0, 2026-09-24) — resolved
+    // and verified server-side; see resolveProfileContext() above for why
+    // the client's profileId claim can never reach another account's data.
+    resolvedProfile = await resolveProfileContext(uid, profileId);
 
     // Safety-before-quota (P0-B): classify the learner's latest message
     // BEFORE any quota check. A flagged message skips quota entirely and is
@@ -319,7 +327,7 @@ exports.handler = async (event) => {
       contents: toGeminiContents(messages),
       generationConfig: { temperature: 0.9, maxOutputTokens: 512 },
     };
-    geminiBody.systemInstruction = { parts: [{ text: (isSafetyPath ? RESTRICTED_SAFETY_SYSTEM : (system || "")) + SERVER_SAFETY_FLOOR }] };
+    geminiBody.systemInstruction = { parts: [{ text: (isSafetyPath ? RESTRICTED_SAFETY_SYSTEM : (system || "")) + buildProfileContextLine(resolvedProfile) + SERVER_SAFETY_FLOOR }] };
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,

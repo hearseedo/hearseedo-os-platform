@@ -206,6 +206,24 @@ service cloud.firestore {
             allow read, write: if false;
           }
         }
+
+        // Profile-scoped Student/Adult app data (P0, 2026-09-24). EIKEN's
+        // equivalent (netlify/functions/eiken-progress.js) needs no rule at
+        // all — it writes exclusively via the service account, which
+        // bypasses rules. These three ARE client-writable, same tier as the
+        // existing account-level careerReady/globalReady/speakReady
+        // collections they fall back to for the "self" profile — same
+        // owner-uid pattern, just nested under this member instead. See
+        // src/lib/profileScope.js.
+        match /careerReadyProfile/{doc} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+        match /globalReadyProfile/{doc} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+        match /speakReadyProfile/{doc} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
       }
 
       match /notifications/{notifId} {

@@ -2434,7 +2434,12 @@ export default function EikenApp({ user: platformUser, activeMember }) {
             shell (anchor="absolute", shellStyle above is position:relative)
             rather than the browser viewport, so it sits at this app's own
             corner instead of the far corner of the page on desktop. */}
+        {/* key (P0, 2026-09-24): forces a fresh mount — and therefore a
+            cleared conversation — whenever the active profile changes, so
+            one profile's Jona conversation can never carry over to
+            another's. See docs/PROFILE_CONTEXT_MIGRATION_PROPOSAL_2026-09-24.md §7. */}
         <GlobalJonaAssistant
+          key={activeMember?.id ?? "self"}
           anchor="absolute"
           context={{
             appName: "EIKEN",

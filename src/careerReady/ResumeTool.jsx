@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { RESUME_TOOLS, RESUME_TOOL_MAP } from "./data";
@@ -60,7 +61,7 @@ export default function ResumeTool({ user, onExit, onBadgesEarned }) {
       );
       setResult(parseResumeResult(raw));
       setSaved(false);
-      const { newBadges } = recordResumeToolUse(user?.uid);
+      const { newBadges } = recordResumeToolUse(profileScopedStorageUid(user?.uid, user?.activeProfileId));
       if (newBadges.length) onBadgesEarned?.(newBadges);
     } catch (e) {
       setError(jp ? tr("coach_unavailable") : (e.message || tr("coach_unavailable")));
@@ -69,7 +70,7 @@ export default function ResumeTool({ user, onExit, onBadgesEarned }) {
   };
 
   const saveResult = () => {
-    addSavedAnswer(user?.uid, {
+    addSavedAnswer(profileScopedStorageUid(user?.uid, user?.activeProfileId), {
       category: "resume",
       question: tool.label,
       originalAnswer: notes.trim(),

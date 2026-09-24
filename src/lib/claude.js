@@ -46,26 +46,27 @@ Safety: many users are children and families. Keep everything you say age-approp
 
 You are HSD AI. That is all you are.`;
 
+// Profile identity fix (P0, 2026-09-24 — see
+// docs/PROFILE_CONTEXT_MIGRATION_PROPOSAL_2026-09-24.md §6). This used to
+// embed the ACCOUNT OWNER's own name/confidence/streak/etc — and every
+// family member's name+age+confidence score — directly into the prompt,
+// unconditionally, even when a different profile was the one actually
+// talking to Jona. That's both wrong (Jona always thought it was talking
+// to the account owner) and a real cross-profile data leak (Emma's session
+// would have included Miley's confidence score). Personal/profile identity
+// now comes ONLY from chat.js's server-side, ownership-verified profile
+// lookup — never from anything client-assembled here. This function keeps
+// only account-level, non-person-identifying context (plan/entitlements),
+// which carries no cross-profile leak risk.
 function buildSystemWithContext(user, lang) {
-  const family = Array.isArray(user.familyMembers) && user.familyMembers.length > 0
-    ? `\nFamily members: ${user.familyMembers.map(m => `${m.name}${m.age ? ` (age ${m.age})` : ""}${m.confidenceScore != null ? `, confidence ${m.confidenceScore}%` : ""}`).join(" · ")}`
-    : "";
-
   const langInstruction = lang === "jp"
     ? "\n\nThe user's interface language is set to Japanese. Respond in natural, warm Japanese by default. If the user writes to you in English, reply in English instead — follow the language they actually use."
     : "";
 
   return `${HSD_AI_SYSTEM}${langInstruction}
 
-Current user context:
-Name: ${user.name}
-Plan: ${user.plan}
-Confidence Score: ${user.confidenceScore}%
-Current Streak: ${user.streak} days
-Hours Learned: ${user.hoursLearned}
-Lessons Completed: ${user.lessonsCompleted}
-Unlocked Apps: ${(user.subscriptions ?? []).join(", ") || "none yet"}
-Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toLocaleDateString() : "first session"}${family}`;
+Account plan: ${user.plan}
+Unlocked apps: ${(user.subscriptions ?? []).join(", ") || "none yet"}`;
 }
 
 // context (2026-09-24, Global Jona Assistant) — optional, additive. When a
@@ -106,6 +107,11 @@ export async function sendMessage(messages, user, lang, context) {
       messages: messages.map((m) => ({ role: m.role, content: m.text })),
       idToken,
       plan:     user.plan ?? "individual",
+      // Which profile is actually talking to Jona (P0, 2026-09-24) — a
+      // claim only, never trusted as-is; chat.js resolves and verifies this
+      // against the authenticated uid server-side before using any of that
+      // profile's data. See docs/PROFILE_CONTEXT_MIGRATION_PROPOSAL_2026-09-24.md.
+      profileId: user.activeProfileId,
     }),
   });
 

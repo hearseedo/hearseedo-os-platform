@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { COLORS } from "../constants/colors";
 import { useLang } from "../hooks/useLang";
 import { LISTENING_CLIPS, ACCENTS } from "./data";
@@ -66,7 +67,7 @@ export default function ListeningLab({ user, onExit, onBadgesEarned }) {
       );
       const parsed = parseListeningFeedback(raw);
       setFeedback(parsed);
-      const { newBadges } = recordPracticeResult(user?.uid, {
+      const { newBadges } = recordPracticeResult(profileScopedStorageUid(user?.uid, user?.activeProfileId), {
         category: "listening",
         scenarioId: clip.id,
         confidenceScore: GOT_IT_SCORE[parsed.got_it] ?? 60,

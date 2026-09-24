@@ -1,4 +1,5 @@
 import { COLORS } from "../constants/colors";
+import { profileScopedStorageUid } from "../lib/profileScope";
 import { useLang } from "../hooks/useLang";
 import { BADGES, CONFIDENCE_LEVELS, levelForXP, nextLevel } from "./data";
 import { srt } from "./i18n";
@@ -8,7 +9,7 @@ export default function Progress({ user, onExit }) {
   const { lang } = useLang();
   const tr = (k) => srt(lang, k);
   const jp = lang === "jp";
-  const progress = getProgress(user?.uid);
+  const progress = getProgress(profileScopedStorageUid(user?.uid, user?.activeProfileId));
   const level    = levelForXP(progress.xp);
   const next     = nextLevel(progress.xp);
   const xpIntoLevel = progress.xp - level.minXP;
