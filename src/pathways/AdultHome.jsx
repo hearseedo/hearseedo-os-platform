@@ -7,7 +7,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { PATHWAYS } from "../constants/pathways";
+import { useLang } from "../hooks/useLang";
+import { PATHWAYS, getPathwayText } from "../constants/pathways";
 import { APP_MAP } from "../constants/apps";
 import AppModal from "../components/AppModal";
 import ProfileSwitcher from "../components/ProfileSwitcher";
@@ -23,10 +24,12 @@ const pathway = PATHWAYS.adult;
 
 export default function AdultHome() {
   const { user, currentProfile, profiles } = useAuth();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
   const [selectedApp, setSelectedApp] = useState(null);
   const displayName = currentProfile?.name || user?.name;
   const hasSwitcher = profiles?.length > 1;
+  const text = getPathwayText(pathway, lang);
 
   function open(app) {
     if (app.route) { navigate(app.route); return; }
@@ -48,7 +51,7 @@ export default function AdultHome() {
       <div style={{ position: "relative", zIndex: 1 }}>
       <header style={{ padding: "20px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer" }}>
-          ← Switch pathway
+          ← {t("path_switch_pathway")}
         </button>
         {/* ProfileSwitcher (P0, 2026-09-24) — see StudentHome.jsx for the
             same pattern/rationale. */}
@@ -64,10 +67,10 @@ export default function AdultHome() {
           </div>
         )}
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: pathway.accent.primary, marginBottom: 8 }}>
-          {pathway.displayName}
+          {text.displayName}
         </div>
-        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>{pathway.tagline}</h1>
-        <p style={{ color: "#ccc", fontSize: 15, marginBottom: 36, maxWidth: 560 }}>{pathway.description}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>{text.tagline}</h1>
+        <p style={{ color: "#ccc", fontSize: 15, marginBottom: 36, maxWidth: 560 }}>{text.description}</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
           {APPS.map((app) => {

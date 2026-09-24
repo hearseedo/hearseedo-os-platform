@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
-import { PATHWAYS } from "../constants/pathways";
+import { PATHWAYS, getPathwayText } from "../constants/pathways";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 
 // Same photo each pathway's real Home page uses — this entry screen used
@@ -26,10 +26,11 @@ const HERO_BY_PATHWAY = {
 
 export default function PathwayEntry({ pathwayId }) {
   const { user, profiles, currentProfile, setActiveProfile, setActivePathway } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
   const [visited, setVisited] = useState(false);
   const pathway = PATHWAYS[pathwayId];
+  const text = getPathwayText(pathway, lang);
 
   // Record entry into this pathway once per mount (updates lastUsedPathway,
   // visitedPathways, and fires the pathway_selected/switched analytics —
@@ -88,9 +89,9 @@ export default function PathwayEntry({ pathwayId }) {
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 480, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: pathway.accent.primary, marginBottom: 10 }}>
-          {pathway.displayName}
+          {text.displayName}
         </div>
-        <p style={{ fontSize: 15, color: "#ccc", marginBottom: 32 }}>{pathway.tagline}</p>
+        <p style={{ fontSize: 15, color: "#ccc", marginBottom: 32 }}>{text.tagline}</p>
 
         {needsProfilePicker && !pickedProfile ? (
           <>

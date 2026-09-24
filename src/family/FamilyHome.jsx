@@ -12,6 +12,7 @@ import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
 import { GraffitiStyles, spraySplash } from "./graffitiStyles";
 import ProfileSwitcher from "../components/ProfileSwitcher";
+import { PATHWAYS, getPathwayText } from "../constants/pathways";
 
 const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
@@ -23,6 +24,7 @@ export default function FamilyHome() {
 
   const profileId = currentProfile?.id ?? SELF_PROFILE_ID;
   const ageBand = currentProfile?.ageBand ?? "elementary";
+  const pathwayText = getPathwayText(PATHWAYS.family, lang);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -42,7 +44,7 @@ export default function FamilyHome() {
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", fontSize: 13, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>
           {t("path_switch_pathway")}
         </button>
-        <div style={{ fontSize: 16, fontWeight: 900, color: FAMILY_COLORS.pink }}>HSD Family</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: FAMILY_COLORS.pink }}>{pathwayText.displayName}</div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           {/* ProfileSwitcher (P0, 2026-09-24) renders nothing for a
               single-profile account, so the plain name shows in that case

@@ -42,6 +42,10 @@ export const PATHWAYS = {
     audience:    "For children and parents",
     tagline:     "Play, learn, speak and grow together.",
     description: "Play, learn, speak and grow together with Monkey Yoga Phonics, Monkeys Talk & Unlock and more.",
+    displayNameJp: "HSD ファミリー",
+    audienceJp:    "お子さまと保護者の方へ",
+    taglineJp:     "遊んで、学んで、話して、一緒に成長しよう。",
+    descriptionJp: "モンキーヨガフォニックスやモンキーズ・トーク＆アンロックなどで、遊びながら学び、話し、一緒に成長しましょう。",
     route:       "/family",
     heroAsset:   `${HERO_BASE}/path-family-hero.webp`,
     accent:      { primary: "#e0559c", soft: "#fce8f2" }, // pink
@@ -54,6 +58,10 @@ export const PATHWAYS = {
     audience:    "For high school to university",
     tagline:     "Learn. Practice. Prepare. Achieve.",
     description: "Build real-world English for exams, study abroad, presentations and your future.",
+    displayNameJp: "コンフィデンス・スチューデント",
+    audienceJp:    "高校生から大学生の方へ",
+    taglineJp:     "学ぶ。練習する。備える。達成する。",
+    descriptionJp: "試験、留学、プレゼンテーション、そして将来のために、実践的な英語力を身につけましょう。",
     route:       "/student",
     heroAsset:   `${HERO_BASE}/path-student-hero.webp`,
     accent:      { primary: "#2f6fed", soft: "#e8f0fe" }, // blue
@@ -66,6 +74,10 @@ export const PATHWAYS = {
     audience:    "For professionals and lifelong learners",
     tagline:     "Work. Travel. Connect. Grow.",
     description: "Communicate with confidence at work, while travelling and in everyday life.",
+    displayNameJp: "コンフィデンス・アダルト",
+    audienceJp:    "社会人・生涯学習者の方へ",
+    taglineJp:     "働く。旅する。つながる。成長する。",
+    descriptionJp: "仕事でも旅行でも日常生活でも、自信を持ってコミュニケーションしましょう。",
     route:       "/adult",
     heroAsset:   `${HERO_BASE}/path-adult-hero.webp`,
     accent:      { primary: "#d99a1b", soft: "#fdf3df" }, // yellow/gold
@@ -78,6 +90,10 @@ export const PATHWAYS = {
     audience:    "For teachers and schools",
     tagline:     "Teach. Empower. Inspire. Together.",
     description: "Curriculum, classroom resources and AI support to make a bigger impact together.",
+    displayNameJp: "HSD エデュケーター",
+    audienceJp:    "教員・学校関係者の方へ",
+    taglineJp:     "教える。力になる。刺激を与える。ともに。",
+    descriptionJp: "カリキュラム、教室リソース、AIサポートで、より大きな成果を一緒に生み出しましょう。",
     route:       "/educator",
     heroAsset:   `${HERO_BASE}/path-educator-hero.webp`,
     accent:      { primary: "#2f9e5c", soft: "#e6f5ec" }, // green
@@ -91,6 +107,23 @@ export const PATHWAYS = {
     releaseStage: "alpha",
   },
 };
+
+// Picks the display copy for a pathway in the given language (2026-09-24
+// fix — PathwayCard/PathwayEntry/StudentHome/AdultHome were reading
+// pathway.displayName/audience/tagline/description directly, which are
+// always English; the *Jp fields above were unused). Falls back to the
+// English fields if a Jp one is somehow missing, so this never renders
+// blank text.
+export function getPathwayText(pathway, lang) {
+  if (!pathway) return null;
+  const jp = lang === "jp";
+  return {
+    displayName: (jp && pathway.displayNameJp) || pathway.displayName,
+    audience:    (jp && pathway.audienceJp)    || pathway.audience,
+    tagline:     (jp && pathway.taglineJp)     || pathway.tagline,
+    description: (jp && pathway.descriptionJp) || pathway.description,
+  };
+}
 
 // App id -> pathway id. Used only for compatibility inference (mapping an
 // existing account's subscriptions[] to a pathway when it has no explicit

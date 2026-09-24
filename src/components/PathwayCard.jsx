@@ -11,6 +11,7 @@
 // version — only rendering below the (removed) image box changed.
 import { useLang } from "../hooks/useLang";
 import { PATHWAY_STATES } from "../lib/pathwayAccess";
+import { getPathwayText } from "../constants/pathways";
 
 const STATE_LABEL_KEY = {
   [PATHWAY_STATES.AVAILABLE]:   "path_state_continue",
@@ -22,9 +23,10 @@ const STATE_LABEL_KEY = {
 const STAGE_LABEL_KEY = { beta: "path_stage_beta", alpha: "path_stage_alpha" };
 
 export default function PathwayCard({ pathway, state, onSelect }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const disabled = state === PATHWAY_STATES.LOCKED || state === PATHWAY_STATES.COMING_SOON;
   const { accent } = pathway;
+  const text = getPathwayText(pathway, lang);
 
   return (
     <button
@@ -32,7 +34,7 @@ export default function PathwayCard({ pathway, state, onSelect }) {
       onClick={disabled ? undefined : () => onSelect(pathway.id)}
       disabled={disabled}
       aria-disabled={disabled}
-      aria-label={`${pathway.displayName} — ${pathway.audience}${disabled ? ` (${t(STATE_LABEL_KEY[state])})` : ""}`}
+      aria-label={`${text.displayName} — ${text.audience}${disabled ? ` (${t(STATE_LABEL_KEY[state])})` : ""}`}
       className="hsd-pathway-card"
       style={{
         position: "relative",
@@ -81,13 +83,13 @@ export default function PathwayCard({ pathway, state, onSelect }) {
       }} />
 
       <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.3, color: "#fff", marginBottom: 6 }}>
-        {pathway.displayName}
+        {text.displayName}
       </div>
       <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", marginBottom: 10 }}>
-        {pathway.audience}
+        {text.audience}
       </div>
       <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.86)", lineHeight: 1.5, marginBottom: 16, flex: 1 }}>
-        {pathway.tagline}
+        {text.tagline}
       </div>
 
       {!disabled && (
