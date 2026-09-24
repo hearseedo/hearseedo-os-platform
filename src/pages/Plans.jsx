@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { ACTIVE_PLANS } from "../constants/plans";
 import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 import { db, auth } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -62,7 +63,7 @@ const CARD_COPY = {
 };
 
 export default function Plans() {
-  const { user } = useAuth();
+  const { user, currentPathway } = useAuth();
   const navigate = useNavigate();
   const [billing, setBilling]     = useState("monthly");
   const [currency, setCurrency]   = useState(CURRENCIES[0]);
@@ -97,7 +98,7 @@ export default function Plans() {
       return;
     }
     if (plan.price_monthly === 0) {
-      navigate(user ? "/dashboard" : "/");
+      navigate(user ? resolvePathwayDestination(currentPathway) : "/");
       return;
     }
     if (!user) { navigate("/"); return; }

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 import { SSL } from "../sipSpeakLearn/constants";
 import { SSLStyles, Icon, Ring, Btn } from "../sipSpeakLearn/ui";
 import { SEASONS, SEASON_MAP, LESSONS_BY_SEASON, LESSON_DURATION_MIN, lessonThumb } from "../sipSpeakLearn/data";
@@ -28,7 +29,11 @@ const NAV = [
 
 export default function SipSpeakLearn() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, currentPathway } = useAuth();
+  // Exiting the platform used to always land on the old, unmaintained
+  // /dashboard splash for any account not on the newer pathway flag
+  // (2026-09-24 fix) — routes to this account's actual pathway home instead.
+  const backDestination = resolvePathwayDestination(currentPathway);
   const uid = user?.uid;
   // Profile-scoped identifier for PERSONAL LEARNING PROGRESS only (P0,
   // 2026-09-24 — removes the previous "guest" localStorage fallback, which
@@ -60,7 +65,7 @@ export default function SipSpeakLearn() {
     return (
       <div className="ssl-root">
         <SSLStyles />
-        <Welcome onEnter={() => go("dashboard")} exitPlatform={() => navigate("/dashboard")} go={go} />
+        <Welcome onEnter={() => go("dashboard")} exitPlatform={() => navigate(backDestination)} go={go} />
       </div>
     );
   }
@@ -72,7 +77,7 @@ export default function SipSpeakLearn() {
       <SSLStyles />
       <MobileTop />
       <div className="ssl-shell">
-        <Sidebar active={activeTab} onNav={go} firstName={firstName} onProfile={() => navigate("/dashboard")} />
+        <Sidebar active={activeTab} onNav={go} firstName={firstName} onProfile={() => navigate(backDestination)} />
         <main className="ssl-main">
           <div className="ssl-page">
             {/* storageUid (P0, 2026-09-24): personal learning progress is

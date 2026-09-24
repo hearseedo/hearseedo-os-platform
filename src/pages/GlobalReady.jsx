@@ -3,6 +3,7 @@ import { profileScopedStorageUid } from "../lib/profileScope";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 import { useLang } from "../hooks/useLang";
 import { useSubscription } from "../hooks/useSubscription";
 import { CATEGORIES } from "../globalReady/data";
@@ -72,6 +73,7 @@ function Shell({ children, showJona = true }) {
 
 function TopBar() {
   const navigate = useNavigate();
+  const { currentPathway } = useAuth();
   const { lang, setLang } = useLang();
   const tr = (k) => grt(lang, k);
   return (
@@ -81,7 +83,7 @@ function TopBar() {
       display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, zIndex: 50,
     }}>
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => navigate(resolvePathwayDestination(currentPathway))}
         style={{ background: "none", border: "none", color: COLORS.textMuted, fontSize: 13, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6 }}
       >
         ← HSDOS.AI
@@ -112,6 +114,7 @@ function TopBar() {
 }
 
 function Paywall({ navigate, lang }) {
+  const { currentPathway } = useAuth();
   const jp = lang === "jp";
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -149,7 +152,7 @@ function Paywall({ navigate, lang }) {
           {jp ? "¥1,980/月 — 今すぐ始める" : "¥1,980/month — Get Started"}
         </button>
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(resolvePathwayDestination(currentPathway))}
           style={{ width: "100%", padding: 12, background: "transparent", border: "1px solid #2a2a2a", borderRadius: 12, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}
         >
           {jp ? "← ダッシュボードに戻る" : "← Back to dashboard"}

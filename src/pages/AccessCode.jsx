@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 import { validateAccessCode, activateAccessCode, isAccessActive, formatExpiry, getRemainingCredits } from "../lib/accessCodeUtils";
 
 const BG    = "#0a0a0a";
@@ -13,7 +14,12 @@ const WHITE = "#ffffff";
 
 export default function AccessCode() {
   const navigate       = useNavigate();
-  const { user }       = useAuth();
+  const { user, currentPathway } = useAuth();
+  // "Back to dashboard" used to always land on the old, unmaintained
+  // /dashboard splash screen for any account not on the newer pathway
+  // flag (2026-09-24 fix) — routes to this account's actual pathway home
+  // instead, same resolution Blueprint.jsx uses right after sign-in.
+  const backDestination = resolvePathwayDestination(currentPathway);
   const [code, setCode]   = useState("");
   const [state, setState] = useState("idle"); // idle | loading | success | error
   const [errorType, setErrorType] = useState(null);
@@ -46,7 +52,7 @@ export default function AccessCode() {
     const pass = user?.accessPass ?? activePass;
     return (
       <Page>
-        <SuccessCard pass={pass} navigate={navigate} />
+        <SuccessCard pass={pass} navigate={navigate} backDestination={backDestination} />
       </Page>
     );
   }
@@ -56,7 +62,7 @@ export default function AccessCode() {
       <div style={{ maxWidth: 520, width: "100%", margin: "0 auto" }}>
         {/* Header */}
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(backDestination)}
           style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: "0 0 24px", display: "flex", alignItems: "center", gap: 6 }}
         >
           ← Back to dashboard
@@ -165,7 +171,7 @@ function ErrorMessage({ type }) {
   );
 }
 
-function SuccessCard({ pass, navigate }) {
+function SuccessCard({ pass, navigate, backDestination }) {
   if (!pass) return null;
   const remaining = pass.aiCreditsRemaining ?? 0;
   const isLow     = remaining > 0 && remaining <= 5;
@@ -208,13 +214,13 @@ function SuccessCard({ pass, navigate }) {
       )}
 
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => navigate(backDestination)}
         style={{ width: "100%", padding: 16, borderRadius: 12, background: TEAL, border: "none", color: "#0a1a1a", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}
       >
         Start Practicing
       </button>
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => navigate(backDestination)}
         style={{ width: "100%", padding: 12, borderRadius: 12, background: "transparent", border: "1px solid #2a2a2a", color: MUTED, fontSize: 13, cursor: "pointer" }}
       >
         View All Learning Paths

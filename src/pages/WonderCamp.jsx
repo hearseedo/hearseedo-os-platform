@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 import { useSubscription } from "../hooks/useSubscription";
 
 // ─── Full 36-lesson dataset ───────────────────────────────────────────────────
@@ -599,7 +600,11 @@ const SCAFFOLDING_COLORS = {
 
 export default function WonderCamp() {
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, currentPathway } = useAuth();
+  // "Back to dashboard" used to always land on the old, unmaintained
+  // /dashboard splash for any account not on the newer pathway flag
+  // (2026-09-24 fix) — routes to this account's actual pathway home instead.
+  const backDestination = resolvePathwayDestination(currentPathway);
   const { subscriptions } = useSubscription();
   const [expandedLesson, setExpandedLesson] = useState(null);
   const [activeMonth, setActiveMonth] = useState(null);
@@ -635,7 +640,7 @@ export default function WonderCamp() {
           View Plans →
         </button>
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(backDestination)}
           style={{
             background: "none", border: "none", color: "#555",
             fontSize: 13, cursor: "pointer",
@@ -669,7 +674,7 @@ export default function WonderCamp() {
       }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(backDestination)}
             style={{
               background: "none", border: "none", color: "#888",
               fontSize: 13, cursor: "pointer", marginBottom: 12, padding: 0,

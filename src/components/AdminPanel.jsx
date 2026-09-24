@@ -1,9 +1,12 @@
 import { COLORS } from "../constants/colors";
 import { logout } from "../lib/firebase";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { resolvePathwayDestination } from "../lib/pathwayAccess";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
+  const { currentPathway } = useAuth();
   const handleLogout = async () => { await logout(); navigate("/", { replace: true }); };
 
   return (
@@ -13,7 +16,7 @@ export default function AdminPanel() {
       <div style={{ color: COLORS.text, fontSize: 22, fontWeight: 700 }}>Admin Panel</div>
       <div style={{ color: COLORS.textMuted, fontSize: 14 }}>Connecting shortly…</div>
       <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-        <button onClick={() => navigate("/dashboard")} style={{ padding: "8px 20px", background: COLORS.red, border: "none", borderRadius: 6, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={() => navigate(resolvePathwayDestination(currentPathway))} style={{ padding: "8px 20px", background: COLORS.red, border: "none", borderRadius: 6, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           ← Dashboard
         </button>
         <button onClick={handleLogout} style={{ padding: "8px 20px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 6, color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
