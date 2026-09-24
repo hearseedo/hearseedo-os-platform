@@ -19,6 +19,7 @@
 // Requirement #9 (hard session limit): daily per-account session cap +
 // max-session-seconds, both server-controlled via _liveVoiceConfig.js.
 
+const { GoogleGenAI } = require("@google/genai");
 const { firestoreFetch, fromFirestoreFields } = require("./_firebaseAdmin");
 const { resolveProfileContext: resolveProfileContextWith } = require("./_profileContext");
 const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
@@ -173,35 +174,35 @@ exports.handler = async (event) => {
   );
 
   try {
-    const mintRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/auth_tokens?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uses: 1,
-          expireTime: new Date(Date.now() + config.maxSessionSeconds * 1000).toISOString(),
-          newSessionExpireTime: new Date(Date.now() + 60 * 1000).toISOString(),
-          liveConnectConstraints: {
-            model: LIVE_MODEL,
-            config: {
-              responseModalities: ["AUDIO"],
-              systemInstruction: { parts: [{ text: systemInstruction }] },
-            },
+    // Ephemeral tokens are minted via the SDK's own authTokens.create() —
+    // NOT a hand-rolled REST call — because this API is documented as
+    // v1alpha-only (see @google/genai's Tokens.create() doc comment) and
+    // the SDK owns the correct endpoint/version/wire-format internally.
+    // See CreateAuthTokenConfig in @google/genai's type definitions for
+    // the exact shape: uses, expireTime, newSessionExpireTime,
+    // liveConnectConstraints (model + config), lockAdditionalFields.
+    const mintAi = new GoogleGenAI({ apiKey: API_KEY, httpOptions: { apiVersion: "v1alpha" } });
+    const minted = await mintAi.authTokens.create({
+      config: {
+        uses: 1,
+        expireTime: new Date(Date.now() + config.maxSessionSeconds * 1000).toISOString(),
+        newSessionExpireTime: new Date(Date.now() + 60 * 1000).toISOString(),
+        liveConnectConstraints: {
+          model: LIVE_MODEL,
+          config: {
+            responseModalities: ["AUDIO"],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
           },
-          lockAdditionalFields: ["model", "config.responseModalities", "config.systemInstruction"],
-        }),
-      }
-    );
+        },
+        lockAdditionalFields: ["model", "config.responseModalities", "config.systemInstruction"],
+      },
+    });
 
-    if (!mintRes.ok) {
-      const errText = await mintRes.text().catch(() => "");
-      console.error("Gemini auth_tokens mint failed:", mintRes.status, errText);
+    const token = minted.name; // e.g. "auth_tokens/abc123..." — used as apiKey by the client SDK
+    if (!token) {
+      console.error("Gemini auth_tokens mint returned no token name:", JSON.stringify(minted));
       return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Could not start Talk with Jona right now." }) };
     }
-
-    const minted = await mintRes.json();
-    const token = minted.name; // e.g. "auth_tokens/abc123..." — used as apiKey by the client SDK
 
     await logSessionStart(uid, sessionId, profileId, { pathway, appName });
 
