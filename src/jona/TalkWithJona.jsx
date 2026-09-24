@@ -151,7 +151,11 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         // so the UI ends the conversation cleanly rather than erroring.
         hardTimeoutRef.current = setTimeout(() => endSession("timeout"), maxSecondsRef.current * 1000);
 
-        const ai = new GoogleGenAI({ apiKey: minted.token });
+        // apiVersion must match live-token.js's minting call — ephemeral
+        // auth tokens are v1alpha-only; connecting with the SDK's default
+        // version against a v1alpha-minted token closes the session
+        // immediately with no visible error (2026-09-24 production fix).
+        const ai = new GoogleGenAI({ apiKey: minted.token, httpOptions: { apiVersion: "v1alpha" } });
         playCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUTPUT_SAMPLE_RATE });
         playTimeRef.current = 0;
 
@@ -192,8 +196,12 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
               setErrorMsg(t("talk_jona_error"));
               setPhase("error");
             },
-            onclose: () => {
+            // Logged with code/reason (client-side console only, no
+            // secrets) — a session that closes right after opening with no
+            // user interaction is otherwise silent and hard to diagnose.
+            onclose: (e) => {
               if (cancelled) return;
+              console.warn("Talk with Jona session closed:", e?.code, e?.reason);
               if (!endedRef.current) endSession("abnormal_disconnect");
             },
           },
