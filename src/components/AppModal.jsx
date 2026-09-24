@@ -278,6 +278,26 @@ export default function AppModal({ app, onClose, user, activeMember, curriculumT
         } catch (err) {
           reply.error = err?.message ?? "Jona is taking a quick break — try again in a moment.";
         }
+        // Voice output for cross-origin child apps (P0-A, 2026-09-24) — the
+        // child never gets a uid/API key of its own, so it can't call
+        // /api/tts directly (and that endpoint has no CORS headers for
+        // cross-origin fetches anyway). This same-origin parent already can,
+        // same trust boundary as the text reply above: only requested when
+        // the child explicitly opts in via wantsAudio, and only attempted
+        // when there's an actual reply to speak.
+        if (data.wantsAudio && reply.reply) {
+          try {
+            const ttsRes = await fetch("/api/tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: reply.reply, uid: user.uid, lang: data.lang }),
+            });
+            if (ttsRes.ok) reply.audio = await ttsRes.arrayBuffer();
+          } catch {
+            // No audio is a silent, safe fallback — the child still has the
+            // text reply either way.
+          }
+        }
         iframeRef.current?.contentWindow?.postMessage(reply, expectedOrigin);
       }
     };

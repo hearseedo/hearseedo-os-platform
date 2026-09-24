@@ -2436,7 +2436,12 @@ export default function EikenApp({ user: platformUser, activeMember }) {
             corner instead of the far corner of the page on desktop. */}
         <GlobalJonaAssistant
           anchor="absolute"
-          context={{ appName: "EIKEN", lesson: screen !== "dashboard" && screen !== "onboarding" ? screen : undefined }}
+          context={{
+            appName: "EIKEN",
+            lesson: screen !== "dashboard" && screen !== "onboarding" ? screen : undefined,
+            // P0-E: read-only, already-selected grade — no new storage.
+            level: level ? `EIKEN Grade ${level}` : undefined,
+          }}
           bottomOffset={screen !== "onboarding" ? 82 : 20}
         />
       </div>

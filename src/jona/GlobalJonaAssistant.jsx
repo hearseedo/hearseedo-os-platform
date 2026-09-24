@@ -22,6 +22,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { sendMessage } from "../lib/claude";
+import { useJonaVoice } from "../hooks/useJonaVoice";
 
 // Lets any button anywhere in the app open the assistant without prop-
 // drilling — e.g. EikenApp's dashboard "Chat with Jona" CTA lives several
@@ -31,7 +32,7 @@ export function openGlobalJona() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true }) {
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
   // freeText=false (2026-09-24) — for young-child apps (Phonics V2, ages
   // 4-8): tap a suggested prompt only, no free-text input to an AI. Caller
   // must pass suggestedPrompts in this mode.
@@ -41,6 +42,12 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // EikenApp's phone-frame shell inside AppModal), so the bubble sits at
   // that box's corner instead of the far corner of the whole browser
   // window. Caller must give that ancestor position:relative.
+  // voiceMode (P0-A, 2026-09-24): "full" (talk + listen, the default — for
+  // surfaces where free-text already exists), "outputOnly" (Jona can speak
+  // its reply, but no microphone input — pairs with freeText=false apps so
+  // young children keep tapping prompts rather than free-talking to an AI),
+  // "off" (no voice at all). Configurable per call site so this one
+  // component can serve every pathway/age without another rewrite.
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -48,6 +55,12 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef(null);
+  const voice = useJonaVoice({ uid: user?.uid, lang, mode: voiceMode });
+  // Voice is on by default whenever voiceMode allows it — this is meant to
+  // be a core interaction, not an opt-in buried behind a toggle — but a
+  // mute control still needs to exist for a shared/public device or a
+  // moment that just needs to be quiet.
+  const [voiceOn, setVoiceOn] = useState(voiceMode !== "off");
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -76,6 +89,11 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       const reply = demoScript[trimmed] ?? demoScript._default ?? "Good question — in the real app I'd help you with exactly that, right here.";
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setSending(false);
+      // /api/tts requires a signed-in uid — demoScript mode is used by the
+      // public, no-auth ecosystem demo, so only attempt playback when a
+      // real user is actually signed in (never a live-service dependency
+      // for an anonymous demo visitor).
+      if (voiceOn && user) voice.speak(reply);
       return;
     }
 
@@ -87,6 +105,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     try {
       const reply = await sendMessage(next, user, undefined, context);
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
+      if (voiceOn) voice.speak(reply);
     } catch (e) {
       setError(e.message ?? "Jona is taking a quick break — try again in a moment.");
     } finally {
@@ -129,10 +148,20 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
         >
           <div style={{ background: accent, color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
             <img src="/assets/hsd/jona/jona-avatar.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 14 }}>Jona</div>
               <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? `Helping with ${context.appName}` : "Your guide across HSD OS AI"}</div>
             </div>
+            {voiceMode !== "off" && (
+              <button
+                onClick={() => { if (voiceOn) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
+                aria-label={voiceOn ? "Mute Jona's voice" : "Unmute Jona's voice"}
+                title={voiceOn ? "Voice on — tap to mute" : "Voice muted — tap to unmute"}
+                style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 8, width: 28, height: 28, fontSize: 13, color: "#fff", cursor: "pointer", flexShrink: 0 }}
+              >
+                {voiceOn ? "🔊" : "🔇"}
+              </button>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10, minHeight: 160 }}>
@@ -178,11 +207,26 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
 
           {freeText && (
             <div style={{ padding: 10, borderTop: "1px solid #eee", display: "flex", gap: 8 }}>
+              {voice.sttEnabled && voice.sttSupported && (
+                <button
+                  onClick={() => voice.startListening((transcript) => send(transcript))}
+                  disabled={sending || voice.listening}
+                  aria-label="Talk to Jona"
+                  title="Talk to Jona"
+                  style={{
+                    width: 38, height: 38, borderRadius: 10, border: `1px solid ${accent}55`, flexShrink: 0,
+                    background: voice.listening ? accent : `${accent}11`, color: voice.listening ? "#fff" : accent,
+                    fontSize: 15, cursor: sending ? "default" : "pointer",
+                  }}
+                >
+                  🎙️
+                </button>
+              )}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Ask Jona…"
+                placeholder={voice.listening ? "Listening…" : "Ask Jona…"}
                 style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13, outline: "none" }}
               />
               <button

@@ -6,6 +6,7 @@ import { useLang } from "../hooks/useLang";
 import { db } from "../lib/firebase";
 import { doc, setDoc, increment, getDoc } from "firebase/firestore";
 import { useJona } from "../context/JonaContext";
+import { speakWithJona, startJonaListening } from "../hooks/useJonaVoice";
 
 const PLAN_LIMITS = {
   free:               5,
@@ -35,29 +36,6 @@ function buildGreeting(name) {
   const hour  = new Date().getHours();
   const period = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
   return `Good ${period}, ${first}. All systems are online. How may I assist you today?`;
-}
-
-async function speakText(text, uid, lang) {
-  // Strip markdown symbols before sending to TTS
-  const clean = text
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/#+\s/g, "")
-    .replace(/`(.+?)`/g, "$1")
-    .slice(0, 800);
-
-  const res = await fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: clean, uid, lang }),
-  });
-  if (!res.ok) throw new Error("TTS failed");
-  const blob = await res.blob();
-  const url  = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.onended = () => URL.revokeObjectURL(url);
-  await audio.play();
-  return audio;
 }
 
 export default function AIChat({ inputRef: externalInputRef }) {
@@ -113,7 +91,7 @@ export default function AIChat({ inputRef: externalInputRef }) {
   const playGreeting = () => {
     setGreetBlocked(false);
     setSpeaking(true);
-    speakText(greetingRef.current, user?.uid, lang)
+    speakWithJona(greetingRef.current, user?.uid, lang)
       .then((audio) => {
         audioRef.current = audio;
         audio.onended = () => { setSpeaking(false); audioRef.current = null; };
@@ -150,7 +128,7 @@ export default function AIChat({ inputRef: externalInputRef }) {
       if (voiceOn) {
         setSpeaking(true);
         try {
-          const audio = await speakText(reply, user?.uid, lang);
+          const audio = await speakWithJona(reply, user?.uid, lang);
           audioRef.current = audio;
           audio.onended = () => { setSpeaking(false); audioRef.current = null; };
         } catch {
@@ -168,15 +146,14 @@ export default function AIChat({ inputRef: externalInputRef }) {
   };
 
   const startListening = () => {
-    const SR = window.webkitSpeechRecognition || window.SpeechRecognition;
-    if (!SR) { alert("Speech recognition isn't supported in this browser."); return; }
-    const r    = new SR();
-    r.lang     = "en-US";
-    r.onstart  = () => setListening(true);
-    r.onend    = () => setListening(false);
-    r.onerror  = () => setListening(false);
-    r.onresult = (e) => send(e.results[0][0].transcript);
-    r.start();
+    const started = startJonaListening({
+      lang,
+      onStart:  () => setListening(true),
+      onEnd:    () => setListening(false),
+      onError:  () => setListening(false),
+      onResult: (transcript) => send(transcript),
+    });
+    if (!started) alert("Speech recognition isn't supported in this browser.");
   };
 
   const toggleVoice = () => {

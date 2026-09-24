@@ -164,6 +164,18 @@ service cloud.firestore {
         }
       }
 
+      // Safety-before-quota event log (P0-B, 2026-09-24) — metadata only
+      // (tier + timestamp + profileId, never message content), written
+      // exclusively server-side via chat.js's service-account firestoreFetch
+      // call, which bypasses these rules entirely. No client path — owner or
+      // otherwise — may create/update/delete; only admin can read, for
+      // incident review. Same "server-only write" shape as curriculumProgress
+      // above.
+      match /safetyEvents/{eventId} {
+        allow read: if request.auth != null && isAdminEmail();
+        allow write: if false;
+      }
+
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
 

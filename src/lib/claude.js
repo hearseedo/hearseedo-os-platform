@@ -73,12 +73,20 @@ Last Active: ${user.lastLoginAt ? new Date(user.lastLoginAt?.seconds * 1000).toL
 // learner is currently inside, passing it here grounds Jona's answer in
 // that specific screen instead of a generic reply. Existing callers
 // (AIChat.jsx) that don't pass it are unaffected — same prompt as before.
+// P0-E (2026-09-24, docs/JONA_ARCHITECTURE_AUDIT_2026-09-24.md) — `level`
+// and `progress` are read-only educational context, sourced from data that
+// already exists (e.g. EIKEN's selected grade, a pathway's current
+// lesson/progress state). Deliberately NOT a memory system: nothing here is
+// stored anywhere new: the caller reads its own existing state and passes
+// it through on every call, same as pathway/appName/lesson already did.
 function buildContextLine(context) {
   if (!context) return "";
   const parts = [];
   if (context.pathway)  parts.push(`pathway: ${context.pathway}`);
   if (context.appName)  parts.push(`currently inside: ${context.appName}`);
   if (context.lesson)   parts.push(`current lesson/activity: ${context.lesson}`);
+  if (context.level)    parts.push(`learner's current level: ${context.level}`);
+  if (context.progress) parts.push(`progress so far: ${context.progress}`);
   if (!parts.length) return "";
   return `\n\nThe learner is asking from inside the app right now — ${parts.join(", ")}. Answer with that specific context in mind, not a generic platform overview.`;
 }
