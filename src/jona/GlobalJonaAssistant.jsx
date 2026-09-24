@@ -64,7 +64,15 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef(null);
-  const voice = useJonaVoice({ uid: user?.uid, lang: effectiveLang, mode: voiceMode });
+  // Voice in demo mode (2026-09-24 fix): demoScript replies are a small,
+  // fixed set of pre-written lines, not open-ended AI text — synthesizing
+  // them is bounded, predictable cost (unlike a live AI call), so an
+  // anonymous demo visitor gets a stable placeholder identifier instead of
+  // being silently denied voice just for not being signed in. This still
+  // goes through the same server-side per-account abuse cap
+  // (netlify/functions/tts.js) as every other caller.
+  const voiceUid = user?.uid || (demoScript ? "eco-demo-guest" : undefined);
+  const voice = useJonaVoice({ uid: voiceUid, lang: effectiveLang, mode: voiceMode });
   // Voice is on by default whenever voiceMode allows it — this is meant to
   // be a core interaction, not an opt-in buried behind a toggle — but a
   // mute control still needs to exist for a shared/public device or a
@@ -98,11 +106,10 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       const reply = demoScript[trimmed] ?? demoScript._default ?? "Good question — in the real app I'd help you with exactly that, right here.";
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setSending(false);
-      // /api/tts requires a signed-in uid — demoScript mode is used by the
-      // public, no-auth ecosystem demo, so only attempt playback when a
-      // real user is actually signed in (never a live-service dependency
-      // for an anonymous demo visitor).
-      if (voiceOn && user) voice.speak(reply);
+      // voiceUid gives an anonymous demo visitor a stable placeholder
+      // identifier (see its own comment above) so this actually plays —
+      // still bounded/rate-capped server-side either way.
+      if (voiceOn) voice.speak(reply);
       return;
     }
 

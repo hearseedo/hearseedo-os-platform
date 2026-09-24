@@ -7,6 +7,19 @@
 // instead of any one pathway's accent.
 import { createContext, useContext, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useMobile } from "../hooks/useMobile";
+
+// Background fix (2026-09-24) — this shell previously had no imagery at
+// all, just a flat ECO.bg fill, which looked unfinished next to
+// StudentHome/AdultHome/FamilyHome's hero photos and /choose-path's
+// painted-street background. Reuses the SAME approved choose-path artwork
+// (not a new asset) — thematically it's the right fit, since this demo is
+// effectively a guided tour of that exact "one platform, many pathways"
+// concept.
+const DEMO_BG = {
+  desktop: "/assets/choose-path/choose-your-path-bg.webp",
+  mobile:  "/assets/choose-path/choose-your-path-bg-mobile.webp",
+};
 
 export const ECO = {
   bg: "#0a0a0a",
@@ -35,6 +48,7 @@ export default function EcosystemDemoShell() {
   const [pathwayId, setPathwayId] = useState("family");
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useMobile();
   const currentIndex = Math.max(0, STEPS.findIndex((s) => s.path === location.pathname));
 
   const goTo = (i) => navigate(STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)].path);
@@ -42,8 +56,16 @@ export default function EcosystemDemoShell() {
   return (
     <JourneyContext.Provider value={{ pathwayId, setPathwayId }}>
       <style>{".eco-step-nav::-webkit-scrollbar { display: none; }"}</style>
-      <div style={{ minHeight: "100vh", background: ECO.bg, color: ECO.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-        <header style={{ position: "sticky", top: 0, zIndex: 10, minHeight: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: `2px solid ${ECO.border}`, background: "#0d0d0d", flexWrap: "wrap", gap: 10 }}>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed", inset: 0, zIndex: 0,
+          backgroundImage: `linear-gradient(180deg, rgba(10,10,10,0.62), rgba(10,10,10,0.90) 65%), url('${isMobile ? DEMO_BG.mobile : DEMO_BG.desktop}')`,
+          backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
+        }}
+      />
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", color: ECO.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        <header style={{ position: "sticky", top: 0, zIndex: 10, minHeight: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.85)", backdropFilter: "blur(6px)", flexWrap: "wrap", gap: 10 }}>
           <span style={{ fontWeight: 900, letterSpacing: 0.5, color: ECO.gold, fontSize: 16 }}>HSD OS AI</span>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button onClick={() => navigate("/eco-demo")} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
@@ -51,7 +73,7 @@ export default function EcosystemDemoShell() {
           </div>
         </header>
 
-        <nav className="eco-step-nav" style={{ display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${ECO.border}`, background: ECO.bg, scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        <nav className="eco-step-nav" style={{ display: "flex", overflowX: "auto", gap: 6, padding: "12px 20px", borderBottom: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.85)", backdropFilter: "blur(6px)", scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {STEPS.map((step, i) => {
             const active = i === currentIndex;
             const complete = i < currentIndex;
@@ -74,7 +96,7 @@ export default function EcosystemDemoShell() {
           <Outlet />
         </main>
 
-        <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 68, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderTop: `2px solid ${ECO.border}`, background: "#0d0d0d", zIndex: 2 }}>
+        <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 68, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderTop: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.9)", backdropFilter: "blur(6px)", zIndex: 2 }}>
           <button onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0} style={{ padding: "10px 18px", borderRadius: 12, border: `2px solid ${ECO.border}`, background: "transparent", color: currentIndex === 0 ? ECO.border : ECO.text, fontSize: 13, fontWeight: 700, cursor: currentIndex === 0 ? "default" : "pointer" }}>
             ← Back
           </button>
