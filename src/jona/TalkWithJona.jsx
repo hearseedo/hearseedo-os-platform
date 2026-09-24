@@ -248,7 +248,15 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         if (cancelled) { stream.getTracks().forEach((tr) => tr.stop()); return; }
         micStreamRef.current = stream;
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Explicit sampleRate is required here (2026-09-24 production fix)
+        // — without it, AudioContext runs at the hardware default (usually
+        // 44100/48000Hz), not 16000. getUserMedia's own sampleRate
+        // constraint above is only a hint and browsers routinely ignore it
+        // for the actual captured track. Gemini Live requires exactly
+        // 16kHz PCM input; sending anything else (even correctly labeled
+        // in mimeType) got the session closed by the server within about a
+        // second of the mic starting — this is what fixes that.
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: INPUT_SAMPLE_RATE });
         audioCtxRef.current = audioCtx;
         const source = audioCtx.createMediaStreamSource(stream);
         micSourceRef.current = source;
