@@ -186,6 +186,20 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Safety TTS bypass grants (2026-09-24) — single-use tokens minted
+      // ONLY by chat.js, ONLY after its own server-side risk classification
+      // actually fired, letting that one safety reply's audio play even if
+      // the account is over its normal TTS rate cap. No client path may
+      // read, create, or update this — a client that could read/rewrite
+      // its own `used` field could forge or replay a bypass indefinitely,
+      // defeating the entire point of the exemption being narrow. Both the
+      // mint (chat.js) and the consume-and-mark-used (tts.js) go through
+      // the service-account firestoreFetch, which bypasses these rules
+      // entirely — this match block exists only to deny every other path.
+      match /safetyTtsGrants/{token} {
+        allow read, write: if false;
+      }
+
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
 

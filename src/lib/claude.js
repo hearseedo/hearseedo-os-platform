@@ -94,7 +94,14 @@ function buildContextLine(context) {
   return `\n\nThe learner is asking from inside the app right now — ${parts.join(", ")}. Answer with that specific context in mind, not a generic platform overview.`;
 }
 
-export async function sendMessage(messages, user, lang, context) {
+// onMeta (2026-09-24, safety TTS exemption) — optional, additive. Every
+// existing caller that doesn't pass it is completely unaffected (still
+// gets back the same plain reply string as always). Only GlobalJonaAssistant
+// needs this: chat.js hands back a one-time safetyToken exclusively when
+// ITS OWN server-side risk classification actually fired on this message —
+// never a client-assertable flag — so voice playback can bypass the normal
+// TTS rate cap for that one verified-safety reply only. See tts.js.
+export async function sendMessage(messages, user, lang, context, onMeta) {
   // Get Firebase ID token to verify identity server-side for rate limiting
   let idToken = null;
   try {
@@ -130,5 +137,6 @@ export async function sendMessage(messages, user, lang, context) {
   }
 
   const data = await res.json();
+  onMeta?.({ safetyToken: data.safetyToken ?? null });
   return data.content;
 }

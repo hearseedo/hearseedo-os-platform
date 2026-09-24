@@ -35,7 +35,12 @@ export function isSpeechRecognitionSupported() {
 // Plays a Jona reply through the existing /api/tts (ElevenLabs) proxy.
 // Returns the playing Audio instance so the caller can manage its own
 // speaking/stop state — same contract AIChat.jsx's original speakText() had.
-export async function speakWithJona(text, uid, lang) {
+// safetyToken (2026-09-24, safety TTS exemption) — optional, only ever
+// non-null when chat.js's OWN server-side risk classification fired on
+// this exact reply (see src/lib/claude.js's sendMessage onMeta). Lets
+// tts.js bypass the normal per-account rate cap for this one verified
+// safety reply, single-use — never a general voice-limit bypass.
+export async function speakWithJona(text, uid, lang, safetyToken) {
   const clean = (text || "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
@@ -46,7 +51,7 @@ export async function speakWithJona(text, uid, lang) {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: clean, uid, lang }),
+    body: JSON.stringify({ text: clean, uid, lang, ...(safetyToken ? { safetyToken } : {}) }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob  = await res.blob();
@@ -129,12 +134,12 @@ export function useJonaVoice({ uid, lang, mode = "full" } = {}) {
     });
   }, [sttEnabled, lang]);
 
-  const speak = useCallback(async (text) => {
+  const speak = useCallback(async (text, safetyToken) => {
     if (!ttsEnabled || !text) return;
     stopSpeaking();
     setSpeaking(true);
     try {
-      const audio = await speakWithJona(text, uid, lang);
+      const audio = await speakWithJona(text, uid, lang, safetyToken);
       audioRef.current = audio;
       audio.onended = () => { setSpeaking(false); audioRef.current = null; };
     } catch (err) {

@@ -119,9 +119,13 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     }
     setSending(true);
     try {
-      const reply = await sendMessage(next, user, effectiveLang, context);
+      // safetyToken (2026-09-24): non-null only when chat.js's own
+      // server-side risk classification fired on this exact message —
+      // lets the reply's audio bypass the normal TTS rate cap, single-use.
+      let safetyToken = null;
+      const reply = await sendMessage(next, user, effectiveLang, context, (meta) => { safetyToken = meta.safetyToken; });
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
-      if (voiceOn) voice.speak(reply);
+      if (voiceOn) voice.speak(reply, safetyToken);
     } catch (e) {
       setError(e.message ?? t("jona_error_fallback"));
     } finally {

@@ -405,10 +405,39 @@ exports.handler = async (event) => {
     if (uid && !isSafetyPath) incrementCount(uid);
     if (cacheHash) setCachedResponse(cacheHash, text);
 
+    // Safety TTS exemption (2026-09-24 — see
+    // docs/JONA_ARCHITECTURE_AUDIT_2026-09-24.md and the safety-voice
+    // hardening that followed it). "Safety is never blocked by quota or
+    // normal usage limits" extends to voice: a safety-path reply must be
+    // speakable even if the account has hit its normal TTS rate cap.
+    // A CLIENT-ASSERTED "this is a safety message" flag would be trivially
+    // abusable (anyone could just always claim it), so instead: only when
+    // THIS server-verified safety classification actually fired, mint a
+    // random, single-use grant token and hand it to the client. tts.js
+    // will only honor it if it exists, server-side, unused, for this exact
+    // uid — and marks it used immediately, so it can never be replayed for
+    // ongoing unlimited voice. Ordinary replies never get a token at all.
+    let safetyToken = null;
+    if (isSafetyPath && uid) {
+      const candidateToken = crypto.randomBytes(16).toString("hex");
+      try {
+        const grantRes = await firestoreFetch(`/users/${uid}/safetyTtsGrants/${candidateToken}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fields: { used: { booleanValue: false }, createdAt: { timestampValue: new Date().toISOString() } } }),
+        });
+        // Only hand out a token whose grant doc is confirmed written —
+        // tts.js fails closed on a missing/unwritten token anyway, but
+        // awaiting here means we never claim a grant exists when it
+        // doesn't, rather than relying on that fail-closed check alone.
+        if (grantRes.ok) safetyToken = candidateToken;
+      } catch { /* safetyToken stays null — voice just won't bypass the cap this one time */ }
+    }
+
     return {
       statusCode: 200,
       headers: { ...CORS, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify({ content: text, ...(safetyToken ? { safetyToken } : {}) }),
     };
   } catch (err) {
     console.error("Gemini chat error:", err.message);

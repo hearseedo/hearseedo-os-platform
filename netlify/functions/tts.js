@@ -1,4 +1,7 @@
 // Netlify Function — ElevenLabs TTS proxy
+const { firestoreFetch } = require("./_firebaseAdmin");
+const { consumeSafetyGrant: consumeSafetyGrantWith } = require("./_safetyTtsGrant");
+const consumeSafetyGrant = (uid, token) => consumeSafetyGrantWith(firestoreFetch, uid, token);
 const VOICE_ID_EN  = "nzFihrBIvB34imQBuxub"; // Jona's voice (English)
 const VOICE_ID_JP  = "5FNeYl6NmyAXYQWW7CEV"; // Jona's voice (Japanese only)
 const MODEL_ID     = "eleven_turbo_v2";        // faster + cheaper than monolingual_v1
@@ -67,14 +70,19 @@ exports.handler = async (event) => {
   const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
 
-  // Abuse/rate protection (2026-09-24) — generous, per-account, never
-  // applied to the safety-response path (chat.js's RESTRICTED_SAFETY_SYSTEM
-  // flow never calls this endpoint's audio-request path from a place that
-  // would be blocked here — this cap exists only to stop a runaway/abusive
-  // caller, not to gate normal use).
+  // Abuse/rate protection (2026-09-24) — generous, per-account. A verified
+  // safety reply (safetyToken, see consumeSafetyGrant above) bypasses this
+  // specific cap check ONLY — everything else (ElevenLabs call, per-account
+  // logging below) is unchanged, and normal Jona text/voice usage for this
+  // account remains exactly as limited as before. Ordinary requests never
+  // carry a valid token, so this can't become a general bypass.
+  let safetyBypass = false;
   const usage = await getTtsUsage(uid);
   if (usage.calls >= DAILY_CALL_CAP) {
-    return { statusCode: 429, body: JSON.stringify({ error: "Jona's voice is taking a short break — try again in a moment, or keep typing." }) };
+    safetyBypass = await consumeSafetyGrant(uid, body.safetyToken);
+    if (!safetyBypass) {
+      return { statusCode: 429, body: JSON.stringify({ error: "Jona's voice is taking a short break — try again in a moment, or keep typing." }) };
+    }
   }
 
   const VOICE_ID = body.lang === "jp" ? VOICE_ID_JP : VOICE_ID_EN;
@@ -104,37 +112,39 @@ exports.handler = async (event) => {
 
   const buf = await res.arrayBuffer();
 
-  // Fire-and-forget: log TTS usage to Firestore for cost tracking — both
-  // the existing platform-wide aggregate AND, per-account (2026-09-24,
-  // see docs/JONA_VOICE_COST_PROPOSAL_2026-09-24.md item 1: "measure/log
-  // TTS usage per authenticated account"), so a future per-account cost
-  // rollup and the abuse cap above both have real data to read.
+  // Fire-and-forget: log TTS usage to Firestore for cost tracking — the
+  // platform-wide aggregate always (cost visibility matters regardless of
+  // path); the per-account cap counter only for NON-safety-bypass calls,
+  // symmetric with chat.js never incrementing the text quota for a safety
+  // reply — a safety-triggered call must not push this account any closer
+  // to its normal voice cap.
   const today = todayJST();
+  const costWrites = [
+    {
+      transform: {
+        document: `projects/${PROJECT_ID}/databases/(default)/documents/apiCosts/${today}`,
+        fieldTransforms: [
+          { fieldPath: "ttsCalls", increment: { integerValue: "1" } },
+          { fieldPath: "ttsChars", increment: { integerValue: String(text.length) } },
+        ],
+      },
+    },
+  ];
+  if (!safetyBypass) {
+    costWrites.push({
+      transform: {
+        document: `projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/ttsUsage/${today}`,
+        fieldTransforms: [
+          { fieldPath: "calls", increment: { integerValue: "1" } },
+          { fieldPath: "chars", increment: { integerValue: String(text.length) } },
+        ],
+      },
+    });
+  }
   fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit?key=${FIREBASE_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      writes: [
-        {
-          transform: {
-            document: `projects/${PROJECT_ID}/databases/(default)/documents/apiCosts/${today}`,
-            fieldTransforms: [
-              { fieldPath: "ttsCalls", increment: { integerValue: "1" } },
-              { fieldPath: "ttsChars", increment: { integerValue: String(text.length) } },
-            ],
-          },
-        },
-        {
-          transform: {
-            document: `projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/ttsUsage/${today}`,
-            fieldTransforms: [
-              { fieldPath: "calls", increment: { integerValue: "1" } },
-              { fieldPath: "chars", increment: { integerValue: String(text.length) } },
-            ],
-          },
-        },
-      ],
-    }),
+    body: JSON.stringify({ writes: costWrites }),
   }).catch(() => {});
 
   return {
