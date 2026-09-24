@@ -206,18 +206,6 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
               <div style={{ fontWeight: 800, fontSize: 14 }}>Jona</div>
               <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? t("jona_helping_with").replace("{appName}", context.appName) : t("jona_guide_generic")}</div>
             </div>
-            {/* Talk with Jona (Gemini Live beta, requirement #13) — admin-only
-                for now, same allowlist live-token.js enforces server-side. */}
-            {isAdmin && voiceMode !== "off" && !demoScript && (
-              <button
-                onClick={() => { setOpen(false); setTalkOpen(true); }}
-                aria-label={t("talk_jona_title")}
-                title={t("talk_jona_title")}
-                style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 8, padding: "0 8px", height: 28, fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}
-              >
-                🎙
-              </button>
-            )}
             {voiceMode !== "off" && (
               <button
                 onClick={() => { if (voiceOn) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
@@ -237,6 +225,23 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
                   ? t("jona_greeting_lesson").replace("{lesson}", context.lesson)
                   : t("jona_greeting_generic")}
               </div>
+            )}
+            {/* Talk with Jona (Gemini Live beta, requirement #13) — admin-only
+                for now, same allowlist live-token.js enforces server-side.
+                Large, clearly-labeled button (not a small header icon) so a
+                child can actually find and understand it — 2026-09-24 fix,
+                the original tiny 🎙 header icon was reported too small. */}
+            {isAdmin && messages.length === 0 && voiceMode !== "off" && !demoScript && (
+              <button
+                onClick={() => { setOpen(false); setTalkOpen(true); }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px 16px", borderRadius: 14, border: `2px solid ${accent}`,
+                  background: `${accent}14`, color: accent, fontWeight: 800, fontSize: 14, cursor: "pointer",
+                }}
+              >
+                🎙 {t("talk_jona_title")}
+              </button>
             )}
             {messages.map((m, i) => (
               <div

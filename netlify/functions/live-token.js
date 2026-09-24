@@ -197,7 +197,14 @@ exports.handler = async (event) => {
             systemInstruction: { parts: [{ text: systemInstruction }] },
           },
         },
-        lockAdditionalFields: ["model", "config.responseModalities", "config.systemInstruction"],
+        // Empty array (not field-path strings — Google's API rejected
+        // dotted paths like "config.systemInstruction" with "field_mask is
+        // invalid for BidiGenerateContentSetup", confirmed in production
+        // logs 2026-09-24) already locks every field explicitly set above
+        // in liveConnectConstraints.config (responseModalities,
+        // systemInstruction) plus model — this array is only for
+        // additionally locking fields NOT set here (e.g. "temperature").
+        lockAdditionalFields: [],
       },
     });
 
