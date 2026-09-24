@@ -92,7 +92,12 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
       speak(parsed.reply_en);
       saveMemoryNote(parsed.memory_note);
     } catch (e) {
-      setError(jp ? tr("coach_unavailable") : (e.message || tr("coach_unavailable")));
+      // Always the friendly message, never the raw error — a fetch-level
+      // network failure surfaces as the literal browser string "Failed to
+      // fetch", which was showing directly to English-language users here
+      // (2026-09-24 fix; jp branch already used the friendly copy).
+      console.error("Global Ready coach error:", e.message);
+      setError(tr("coach_unavailable"));
     }
     setLoading(false);
   }
@@ -123,7 +128,8 @@ export default function PracticeSession({ categoryId, user, onExit, onBadgesEarn
       });
       if (newBadges.length) onBadgesEarned?.(newBadges);
     } catch (e) {
-      setError(jp ? tr("coach_unavailable") : (e.message || tr("coach_unavailable")));
+      console.error("Global Ready coach error:", e.message);
+      setError(tr("coach_unavailable"));
     }
     setLoading(false);
   }
