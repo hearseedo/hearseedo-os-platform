@@ -1,6 +1,6 @@
 import { EDU_COLORS } from "./theme";
 import { Card, SectionTitle } from "./components";
-import { SEASONAL_LESSONS, CONFIDENCE_FIRST_LESSONS, BRAVE_BEGINNINGS, BOOKS } from "./educatorData";
+import { SEASONAL_LESSONS, WONDER_WORKS, BRAVE_BEGINNINGS, BOOKS } from "./educatorData";
 
 export default function EducatorResources() {
   return (
@@ -39,9 +39,9 @@ export default function EducatorResources() {
             </div>
           </Card>
           <Card>
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{CONFIDENCE_FIRST_LESSONS.title}</h3>
-            <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{CONFIDENCE_FIRST_LESSONS.description}</p>
-            <a href={CONFIDENCE_FIRST_LESSONS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open Lesson Plans →</a>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{WONDER_WORKS.title}</h3>
+            <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{WONDER_WORKS.description}</p>
+            <a href={WONDER_WORKS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open Lesson Plans →</a>
           </Card>
           <Card>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{BRAVE_BEGINNINGS.title}</h3>
