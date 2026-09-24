@@ -24,6 +24,14 @@ import { useAuth } from "../hooks/useAuth";
 import { useLang } from "../hooks/useLang";
 import { sendMessage } from "../lib/claude";
 import { useJonaVoice } from "../hooks/useJonaVoice";
+import TalkWithJona from "./TalkWithJona";
+
+// Talk with Jona (Gemini Live beta, 2026-09-24) — feature-flagged, visible
+// only when useAuth()'s isAdmin is true (same OWNER_EMAILS allowlist
+// live-token.js independently re-checks server-side). This client-side
+// check only controls whether the button is SHOWN; the real, unbypassable
+// gate is server-side — a non-admin account is rejected there even if this
+// check were somehow circumvented.
 
 // Lets any button anywhere in the app open the assistant without prop-
 // drilling — e.g. EikenApp's dashboard "Chat with Jona" CTA lives several
@@ -49,7 +57,11 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // young children keep tapping prompts rather than free-talking to an AI),
   // "off" (no voice at all). Configurable per call site so this one
   // component can serve every pathway/age without another rewrite.
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  // Talk with Jona (Gemini Live beta) is its own overlay, separate from the
+  // chat panel below — opening it does not close/replace "Ask Jona"; they
+  // are two independent entry points per requirement #4's ⌨️/🎙 framing.
+  const [talkOpen, setTalkOpen] = useState(false);
   const { t, lang: uiLang } = useLang();
   // I18n fix (2026-09-24): this component's own chrome (buttons, labels,
   // placeholders) was entirely hardcoded English regardless of the app's
@@ -84,6 +96,14 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
   }, []);
+
+  // Logout while Talk with Jona is open must end that session, not leave it
+  // silently connected (requirement #8) — TalkWithJona's own closeSignal
+  // only fires on a UID/profile CHANGE, which a sign-out to `user === null`
+  // wouldn't otherwise produce, so unmounting it here is the actual close.
+  useEffect(() => {
+    if (!user && talkOpen) setTalkOpen(false);
+  }, [user, talkOpen]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -135,6 +155,20 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
 
   return (
     <>
+      {/* Talk with Jona (Gemini Live beta) — a separate full-screen overlay,
+          entirely independent of the chat panel below. If it's open, it
+          owns the screen; closing it (its own End conversation button)
+          returns here with nothing else disturbed. */}
+      {talkOpen && (
+        <TalkWithJona
+          context={context}
+          profileId={user?.activeProfileId}
+          lang={effectiveLang}
+          onClose={() => setTalkOpen(false)}
+          closeSignal={user ? `${user.uid}:${user.activeProfileId}` : null}
+        />
+      )}
+
       {/* Floating launcher — never covers content, stays bottom-right */}
       <button
         onClick={() => setOpen((o) => !o)}
@@ -172,6 +206,18 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
               <div style={{ fontWeight: 800, fontSize: 14 }}>Jona</div>
               <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? t("jona_helping_with").replace("{appName}", context.appName) : t("jona_guide_generic")}</div>
             </div>
+            {/* Talk with Jona (Gemini Live beta, requirement #13) — admin-only
+                for now, same allowlist live-token.js enforces server-side. */}
+            {isAdmin && voiceMode !== "off" && !demoScript && (
+              <button
+                onClick={() => { setOpen(false); setTalkOpen(true); }}
+                aria-label={t("talk_jona_title")}
+                title={t("talk_jona_title")}
+                style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 8, padding: "0 8px", height: 28, fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}
+              >
+                🎙
+              </button>
+            )}
             {voiceMode !== "off" && (
               <button
                 onClick={() => { if (voiceOn) voice.stopSpeaking(); setVoiceOn((v) => !v); }}

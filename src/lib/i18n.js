@@ -537,6 +537,18 @@ export const STRINGS = {
     jona_mute_off:       "Voice muted — tap to unmute",
     jona_tap_to_hear:    "Tap to hear Jona",
 
+    // ── Talk with Jona (Gemini Live beta, 2026-09-24) ──────────────────────
+    talk_jona_title:      "Talk with Jona",
+    talk_jona_connecting: "Connecting…",
+    talk_jona_listening:  "Listening…",
+    talk_jona_thinking:   "Thinking…",
+    talk_jona_speaking:   "Speaking…",
+    talk_jona_ended:      "Conversation ended",
+    talk_jona_mic_active: "Microphone is on",
+    talk_jona_end:        "End conversation",
+    talk_jona_error:      "Talk with Jona isn't available right now — try Ask Jona instead.",
+    talk_jona_mic_error:  "Couldn't access your microphone. Check your browser's microphone permission and try again.",
+
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "Who's learning today?",
     fam_add_child:         "Add a child",
@@ -1118,6 +1130,18 @@ export const STRINGS = {
     jona_mute_on:        "音声オン — タップでミュート",
     jona_mute_off:       "音声ミュート中 — タップで解除",
     jona_tap_to_hear:    "タップしてJonaの声を聞く",
+
+    // ── Talk with Jona (Gemini Live beta, 2026-09-24) ──────────────────────
+    talk_jona_title:      "Jonaと話す",
+    talk_jona_connecting: "接続中…",
+    talk_jona_listening:  "聞き取り中…",
+    talk_jona_thinking:   "考え中…",
+    talk_jona_speaking:   "話しています…",
+    talk_jona_ended:      "会話が終了しました",
+    talk_jona_mic_active: "マイクがオンです",
+    talk_jona_end:        "会話を終了",
+    talk_jona_error:      "現在Jonaと話すことができません — 「Jonaに聞く」をお試しください。",
+    talk_jona_mic_error:  "マイクにアクセスできませんでした。ブラウザのマイク権限を確認してもう一度お試しください。",
 
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "今日は誰が学習しますか？",

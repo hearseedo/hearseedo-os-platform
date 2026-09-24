@@ -200,6 +200,19 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Talk with Jona (Gemini Live) session usage log (2026-09-24) —
+      // metadata only: profileId, pathway/app context, start/end
+      // timestamps, duration, end reason. Never audio, never a transcript.
+      // Written server-side only (live-token.js mints the start entry,
+      // live-session-end.js records the end) via the service-account
+      // firestoreFetch — same "no client path" shape as safetyEvents
+      // above. Owner may read their own session history (duration/usage
+      // visibility); admin can read any, for cost/incident review.
+      match /liveSessions/{sessionId} {
+        allow read: if request.auth != null && (request.auth.uid == uid || isAdminEmail());
+        allow write: if false;
+      }
+
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
 

@@ -77,6 +77,33 @@ test("create-checkout: rejects an unrecognized priceId even with other fields pr
   assert.ok(!body.url, "must never return a checkout URL for an unverified/unrecognized request");
 });
 
+// Talk with Jona (Gemini Live beta, 2026-09-24) — live-token.js and
+// live-session-end.js must reject a missing idToken with 401 before ever
+// reaching Firestore/Gemini, same shape as the endpoints above.
+test("live-token: rejects a request with no idToken (401)", async () => {
+  const { handler } = require("../live-token.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ profileId: "self" }) });
+  assert.equal(res.statusCode, 401);
+});
+
+test("live-token: an invalid/unverifiable idToken is rejected, never treated as authenticated", async () => {
+  const { handler } = require("../live-token.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "not-a-real-token" }) });
+  assert.equal(res.statusCode, 401);
+});
+
+test("live-session-end: rejects a request with no idToken (400 or 401, never 200)", async () => {
+  const { handler } = require("../live-session-end.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ sessionId: "attacker-guessed-id" }) });
+  assert.ok(res.statusCode === 400 || res.statusCode === 401, `expected 400/401, got ${res.statusCode}`);
+});
+
+test("live-session-end: rejects a request with no sessionId (400)", async () => {
+  const { handler } = require("../live-session-end.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "irrelevant-invalid-token" }) });
+  assert.equal(res.statusCode, 400);
+});
+
 test("customer-portal: rejects a request with no idToken (400)", async () => {
   const { handler } = require("../customer-portal.js");
   const res = await handler({
