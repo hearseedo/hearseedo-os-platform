@@ -1,6 +1,6 @@
 import { EDU_COLORS } from "./theme";
 import { Card, SectionTitle } from "./components";
-import { SEASONAL_LESSONS, BOOKS } from "./educatorData";
+import { SEASONAL_LESSONS, CONFIDENCE_FIRST_LESSONS, BRAVE_BEGINNINGS, BOOKS } from "./educatorData";
 
 export default function EducatorResources() {
   return (
@@ -29,14 +29,26 @@ export default function EducatorResources() {
 
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: EDU_COLORS.textMuted, textTransform: "uppercase", marginBottom: 12 }}>Curriculum</div>
-        <Card>
-          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{SEASONAL_LESSONS.title}</h3>
-          <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{SEASONAL_LESSONS.description}</p>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <a href={SEASONAL_LESSONS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open WonderCamp →</a>
-            <a href={SEASONAL_LESSONS.worksheetsUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Printable Worksheets →</a>
-          </div>
-        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          <Card>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{SEASONAL_LESSONS.title}</h3>
+            <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{SEASONAL_LESSONS.description}</p>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <a href={SEASONAL_LESSONS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open WonderCamp →</a>
+              <a href={SEASONAL_LESSONS.worksheetsUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Printable Worksheets →</a>
+            </div>
+          </Card>
+          <Card>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{CONFIDENCE_FIRST_LESSONS.title}</h3>
+            <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{CONFIDENCE_FIRST_LESSONS.description}</p>
+            <a href={CONFIDENCE_FIRST_LESSONS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open Lesson Plans →</a>
+          </Card>
+          <Card>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{BRAVE_BEGINNINGS.title}</h3>
+            <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.6, marginBottom: 14 }}>{BRAVE_BEGINNINGS.description}</p>
+            <a href={BRAVE_BEGINNINGS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>Open Lesson Studio →</a>
+          </Card>
+        </div>
       </div>
 
       <div>

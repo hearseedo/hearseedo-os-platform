@@ -20,17 +20,37 @@ export const SEASONAL_LESSONS = {
   worksheetsUrl: "https://wondercamp-worksheets.netlify.app/",
 };
 
-// 2 & 3. Confidence First Lessons and the 10 yearly themes — per
-// 2026-09-23 decision: no real lesson/theme content or names were found
-// anywhere in the project, so these are placeholder roadmap cards only.
-// Do not add lesson content or theme names here without confirming them
-// first — see the audit this file was created alongside.
+// 2. Confidence First Lessons — real, live, external (2026-09-24). A
+// 36-lesson, music-led kindergarten (Nensho-Nencho) English curriculum,
+// organized by season, built on the exact "Confidence Before Correctness"
+// philosophy this pathway is named after — a genuine match for what this
+// card always described, not a placeholder anymore.
 export const CONFIDENCE_FIRST_LESSONS = {
   title: "Confidence First Lessons",
-  subtitle: "36 confidence-building lessons",
-  status: "coming_soon",
+  subtitle: "36 music-led confidence-building lessons",
+  description: "A full-year, 36-lesson kindergarten curriculum — music and movement first, organized by season, progressing from Hear/Move/Copy/Word to Hear/Think/Choose/Speak/Lead.",
+  status: "available",
+  appUrl: "https://hsd-lesson-plans.waltho79.chatgpt.site",
 };
 
+// 3. Brave Beginnings — real, live, external (2026-09-24). A separate
+// 36-lesson kindergarten curriculum focused specifically on social-
+// emotional/confidence development ("Hear It, See It, Do It"), with its
+// own named characters (Milo, Lola, Kiko, Momo). Distinct from Confidence
+// First Lessons above — not the same content re-labeled — so it gets its
+// own card rather than being folded in.
+export const BRAVE_BEGINNINGS = {
+  title: "Brave Beginnings: Lesson Studio",
+  subtitle: "36 social-emotional confidence lessons",
+  description: "A kindergarten social-emotional curriculum — Start / Keep Going / Shine — teaching kids to try, with characters Milo, Lola, Kiko, and Momo modelling each stage of confidence.",
+  status: "available",
+  appUrl: "https://brave-beginnings-hsd.waltho79.chatgpt.site",
+};
+
+// The 10 yearly themed journeys — per 2026-09-23 decision: no real
+// content/theme names were found anywhere in the project for this
+// specific concept, so it stays a placeholder roadmap card. Do not add
+// content here without confirming it first.
 export const YEARLY_THEME_COLLECTION = {
   title: "HSD Yearly Theme Collection",
   subtitle: "10 themed curriculum journeys",

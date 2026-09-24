@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { EDU_COLORS } from "./theme";
 import { Card, StatusBadge } from "./components";
-import { SEASONAL_LESSONS, CONFIDENCE_FIRST_LESSONS, YEARLY_THEME_COLLECTION } from "./educatorData";
+import { SEASONAL_LESSONS, CONFIDENCE_FIRST_LESSONS, BRAVE_BEGINNINGS, YEARLY_THEME_COLLECTION } from "./educatorData";
 
 export default function EducatorHome() {
   const navigate = useNavigate();
@@ -32,9 +32,21 @@ export default function EducatorHome() {
         </Card>
 
         <Card>
-          <StatusBadge status="coming_soon" />
+          <StatusBadge status="available" />
           <h3 style={{ fontSize: 18, fontWeight: 800, margin: "12px 0 4px" }}>{CONFIDENCE_FIRST_LESSONS.title}</h3>
-          <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.5 }}>{CONFIDENCE_FIRST_LESSONS.subtitle}</p>
+          <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.5, marginBottom: 16 }}>{CONFIDENCE_FIRST_LESSONS.subtitle}</p>
+          <a href={CONFIDENCE_FIRST_LESSONS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>
+            Explore Lessons →
+          </a>
+        </Card>
+
+        <Card>
+          <StatusBadge status="available" />
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: "12px 0 4px" }}>{BRAVE_BEGINNINGS.title}</h3>
+          <p style={{ fontSize: 13, color: EDU_COLORS.textMuted, lineHeight: 1.5, marginBottom: 16 }}>{BRAVE_BEGINNINGS.subtitle}</p>
+          <a href={BRAVE_BEGINNINGS.appUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: EDU_COLORS.primary, textDecoration: "none" }}>
+            Explore Lessons →
+          </a>
         </Card>
 
         <Card>
