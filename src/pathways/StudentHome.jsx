@@ -24,9 +24,10 @@ const APPS = [
 const pathway = PATHWAYS.student;
 
 export default function StudentHome() {
-  const { user } = useAuth();
+  const { user, currentProfile } = useAuth();
   const navigate = useNavigate();
   const [selectedApp, setSelectedApp] = useState(null);
+  const displayName = currentProfile?.name || user?.name;
 
   function open(app) {
     if (app.route) { navigate(app.route); return; }
@@ -54,6 +55,15 @@ export default function StudentHome() {
       </header>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px 60px" }}>
+        {/* Identity display (2026-09-24) — "who is currently using HSD"
+            should always be obvious, not just which pathway. Same data
+            useAuth() already computes for FamilyHome's "👋 {name}" header;
+            no new architecture, just surfacing it here too. */}
+        {displayName && (
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+            Hi, {displayName} 👋
+          </div>
+        )}
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: pathway.accent.primary, marginBottom: 8 }}>
           {pathway.displayName}
         </div>
@@ -81,7 +91,11 @@ export default function StudentHome() {
       </div>
       </div>
 
-      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={null} />
+      {/* activeMember (2026-09-24 fix) — was hardcoded null, silently
+          dropping whichever profile was actually active; same
+          isVirtual-check pattern ActivityPlayer.jsx already uses for the
+          "self" profile, which has no real familyMembers doc to pass. */}
+      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={currentProfile?.isVirtual ? null : currentProfile} />
     </div>
   );
 }

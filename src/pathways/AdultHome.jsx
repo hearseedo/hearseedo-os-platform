@@ -21,9 +21,10 @@ const APPS = [
 const pathway = PATHWAYS.adult;
 
 export default function AdultHome() {
-  const { user } = useAuth();
+  const { user, currentProfile } = useAuth();
   const navigate = useNavigate();
   const [selectedApp, setSelectedApp] = useState(null);
+  const displayName = currentProfile?.name || user?.name;
 
   function open(app) {
     if (app.route) { navigate(app.route); return; }
@@ -50,6 +51,13 @@ export default function AdultHome() {
       </header>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px 60px" }}>
+        {/* Identity display (2026-09-24) — same pattern as StudentHome/
+            FamilyHome; no new architecture, just surfacing existing data. */}
+        {displayName && (
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+            Hi, {displayName} 👋
+          </div>
+        )}
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: pathway.accent.primary, marginBottom: 8 }}>
           {pathway.displayName}
         </div>
@@ -82,7 +90,9 @@ export default function AdultHome() {
       </div>
       </div>
 
-      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={null} />
+      {/* activeMember (2026-09-24 fix) — was hardcoded null; see
+          StudentHome.jsx for the same fix and rationale. */}
+      <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={currentProfile?.isVirtual ? null : currentProfile} />
     </div>
   );
 }
