@@ -77,28 +77,36 @@ function todayUTC() {
 // Not race-proof under true concurrency, which is an accepted tradeoff for
 // a single-admin-account beta — revisit with a Firestore transaction before
 // this ever expands past that.
-async function getAndIncrementDailySessionCount(uid) {
+//
+// Read and increment are DELIBERATELY separate calls (2026-09-24 fix — a
+// bug found via the admin account's own testing): the increment only
+// happens after a token is actually successfully minted. The original
+// version incremented unconditionally before the mint attempt, so a
+// string of failed attempts (e.g. while a real bug was being fixed) burned
+// through the daily cap without ever producing one working session.
+async function getDailySessionCount(uid) {
   const day = todayUTC();
-  const path = `/users/${uid}/liveSessionUsage/${day}`;
-  let count = 0;
   try {
-    const res = await firestoreFetch(path);
-    if (res.ok) {
-      const doc = await res.json();
-      count = parseInt(doc.fields?.sessionCount?.integerValue ?? "0", 10);
-    }
-  } catch { /* treat as 0 and let the write attempt below fail soft */ }
+    const res = await firestoreFetch(`/users/${uid}/liveSessionUsage/${day}`);
+    if (!res.ok) return 0;
+    const doc = await res.json();
+    return parseInt(doc.fields?.sessionCount?.integerValue ?? "0", 10);
+  } catch {
+    return 0;
+  }
+}
 
+async function incrementDailySessionCount(uid, currentCount) {
+  const day = todayUTC();
   try {
-    await firestoreFetch(path, {
+    await firestoreFetch(`/users/${uid}/liveSessionUsage/${day}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields: { sessionCount: { integerValue: String(count + 1) }, day: { stringValue: day } } }),
+      body: JSON.stringify({ fields: { sessionCount: { integerValue: String(currentCount + 1) }, day: { stringValue: day } } }),
     });
   } catch (e) {
     console.error("live session usage counter write failed (non-blocking):", e.message);
   }
-  return count; // count BEFORE this session — used against the cap below
 }
 
 async function logSessionStart(uid, sessionId, profileId, context) {
@@ -164,7 +172,7 @@ exports.handler = async (event) => {
   }
 
   const config = await loadLiveVoiceConfig(firestoreFetch, fromFirestoreFields);
-  const priorCount = await getAndIncrementDailySessionCount(uid);
+  const priorCount = await getDailySessionCount(uid);
   if (priorCount >= config.dailySessionCap) {
     return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: "You've reached today's Talk with Jona limit. Try again tomorrow." }) };
   }
@@ -215,6 +223,7 @@ exports.handler = async (event) => {
     }
 
     await logSessionStart(uid, sessionId, profileId, { pathway, appName });
+    await incrementDailySessionCount(uid, priorCount);
 
     return {
       statusCode: 200,

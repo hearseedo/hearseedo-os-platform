@@ -13,7 +13,13 @@
 // real customer allowance should eventually be.
 const DEFAULTS = {
   maxSessionSeconds:  180, // hard cap per Live connection; server force-closes at this age
-  dailySessionCap:     10, // max sessions/account/day (UTC) while in admin-only beta
+  // Raised from 10 -> 25 (2026-09-24) — live-token.js originally incremented
+  // this counter BEFORE attempting the mint, so a string of failed attempts
+  // during initial debugging (fixed the same day) burned through the cap
+  // without ever producing a working session. 25 gives real iteration room
+  // for the one admin test account; still nowhere near a customer-facing
+  // number.
+  dailySessionCap:     25, // max sessions/account/day (UTC) while in admin-only beta
   inactivitySeconds:   45, // no audio either direction for this long -> server-side close
 };
 

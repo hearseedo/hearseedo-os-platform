@@ -130,6 +130,29 @@ export default function FamilyHome() {
           })}
         </div>
 
+        {/* Direct app shortcuts (2026-09-24 fix) — Monkey Yoga Phonics and
+            Monkeys Talk & Unlock previously only existed buried inside
+            specific Hear/See/Do activities, with no direct tile of their
+            own the way Career Ready/Global Ready/etc. get elsewhere on the
+            platform. Routes straight into the same, already-proven
+            ActivityPlayer entry point each app already used (curriculum
+            position, confidence check-ins, Jona context all keep working
+            exactly as before) — this only adds a shortcut, not a new
+            app-launch path. */}
+        <div style={{ fontSize: 12, fontWeight: 800, color: FAMILY_COLORS.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+          Apps
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 28 }}>
+          <button onClick={() => navigate("/family/activity/hear-phonics-app")} style={secondaryCardStyle}>
+            <span style={{ fontSize: 32, flexShrink: 0 }}>🎵</span>
+            <span style={{ fontWeight: 800, color: FAMILY_COLORS.text }}>Monkey Yoga Phonics™</span>
+          </button>
+          <button onClick={() => navigate("/family/activity/hear-talk-unlock-app")} style={secondaryCardStyle}>
+            <span style={{ fontSize: 32, flexShrink: 0 }}>🗝️</span>
+            <span style={{ fontWeight: 800, color: FAMILY_COLORS.text }}>Monkeys Talk & Unlock™</span>
+          </button>
+        </div>
+
         {/* My Journey + Family Hub — graffiti badge preview / family scene thumbnail */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           <button onClick={() => navigate("/family/journey")} style={secondaryCardStyle}>
