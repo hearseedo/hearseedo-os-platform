@@ -11,6 +11,30 @@ function todayJST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
 }
 
+// Abuse/rate protection (2026-09-24 — see
+// docs/JONA_VOICE_COST_PROPOSAL_2026-09-24.md). Deliberately generous and
+// NOT the eventual customer-facing voice allowance — this is only a safety
+// valve against a runaway/abusive caller (a stuck retry loop, a scripted
+// abuser), not a product limit. A real customer-visible "Jona voice" concept
+// comes later, once real cost data justifies specific numbers. Never
+// mentions tokens/characters/ElevenLabs in its (rare) rejection message.
+const DAILY_CALL_CAP = 300;
+
+async function getTtsUsage(uid) {
+  const today = todayJST();
+  try {
+    const res = await fetch(`${FS_BASE}/users/${uid}/ttsUsage/${today}?key=${FIREBASE_KEY}`);
+    if (!res.ok) return { calls: 0, chars: 0 };
+    const doc = await res.json();
+    return {
+      calls: parseInt(doc.fields?.calls?.integerValue ?? "0", 10),
+      chars: parseInt(doc.fields?.chars?.integerValue ?? "0", 10),
+    };
+  } catch {
+    return { calls: 0, chars: 0 };
+  }
+}
+
 async function isKilled(service) {
   try {
     const r = await fetch(`${FS_BASE}/config/killSwitch?key=${FIREBASE_KEY}`);
@@ -43,6 +67,16 @@ exports.handler = async (event) => {
   const text = (body.text || "").replace(/\bJona\b/g, "Jawna").slice(0, MAX_CHARS).trim();
   if (!text) return { statusCode: 400, body: "No text" };
 
+  // Abuse/rate protection (2026-09-24) — generous, per-account, never
+  // applied to the safety-response path (chat.js's RESTRICTED_SAFETY_SYSTEM
+  // flow never calls this endpoint's audio-request path from a place that
+  // would be blocked here — this cap exists only to stop a runaway/abusive
+  // caller, not to gate normal use).
+  const usage = await getTtsUsage(uid);
+  if (usage.calls >= DAILY_CALL_CAP) {
+    return { statusCode: 429, body: JSON.stringify({ error: "Jona's voice is taking a short break — try again in a moment, or keep typing." }) };
+  }
+
   const VOICE_ID = body.lang === "jp" ? VOICE_ID_JP : VOICE_ID_EN;
 
   const res = await fetch(
@@ -70,19 +104,36 @@ exports.handler = async (event) => {
 
   const buf = await res.arrayBuffer();
 
-  // Fire-and-forget: log TTS usage to Firestore for cost tracking
+  // Fire-and-forget: log TTS usage to Firestore for cost tracking — both
+  // the existing platform-wide aggregate AND, per-account (2026-09-24,
+  // see docs/JONA_VOICE_COST_PROPOSAL_2026-09-24.md item 1: "measure/log
+  // TTS usage per authenticated account"), so a future per-account cost
+  // rollup and the abuse cap above both have real data to read.
   const today = todayJST();
   fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit?key=${FIREBASE_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      writes: [{ transform: {
-        document: `projects/${PROJECT_ID}/databases/(default)/documents/apiCosts/${today}`,
-        fieldTransforms: [
-          { fieldPath: "ttsCalls", increment: { integerValue: "1" } },
-          { fieldPath: "ttsChars", increment: { integerValue: String(text.length) } },
-        ],
-      }}],
+      writes: [
+        {
+          transform: {
+            document: `projects/${PROJECT_ID}/databases/(default)/documents/apiCosts/${today}`,
+            fieldTransforms: [
+              { fieldPath: "ttsCalls", increment: { integerValue: "1" } },
+              { fieldPath: "ttsChars", increment: { integerValue: String(text.length) } },
+            ],
+          },
+        },
+        {
+          transform: {
+            document: `projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/ttsUsage/${today}`,
+            fieldTransforms: [
+              { fieldPath: "calls", increment: { integerValue: "1" } },
+              { fieldPath: "chars", increment: { integerValue: String(text.length) } },
+            ],
+          },
+        },
+      ],
     }),
   }).catch(() => {});
 

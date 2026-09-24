@@ -11,6 +11,7 @@ import { getProgress, getLevelInfo } from "../globalReady/storage";
 import PracticeSession from "../globalReady/PracticeSession";
 import SavedPhrases from "../globalReady/SavedPhrases";
 import Progress from "../globalReady/Progress";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 export default function GlobalReady() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function GlobalReady() {
   if (view.startsWith("practice:")) {
     const categoryId = view.split(":")[1];
     return (
-      <Shell>
+      <Shell showJona={false}>
         <PracticeSession categoryId={categoryId} user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -55,12 +56,16 @@ export default function GlobalReady() {
   );
 }
 
-function Shell({ children }) {
+function Shell({ children, showJona = true }) {
+  const { currentProfile } = useAuth();
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <TopBar />
       {children}
       <Footer />
+      {showJona && (
+        <GlobalJonaAssistant key={currentProfile?.id ?? "self"} context={{ pathway: "student", appName: "Global Ready" }} accent="#e01010" />
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import FamilyLoading from "./FamilyLoading";
 import { subscribeToFamilyFlags, DEFAULT_FLAGS } from "./familyFlags";
 import ConfidenceCheckIn from "./ConfidenceCheckIn";
 import { getCurriculumState, resolveRouteTarget } from "./curriculumProgress";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 export default function ActivityPlayer() {
   const { activityId } = useParams();
@@ -105,6 +106,21 @@ export default function ActivityPlayer() {
           <IframeAppPlayer activity={activity} user={user} currentProfile={currentProfile} onComplete={complete} t={t} />
         )}
       </div>
+
+      {/* Global Jona (2026-09-24) — hidden specifically for activityType
+          "jona": that activity IS JonaPlayer, a structured Jona-led
+          experience that already owns the conversation — showing the
+          generic bubble alongside it would be two Jonas at once. Every
+          other activity type (audio/instructions/iframe_app) keeps the
+          quiet "ask for help" bubble available. */}
+      {activity.activityType !== "jona" && (
+        <GlobalJonaAssistant
+          key={currentProfile?.id ?? "self"}
+          context={{ pathway: "family", appName: "HSD Family", lesson: lang === "jp" && activity.titleJp ? activity.titleJp : activity.title }}
+          accent={FAMILY_COLORS.pink}
+          voiceMode="outputOnly"
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import FamilyLoading from "./FamilyLoading";
 import { GraffitiStyles, spraySplash } from "./graffitiStyles";
 import ProfileSwitcher from "../components/ProfileSwitcher";
 import { PATHWAYS, getPathwayText } from "../constants/pathways";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
@@ -151,6 +152,19 @@ export default function FamilyHome() {
           </button>
         </div>
       </div>
+
+      {/* Global Jona (2026-09-24) — quiet, available bubble; never opens on
+          its own, no welcome modal. key= forces a clean conversation on
+          profile switch. voiceMode="outputOnly": Family serves the
+          youngest HSD population, so this keeps the same controlled
+          interaction model as the child-facing sub-apps — Jona can speak,
+          but no open mic on this general surface. */}
+      <GlobalJonaAssistant
+        key={currentProfile?.id ?? "self"}
+        context={{ pathway: "family", appName: pathwayText.displayName }}
+        accent={FAMILY_COLORS.pink}
+        voiceMode="outputOnly"
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@
 // experience" requirement.
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useLang } from "../hooks/useLang";
 import { sendMessage } from "../lib/claude";
 import { useJonaVoice } from "../hooks/useJonaVoice";
 
@@ -49,13 +50,21 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // "off" (no voice at all). Configurable per call site so this one
   // component can serve every pathway/age without another rewrite.
   const { user } = useAuth();
+  const { t, lang: uiLang } = useLang();
+  // I18n fix (2026-09-24): this component's own chrome (buttons, labels,
+  // placeholders) was entirely hardcoded English regardless of the app's
+  // language setting — a real English/Japanese inconsistency the beta
+  // simplicity QA flagged. `lang` prop stays available as an explicit
+  // override (voice STT/TTS language); UI text always follows the app's
+  // actual language setting via useLang().
+  const effectiveLang = lang ?? uiLang;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef(null);
-  const voice = useJonaVoice({ uid: user?.uid, lang, mode: voiceMode });
+  const voice = useJonaVoice({ uid: user?.uid, lang: effectiveLang, mode: voiceMode });
   // Voice is on by default whenever voiceMode allows it — this is meant to
   // be a core interaction, not an opt-in buried behind a toggle — but a
   // mute control still needs to exist for a shared/public device or a
@@ -98,16 +107,16 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     }
 
     if (!user) {
-      setError("Sign in to talk with Jona.");
+      setError(t("jona_sign_in"));
       return;
     }
     setSending(true);
     try {
-      const reply = await sendMessage(next, user, undefined, context);
+      const reply = await sendMessage(next, user, effectiveLang, context);
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       if (voiceOn) voice.speak(reply);
     } catch (e) {
-      setError(e.message ?? "Jona is taking a quick break — try again in a moment.");
+      setError(e.message ?? t("jona_error_fallback"));
     } finally {
       setSending(false);
     }
@@ -118,7 +127,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       {/* Floating launcher — never covers content, stays bottom-right */}
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close Jona" : "Ask Jona"}
+        aria-label={open ? t("jona_close") : t("jona_ask")}
         style={{
           position: anchor, bottom: bottomOffset, right: 20, zIndex: 999,
           width: 60, height: 60, borderRadius: "50%", border: "none", cursor: "pointer",
@@ -150,13 +159,13 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
             <img src="/assets/hsd/jona/jona-avatar.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 14 }}>Jona</div>
-              <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? `Helping with ${context.appName}` : "Your guide across HSD OS AI"}</div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>{context?.appName ? t("jona_helping_with").replace("{appName}", context.appName) : t("jona_guide_generic")}</div>
             </div>
             {voiceMode !== "off" && (
               <button
                 onClick={() => { if (voiceOn) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
-                aria-label={voiceOn ? "Mute Jona's voice" : "Unmute Jona's voice"}
-                title={voiceOn ? "Voice on — tap to mute" : "Voice muted — tap to unmute"}
+                aria-label={voiceOn ? t("jona_mute_on") : t("jona_mute_off")}
+                title={voiceOn ? t("jona_mute_on") : t("jona_mute_off")}
                 style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 8, width: 28, height: 28, fontSize: 13, color: "#fff", cursor: "pointer", flexShrink: 0 }}
               >
                 {voiceOn ? "🔊" : "🔇"}
@@ -168,8 +177,8 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
             {messages.length === 0 && (
               <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>
                 {context?.lesson
-                  ? `Hi, I'm Jona. I can see you're working on "${context.lesson}" — ask me anything about it.`
-                  : "Hi, I'm Jona — your guide, teacher, practice partner, and confidence coach. You're never learning alone. What can I help with?"}
+                  ? t("jona_greeting_lesson").replace("{lesson}", context.lesson)
+                  : t("jona_greeting_generic")}
               </div>
             )}
             {messages.map((m, i) => (
@@ -186,7 +195,8 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
                 {m.text}
               </div>
             ))}
-            {sending && <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>Jona is thinking…</div>}
+            {sending && <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>{t("jona_thinking")}</div>}
+            {!sending && voice.speaking && <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>🔊 {t("jona_speaking")}</div>}
             {error && <div style={{ fontSize: 12, color: "#c23a3a" }}>{error}</div>}
             <div ref={bottomRef} />
           </div>
@@ -211,8 +221,8 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
                 <button
                   onClick={() => voice.startListening((transcript) => send(transcript))}
                   disabled={sending || voice.listening}
-                  aria-label="Talk to Jona"
-                  title="Talk to Jona"
+                  aria-label={t("jona_talk")}
+                  title={t("jona_talk")}
                   style={{
                     width: 38, height: 38, borderRadius: 10, border: `1px solid ${accent}55`, flexShrink: 0,
                     background: voice.listening ? accent : `${accent}11`, color: voice.listening ? "#fff" : accent,
@@ -226,7 +236,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder={voice.listening ? "Listening…" : "Ask Jona…"}
+                placeholder={voice.listening ? t("jona_listening") : t("jona_input_placeholder")}
                 style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13, outline: "none" }}
               />
               <button
@@ -234,7 +244,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
                 disabled={!input.trim() || sending}
                 style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: input.trim() ? accent : "#eee", color: input.trim() ? "#fff" : "#999", fontWeight: 700, fontSize: 13, cursor: input.trim() ? "pointer" : "default" }}
               >
-                Send
+                {t("jona_send")}
               </button>
             </div>
           )}

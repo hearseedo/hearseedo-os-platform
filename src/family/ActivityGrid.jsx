@@ -12,6 +12,7 @@ import { CATEGORIES } from "./content";
 import FamilyLoading from "./FamilyLoading";
 import { GraffitiStyles } from "./graffitiStyles";
 import { SECTION_META, JONA_FIGURE_SRC, SectionBackground } from "./sectionBackgrounds";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 export default function ActivityGrid({ category: categoryProp }) {
   const params = useParams();
@@ -87,6 +88,15 @@ export default function ActivityGrid({ category: categoryProp }) {
             </div>
           </div>
         </div>
+        {/* Global Jona (2026-09-24) — still just browsing activities here,
+            no structured Jona experience active yet, so the quiet bubble
+            stays visible even on the Talk category. */}
+        <GlobalJonaAssistant
+          key={currentProfile?.id ?? "self"}
+          context={{ pathway: "family", appName: `HSD Family — ${category}` }}
+          accent={FAMILY_COLORS.pink}
+          voiceMode="outputOnly"
+        />
       </div>
     );
   }
@@ -157,6 +167,12 @@ export default function ActivityGrid({ category: categoryProp }) {
           )}
         </div>
       </div>
+      <GlobalJonaAssistant
+        key={currentProfile?.id ?? "self"}
+        context={{ pathway: "family", appName: `HSD Family — ${category}` }}
+        accent={FAMILY_COLORS.pink}
+        voiceMode="outputOnly"
+      />
     </div>
   );
 }

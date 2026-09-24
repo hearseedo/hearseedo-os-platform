@@ -518,6 +518,24 @@ export const STRINGS = {
     path_stage_beta:        "Beta",
     path_stage_alpha:       "Alpha",
 
+    // ── Global Jona Assistant (2026-09-24) ────────────────────────────────
+    jona_ask:            "Ask Jona",
+    jona_close:          "Close Jona",
+    jona_guide_generic:  "Your guide across HSD OS AI",
+    jona_helping_with:   "Helping with {appName}",
+    jona_greeting_lesson: 'Hi, I\'m Jona. I can see you\'re working on "{lesson}" — ask me anything about it.',
+    jona_greeting_generic: "Hi, I'm Jona — your guide, teacher, practice partner, and confidence coach. You're never learning alone. What can I help with?",
+    jona_thinking:       "Jona is thinking…",
+    jona_speaking:       "Jona is speaking…",
+    jona_sign_in:        "Sign in to talk with Jona.",
+    jona_error_fallback: "Jona is taking a quick break — try again in a moment.",
+    jona_input_placeholder: "Ask Jona…",
+    jona_listening:      "Listening…",
+    jona_send:           "Send",
+    jona_talk:           "Talk to Jona",
+    jona_mute_on:        "Voice on — tap to mute",
+    jona_mute_off:       "Voice muted — tap to unmute",
+
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "Who's learning today?",
     fam_add_child:         "Add a child",
@@ -1080,6 +1098,24 @@ export const STRINGS = {
     path_back_to_selector:  "← 別のパスウェイを選ぶ",
     path_stage_beta:        "ベータ版",
     path_stage_alpha:       "アルファ版",
+
+    // ── Global Jona Assistant (2026-09-24) ────────────────────────────────
+    jona_ask:            "Jonaに聞く",
+    jona_close:          "Jonaを閉じる",
+    jona_guide_generic:  "HSD OS AI全体のガイド",
+    jona_helping_with:   "{appName}をサポート中",
+    jona_greeting_lesson: "こんにちは、Jonaです。「{lesson}」に取り組んでいるんですね — なんでも聞いてください。",
+    jona_greeting_generic: "こんにちは、Jonaです — あなたのガイド、先生、練習相手、そして自信を育てるコーチです。ひとりで学ぶことはありません。何をお手伝いしましょうか？",
+    jona_thinking:       "Jonaが考え中…",
+    jona_speaking:       "Jonaが話しています…",
+    jona_sign_in:        "Jonaと話すにはサインインしてください。",
+    jona_error_fallback: "Jonaは少し休憩中です — また少ししてから試してください。",
+    jona_input_placeholder: "Jonaに質問…",
+    jona_listening:      "聞き取り中…",
+    jona_send:           "送信",
+    jona_talk:           "Jonaと話す",
+    jona_mute_on:        "音声オン — タップでミュート",
+    jona_mute_off:       "音声ミュート中 — タップで解除",
 
     // ── HSD Family (Phase 3) ──────────────────────────────────────────────
     fam_whos_learning:     "今日は誰が学習しますか？",

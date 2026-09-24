@@ -15,6 +15,7 @@ import { GAMES } from "../sipSpeakLearn/gamesData";
 import TableMode from "../sipSpeakLearn/TableMode";
 import HostMode from "../sipSpeakLearn/HostMode";
 import { profileScopedStorageUid } from "../lib/profileScope";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 const NAV = [
   { id: "dashboard", label: "Home",     icon: Icon.home },
@@ -94,6 +95,16 @@ export default function SipSpeakLearn() {
         </main>
       </div>
       <MobileNav active={activeTab} onNav={go} />
+      {/* Global Jona (2026-09-24) — hidden during an active lesson or game,
+          where this app's own conversational AI already owns the
+          interaction; available everywhere else (dashboard, seasons,
+          progress, saved, table/host events). */}
+      {!(typeof view === "object" && (view.name === "lesson" || view.name === "game")) && (
+        // bottomOffset clears .ssl-mobileNav's fixed bottom bar (mobile
+        // QA finding, 2026-09-24) — harmless on desktop where that bar is
+        // hidden, just sits a little higher than the corner.
+        <GlobalJonaAssistant key={user?.activeProfileId ?? "self"} context={{ pathway: "adult", appName: "Sip Speak Learn" }} accent="#7B5EA7" bottomOffset={84} />
+      )}
     </div>
   );
 }

@@ -119,6 +119,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Per-account TTS usage counter (2026-09-24) — same bare-API-key
+      // Lambda pattern as chatUsage above (tts.js has no Firebase auth
+      // token either); used for the abuse-rate cap and future per-account
+      // voice-cost rollup. Never exposed to the customer as-is.
+      match /ttsUsage/{day} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if false;
+      }
+
       match /weeklyCheckin/{week} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }

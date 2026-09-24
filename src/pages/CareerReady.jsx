@@ -12,6 +12,7 @@ import PracticeSession from "../careerReady/PracticeSession";
 import ResumeTool from "../careerReady/ResumeTool";
 import SavedAnswers from "../careerReady/SavedAnswers";
 import Progress from "../careerReady/Progress";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 async function fetchUsage(uid) {
   try {
@@ -61,7 +62,9 @@ export default function CareerReady() {
   if (view.startsWith("practice:")) {
     const categoryId = view.split(":")[1];
     return (
-      <Shell usage={usage}>
+      // showJona=false: PracticeSession's own AI coach already owns this
+      // conversation — the generic Jona bubble would be a second Jona.
+      <Shell usage={usage} showJona={false}>
         <PracticeSession categoryId={categoryId} user={user} onExit={() => { goHome(); refreshUsage(); }} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -69,7 +72,7 @@ export default function CareerReady() {
   }
   if (view === "resume") {
     return (
-      <Shell usage={usage}>
+      <Shell usage={usage} showJona={false}>
         <ResumeTool user={user} onExit={() => { goHome(); refreshUsage(); }} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -137,12 +140,18 @@ function Paywall({ navigate, lang }) {
   );
 }
 
-function Shell({ children, usage }) {
+function Shell({ children, usage, showJona = true }) {
+  const { currentProfile } = useAuth();
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <TopBar usage={usage} />
       {children}
       <Footer />
+      {/* Global Jona (2026-09-24) — quiet bubble; hidden on practice/resume
+          views where the in-lesson AI coach already owns the conversation. */}
+      {showJona && (
+        <GlobalJonaAssistant key={currentProfile?.id ?? "self"} context={{ pathway: "student", appName: "Career Ready" }} accent="#2ec4b6" />
+      )}
     </div>
   );
 }

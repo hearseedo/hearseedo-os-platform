@@ -14,6 +14,7 @@ import Progress from "../speakReady/Progress";
 import Assessment from "../speakReady/Assessment";
 import PronunciationStudio from "../speakReady/PronunciationStudio";
 import ListeningLab from "../speakReady/ListeningLab";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 export default function SpeakReady() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function SpeakReady() {
   if (view.startsWith("practice:")) {
     const categoryId = view.split(":")[1];
     return (
-      <Shell>
+      <Shell showJona={false}>
         <PracticeSession categoryId={categoryId} user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -51,11 +52,11 @@ export default function SpeakReady() {
     return <Shell><Progress user={user} onExit={goHome} /></Shell>;
   }
   if (view === "assessment") {
-    return <Shell><Assessment user={user} onFinish={goHome} onStartCategory={(id) => setView(`practice:${id}`)} /></Shell>;
+    return <Shell showJona={false}><Assessment user={user} onFinish={goHome} onStartCategory={(id) => setView(`practice:${id}`)} /></Shell>;
   }
   if (view === "pronunciation") {
     return (
-      <Shell>
+      <Shell showJona={false}>
         <PronunciationStudio user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -63,7 +64,7 @@ export default function SpeakReady() {
   }
   if (view === "listening") {
     return (
-      <Shell>
+      <Shell showJona={false}>
         <ListeningLab user={user} onExit={goHome} onBadgesEarned={handleBadgesEarned} />
         <BadgeToast badge={badgeToast} lang={lang} />
       </Shell>
@@ -111,12 +112,16 @@ function Paywall({ navigate, lang }) {
   );
 }
 
-function Shell({ children }) {
+function Shell({ children, showJona = true }) {
+  const { currentProfile } = useAuth();
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <TopBar />
       {children}
       <Footer />
+      {showJona && (
+        <GlobalJonaAssistant key={currentProfile?.id ?? "self"} context={{ pathway: "student", appName: "Speak Ready" }} accent="#f59e0b" />
+      )}
     </div>
   );
 }

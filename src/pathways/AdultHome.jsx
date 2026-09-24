@@ -12,6 +12,7 @@ import { PATHWAYS, getPathwayText } from "../constants/pathways";
 import { APP_MAP } from "../constants/apps";
 import AppModal from "../components/AppModal";
 import ProfileSwitcher from "../components/ProfileSwitcher";
+import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 
 const APPS = [
   { id: "innerkey", icon: "🔑", route: null },
@@ -101,6 +102,9 @@ export default function AdultHome() {
       {/* activeMember (2026-09-24 fix) — was hardcoded null; see
           StudentHome.jsx for the same fix and rationale. */}
       <AppModal app={selectedApp} onClose={() => setSelectedApp(null)} user={user} activeMember={currentProfile?.isVirtual ? null : currentProfile} />
+
+      {/* Global Jona (2026-09-24) — quiet bubble, never auto-opens. */}
+      <GlobalJonaAssistant key={currentProfile?.id ?? "self"} context={{ pathway: "adult", appName: text.displayName }} accent={pathway.accent.primary} />
     </div>
   );
 }
