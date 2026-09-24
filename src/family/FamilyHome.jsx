@@ -11,11 +11,12 @@ import { logPathwayEvent, PATHWAY_EVENTS } from "../lib/pathwayAnalytics";
 import { SELF_PROFILE_ID } from "../lib/profiles";
 import FamilyLoading from "./FamilyLoading";
 import { GraffitiStyles, spraySplash } from "./graffitiStyles";
+import ProfileSwitcher from "../components/ProfileSwitcher";
 
 const MAIN_CATEGORIES = ["hear", "see", "do", "talk", "create"];
 
 export default function FamilyHome() {
-  const { user, currentProfile } = useAuth();
+  const { user, currentProfile, profiles } = useAuth();
   const { t, lang } = useLang();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
@@ -43,7 +44,14 @@ export default function FamilyHome() {
         </button>
         <div style={{ fontSize: 16, fontWeight: 900, color: FAMILY_COLORS.pink }}>HSD Family</div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: FAMILY_COLORS.text, fontWeight: 700 }}>👋 {currentProfile?.name ?? ""}</span>
+          {/* ProfileSwitcher (P0, 2026-09-24) renders nothing for a
+              single-profile account, so the plain name shows in that case
+              instead — never both at once. */}
+          {profiles?.length > 1 ? (
+            <ProfileSwitcher accent={FAMILY_COLORS.pink} />
+          ) : (
+            <span style={{ fontSize: 13, color: FAMILY_COLORS.text, fontWeight: 700 }}>👋 {currentProfile?.name ?? ""}</span>
+          )}
           {/* Parent mode stays a distinct, separate view (item 3) — never
               blended into the child-facing screens above. */}
           <button onClick={() => navigate("/family/parent")} style={{ background: "none", border: `2px solid ${FAMILY_COLORS.border}`, borderRadius: 10, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: FAMILY_COLORS.textMuted, cursor: "pointer" }}>

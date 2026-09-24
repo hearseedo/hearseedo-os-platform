@@ -3,11 +3,21 @@
 // so multiple accounts on one device don't collide. Mirrors the speakReady/
 // storage pattern used elsewhere in the platform. Firestore sync arrives with
 // Table/Host mode (Phases 5–6); nothing here writes to Firestore yet.
-
+//
+// The "guest" fallback previously here was removed (P0, 2026-09-24) —
+// investigated and confirmed to have no legitimate use: /sip-speak-learn is
+// wrapped in <ProtectedRoute> (src/App.jsx), there is no anonymous sign-in
+// anywhere in this app, and Table/Host Mode's own participant flow also
+// requires a real signed-in uid. It was pure defensive code for a uid that,
+// in practice, is always present by the time these run — multiple real
+// users would otherwise have silently shared one generic "guest" bucket,
+// which is exactly the kind of ambiguous shared state the platform doesn't
+// want. Callers now pass a profile-scoped identifier (see
+// src/lib/profileScope.js's profileScopedStorageUid) instead.
 import { LESSONS_BY_SEASON, TOTAL_LESSONS } from "./data";
 
-const PROGRESS_KEY    = (uid) => `ssl_progress_${uid || "guest"}`;
-const EXPRESSIONS_KEY = (uid) => `ssl_expressions_${uid || "guest"}`;
+const PROGRESS_KEY    = (uid) => `ssl_progress_${uid}`;
+const EXPRESSIONS_KEY = (uid) => `ssl_expressions_${uid}`;
 
 const DEFAULT_PROGRESS = {
   completedLessonIds: [],           // ["winter-1", ...]

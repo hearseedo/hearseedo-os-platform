@@ -10,6 +10,7 @@ import { useAuth } from "../hooks/useAuth";
 import { PATHWAYS } from "../constants/pathways";
 import { APP_MAP } from "../constants/apps";
 import AppModal from "../components/AppModal";
+import ProfileSwitcher from "../components/ProfileSwitcher";
 
 const APPS = [
   { id: "innerkey", icon: "🔑", route: null },
@@ -21,10 +22,11 @@ const APPS = [
 const pathway = PATHWAYS.adult;
 
 export default function AdultHome() {
-  const { user, currentProfile } = useAuth();
+  const { user, currentProfile, profiles } = useAuth();
   const navigate = useNavigate();
   const [selectedApp, setSelectedApp] = useState(null);
   const displayName = currentProfile?.name || user?.name;
+  const hasSwitcher = profiles?.length > 1;
 
   function open(app) {
     if (app.route) { navigate(app.route); return; }
@@ -44,16 +46,19 @@ export default function AdultHome() {
         }}
       />
       <div style={{ position: "relative", zIndex: 1 }}>
-      <header style={{ padding: "20px 20px 0" }}>
+      <header style={{ padding: "20px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer" }}>
           ← Switch pathway
         </button>
+        {/* ProfileSwitcher (P0, 2026-09-24) — see StudentHome.jsx for the
+            same pattern/rationale. */}
+        {hasSwitcher && <ProfileSwitcher accent="#fff" />}
       </header>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px 60px" }}>
         {/* Identity display (2026-09-24) — same pattern as StudentHome/
             FamilyHome; no new architecture, just surfacing existing data. */}
-        {displayName && (
+        {!hasSwitcher && displayName && (
           <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
             Hi, {displayName} 👋
           </div>

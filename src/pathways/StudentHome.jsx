@@ -13,6 +13,7 @@ import { useAuth } from "../hooks/useAuth";
 import { PATHWAYS } from "../constants/pathways";
 import { APP_MAP } from "../constants/apps";
 import AppModal from "../components/AppModal";
+import ProfileSwitcher from "../components/ProfileSwitcher";
 
 const APPS = [
   { id: "career-ready", name: "Career Ready", desc: "English confidence for university life and career.", icon: "🎓", route: "/career-ready" },
@@ -24,10 +25,11 @@ const APPS = [
 const pathway = PATHWAYS.student;
 
 export default function StudentHome() {
-  const { user, currentProfile } = useAuth();
+  const { user, currentProfile, profiles } = useAuth();
   const navigate = useNavigate();
   const [selectedApp, setSelectedApp] = useState(null);
   const displayName = currentProfile?.name || user?.name;
+  const hasSwitcher = profiles?.length > 1;
 
   function open(app) {
     if (app.route) { navigate(app.route); return; }
@@ -48,10 +50,14 @@ export default function StudentHome() {
         }}
       />
       <div style={{ position: "relative", zIndex: 1 }}>
-      <header style={{ padding: "20px 20px 0" }}>
+      <header style={{ padding: "20px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={() => navigate("/choose-path")} style={{ background: "none", border: "none", color: "#999", fontSize: 13, cursor: "pointer" }}>
           ← Switch pathway
         </button>
+        {/* ProfileSwitcher (P0, 2026-09-24) — renders nothing for a
+            single-profile account, so the plain "Hi, {name}" line below
+            still covers that case; never both at once. */}
+        {hasSwitcher && <ProfileSwitcher accent="#fff" />}
       </header>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px 60px" }}>
@@ -59,7 +65,7 @@ export default function StudentHome() {
             should always be obvious, not just which pathway. Same data
             useAuth() already computes for FamilyHome's "👋 {name}" header;
             no new architecture, just surfacing it here too. */}
-        {displayName && (
+        {!hasSwitcher && displayName && (
           <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
             Hi, {displayName} 👋
           </div>

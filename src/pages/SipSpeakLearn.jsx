@@ -14,6 +14,7 @@ import GameSession, { GamesHub } from "../sipSpeakLearn/Games";
 import { GAMES } from "../sipSpeakLearn/gamesData";
 import TableMode from "../sipSpeakLearn/TableMode";
 import HostMode from "../sipSpeakLearn/HostMode";
+import { profileScopedStorageUid } from "../lib/profileScope";
 
 const NAV = [
   { id: "dashboard", label: "Home",     icon: Icon.home },
@@ -28,6 +29,15 @@ export default function SipSpeakLearn() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const uid = user?.uid;
+  // Profile-scoped identifier for PERSONAL LEARNING PROGRESS only (P0,
+  // 2026-09-24 — removes the previous "guest" localStorage fallback, which
+  // had no legitimate use: this route is auth-gated, so a real uid is
+  // always present here). Deliberately NOT used for TableMode/HostMode
+  // below — those write real Firestore docs whose security rules check
+  // request.auth.uid directly (hostUid), so they keep receiving the real,
+  // unscoped `uid` — Table/Host Mode is a real-identity multiplayer
+  // feature, not a per-profile learning-progress concept.
+  const storageUid = profileScopedStorageUid(uid, user?.activeProfileId);
   const firstName = (user?.name || user?.displayName || "there").split(" ")[0];
 
   // view is either a nav id, "welcome", or a nested { name, ... }
@@ -54,19 +64,22 @@ export default function SipSpeakLearn() {
         <Sidebar active={activeTab} onNav={go} firstName={firstName} onProfile={() => navigate("/dashboard")} />
         <main className="ssl-main">
           <div className="ssl-page">
-            {activeTab === "dashboard" && <Dashboard uid={uid} firstName={firstName} go={go} />}
-            {activeTab === "seasons"   && <Seasons go={go} uid={uid} />}
-            {typeof view === "object" && view.name === "season" && <Season seasonId={view.seasonId} uid={uid} go={go} />}
+            {/* storageUid (P0, 2026-09-24): personal learning progress is
+                profile-scoped. TableMode/HostMode below deliberately keep
+                the real `uid` — see the storageUid comment above. */}
+            {activeTab === "dashboard" && <Dashboard uid={storageUid} firstName={firstName} go={go} />}
+            {activeTab === "seasons"   && <Seasons go={go} uid={storageUid} />}
+            {typeof view === "object" && view.name === "season" && <Season seasonId={view.seasonId} uid={storageUid} go={go} />}
             {typeof view === "object" && view.name === "lesson" && (
-              <Lesson seasonId={view.seasonId} n={view.n} uid={uid}
+              <Lesson seasonId={view.seasonId} n={view.n} uid={storageUid}
                 onExit={(completed) => go(completed ? { name: "season", seasonId: view.seasonId, done: view.n } : { name: "season", seasonId: view.seasonId })} />
             )}
             {activeTab === "games" && typeof view === "string" && <GamesHub go={go} />}
-            {typeof view === "object" && view.name === "game" && <GameSession gameId={view.gameId} uid={uid} go={go} />}
+            {typeof view === "object" && view.name === "game" && <GameSession gameId={view.gameId} uid={storageUid} go={go} />}
             {activeTab === "events"   && <TableMode uid={uid} user={user} go={go} />}
             {activeTab === "host"     && <HostMode uid={uid} user={user} go={go} />}
-            {activeTab === "progress" && <ProgressView uid={uid} go={go} />}
-            {activeTab === "saved"    && <SavedExpressions uid={uid} go={go} />}
+            {activeTab === "progress" && <ProgressView uid={storageUid} go={go} />}
+            {activeTab === "saved"    && <SavedExpressions uid={storageUid} go={go} />}
           </div>
         </main>
       </div>

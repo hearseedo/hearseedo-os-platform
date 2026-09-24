@@ -266,7 +266,20 @@ exports.handler = async (event) => {
     // Who is actually talking to Jona right now (P0, 2026-09-24) — resolved
     // and verified server-side; see resolveProfileContext() above for why
     // the client's profileId claim can never reach another account's data.
-    resolvedProfile = await resolveProfileContext(uid, profileId);
+    // FAIL CLOSED (2026-09-24 hardening): an explicitly-supplied profileId
+    // that doesn't resolve is an authorization failure, not a cue to
+    // silently continue as the account owner — identity must never change
+    // invisibly. Omitting profileId entirely is unaffected (legitimate
+    // self/legacy behavior, always resolves ok:true).
+    const profileResolution = await resolveProfileContext(uid, profileId);
+    if (!profileResolution.ok) {
+      return {
+        statusCode: 403,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "invalid_profile", message: "That profile could not be verified for this account." }),
+      };
+    }
+    resolvedProfile = profileResolution.profile;
 
     // Safety-before-quota (P0-B): classify the learner's latest message
     // BEFORE any quota check. A flagged message skips quota entirely and is

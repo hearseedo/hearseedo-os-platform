@@ -2,6 +2,12 @@
 // covering the directive's specific attack list (substitute another
 // profile ID, access another household's profile, invalid/missing
 // profileId) using a fake firestoreFetch — no real network/emulator needed.
+//
+// Fail-closed distinction (2026-09-24 hardening): "no profileId supplied"
+// (self/legacy) and "an explicit profileId was supplied but is invalid"
+// are different cases with different outcomes — see resolveProfileContext's
+// return shape ({ ok: true, profile } vs { ok: false, reason }).
+//
 // Run with:
 //   node --test tests/profile-context.test.js
 import test from "node:test";
@@ -45,89 +51,99 @@ function field(v) {
   throw new Error("unsupported");
 }
 
-test("self profile (no profileId) resolves the account's own doc", async () => {
+test("self profile (no profileId) resolves ok:true with the account's own doc", async () => {
   const db = { "/users/uid-jonathan": { name: field("Jonathan"), confidenceScore: field(80) } };
   const fetch = makeFakeFetch(db);
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-jonathan", undefined);
-  assert.equal(profile.name, "Jonathan");
-  assert.equal(profile.isSelf, true);
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-jonathan", undefined);
+  assert.equal(result.ok, true);
+  assert.equal(result.profile.name, "Jonathan");
+  assert.equal(result.profile.isSelf, true);
   assert.deepEqual(fetch.calls, ["/users/uid-jonathan"]);
 });
 
 test("explicit 'self' profileId behaves identically to omitted", async () => {
   const db = { "/users/uid-jonathan": { name: field("Jonathan") } };
   const fetch = makeFakeFetch(db);
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-jonathan", "self");
-  assert.equal(profile.name, "Jonathan");
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-jonathan", "self");
+  assert.equal(result.ok, true);
+  assert.equal(result.profile.name, "Jonathan");
 });
 
-test("a real family-member profileId resolves that member's own doc, nested under the caller's uid", async () => {
+test("a real family-member profileId resolves ok:true with that member's own doc, nested under the caller's uid", async () => {
   const db = {
     "/users/uid-waltho/familyMembers/emma-id": { name: field("Emma"), age: field(9), confidenceScore: field(65) },
   };
   const fetch = makeFakeFetch(db);
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-waltho", "emma-id");
-  assert.equal(profile.name, "Emma");
-  assert.equal(profile.age, 9);
-  assert.equal(profile.isSelf, false);
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-waltho", "emma-id");
+  assert.equal(result.ok, true);
+  assert.equal(result.profile.name, "Emma");
+  assert.equal(result.profile.age, 9);
+  assert.equal(result.profile.isSelf, false);
   assert.deepEqual(fetch.calls, ["/users/uid-waltho/familyMembers/emma-id"]);
 });
 
-// ── Attack cases (from the migration proposal's §11 test list) ────────────
+// ── Fail-closed cases (2026-09-24 hardening) ───────────────────────────────
 
-test("attack: substituting another profile ID under the SAME account that doesn't exist falls back to self, never errors", async () => {
+test("FAIL CLOSED: an explicit profileId that doesn't exist under this account returns ok:false, never falls back to self", async () => {
   const db = {
     "/users/uid-waltho": { name: field("Jonathan") },
     "/users/uid-waltho/familyMembers/emma-id": { name: field("Emma") },
-    // "miley-id" deliberately absent — simulates a guessed/substituted id
+    // "miley-id" deliberately absent — simulates a guessed/substituted/deleted id
   };
   const fetch = makeFakeFetch(db);
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-waltho", "miley-id");
-  assert.equal(profile.name, "Jonathan"); // safe fallback to self, never null/leaked
-  assert.equal(profile.isSelf, true);
-  assert.deepEqual(fetch.calls, ["/users/uid-waltho/familyMembers/miley-id", "/users/uid-waltho"]);
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-waltho", "miley-id");
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "profile_not_found");
+  assert.equal(result.profile, undefined); // no profile data leaks out on failure
+  // Never queried self as a fallback — a mismatch fails closed, not silently.
+  assert.deepEqual(fetch.calls, ["/users/uid-waltho/familyMembers/miley-id"]);
 });
 
-test("attack: supplying another HOUSEHOLD's real memberId structurally cannot reach it — path stays under the caller's own uid", async () => {
-  // A different account's real family member exists in the fake DB, but
-  // ONLY under ITS OWN uid's path — the attacker's uid is different, so the
-  // path this function actually queries can never reach it. This is the
-  // core security property: it's not a permission check that could have a
-  // bug, it's that the path itself is constructed from the verified uid.
+test("FAIL CLOSED: another household's real memberId still fails closed (structurally unreachable, and never falls back to self either)", async () => {
   const db = {
     "/users/uid-attacker": { name: field("Attacker") },
     "/users/uid-victim/familyMembers/victim-child-id": { name: field("Victim Child"), confidenceScore: field(40) },
   };
   const fetch = makeFakeFetch(db);
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-attacker", "victim-child-id");
-  assert.equal(profile.name, "Attacker"); // fell back to the attacker's OWN self context
-  assert.notEqual(profile.name, "Victim Child");
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-attacker", "victim-child-id");
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "profile_not_found");
   // Confirms the query never even reached the victim's path — it was
-  // constructed under uid-attacker throughout, not uid-victim.
+  // constructed under uid-attacker throughout, not uid-victim — and it did
+  // NOT quietly succeed as "Attacker" either; the caller must reject this.
   assert.ok(fetch.calls.every(p => p.startsWith("/users/uid-attacker")));
 });
 
-test("missing/empty profileId behaves exactly like 'self'", async () => {
+test("FAIL CLOSED: a lookup that throws (network error) for an explicit profileId also fails closed, not to self", async () => {
+  const throwingFetch = async () => { throw new Error("boom"); };
+  const result = await resolveProfileContext(throwingFetch, fromFirestoreFields, "uid-x", "some-member");
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "profile_lookup_failed");
+});
+
+test("missing/empty profileId is NOT a failure — behaves exactly like 'self' (ok:true)", async () => {
   const db = { "/users/uid-x": { name: field("X") } };
   const fetch = makeFakeFetch(db);
   const a = await resolveProfileContext(fetch, fromFirestoreFields, "uid-x", "");
   const b = await resolveProfileContext(fetch, fromFirestoreFields, "uid-x", null);
   const c = await resolveProfileContext(fetch, fromFirestoreFields, "uid-x", undefined);
-  assert.equal(a.name, "X");
-  assert.equal(b.name, "X");
-  assert.equal(c.name, "X");
+  assert.equal(a.ok, true); assert.equal(a.profile.name, "X");
+  assert.equal(b.ok, true); assert.equal(b.profile.name, "X");
+  assert.equal(c.ok, true); assert.equal(c.profile.name, "X");
 });
 
-test("even self lookup failing (deleted/never-created account doc) returns null, not a throw", async () => {
+test("self lookup failing (deleted/never-created account doc) is ok:true with a null profile, not a failure — no identity claim was made to violate", async () => {
   const fetch = makeFakeFetch({});
-  const profile = await resolveProfileContext(fetch, fromFirestoreFields, "uid-ghost", undefined);
-  assert.equal(profile, null);
+  const result = await resolveProfileContext(fetch, fromFirestoreFields, "uid-ghost", undefined);
+  assert.equal(result.ok, true);
+  assert.equal(result.profile, null);
 });
 
-test("a fetcher that throws (network error) never propagates — fails safe to null/self, never crashes the caller", async () => {
+test("self lookup throwing (network error) is also ok:true/null, never fails the whole request over a transient error", async () => {
   const throwingFetch = async () => { throw new Error("boom"); };
-  const profile = await resolveProfileContext(throwingFetch, fromFirestoreFields, "uid-x", "some-member");
-  assert.equal(profile, null);
+  const result = await resolveProfileContext(throwingFetch, fromFirestoreFields, "uid-x", undefined);
+  assert.equal(result.ok, true);
+  assert.equal(result.profile, null);
 });
 
 test("buildProfileContextLine never includes another profile's data — only whatever single profile object it's given", () => {
