@@ -29,7 +29,10 @@ const { buildLiveSystemInstruction } = require("./_liveSafetyInstruction");
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE       = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const LIVE_MODEL    = "gemini-2.5-flash-native-audio-preview-09-2025";
+// Confirmed against @google/genai's own Live.connect() doc example (the
+// installed SDK's type definitions) — this is the Developer API's (not
+// Vertex's) documented live model name, not a guess.
+const LIVE_MODEL    = "gemini-live-2.5-flash-preview";
 
 // Matches firestore.rules' isAdminEmail() exactly. Talk with Jona is
 // admin-only for this beta (requirement #13) — kept as a hand-maintained
