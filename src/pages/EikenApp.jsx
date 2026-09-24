@@ -2195,7 +2195,15 @@ export default function EikenApp({ user: platformUser, activeMember }) {
   const initLevel = savedRaw.level || CEFR_TO_EIKEN[(activeMember ?? platformUser)?.cefr] || "Pre-2";
   const initCoach = savedRaw.coach || "milo";
 
-  const [screen, setScreen]           = useState(savedRaw.coach ? "welcome" : "onboarding");
+  // Entry-friction fix (2026-09-24): a returning learner who already has a
+  // coach AND a saved grade doesn't need the "welcome back" sub-menu's
+  // primary "Continue Learning" tap in between opening EIKEN and reaching
+  // the dashboard — HSD already knows both, so go straight there. The
+  // Welcome screen still shows for a genuinely new coach pick or no saved
+  // grade yet (recommend/placement flow still needed in that case).
+  const [screen, setScreen]           = useState(
+    savedRaw.coach ? (savedRaw.level ? "dashboard" : "welcome") : "onboarding"
+  );
   const firstName = (activeMember ?? platformUser)?.name?.split(" ")[0] ?? "there";
   const [user, setUser]               = useState({
     coach: initCoach, level: initLevel, xp: savedRaw.xp ?? 0, streak: (activeMember ?? platformUser)?.streak ?? 0,

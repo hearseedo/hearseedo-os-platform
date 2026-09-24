@@ -41,7 +41,17 @@ export default function SipSpeakLearn() {
   const firstName = (user?.name || user?.displayName || "there").split(" ")[0];
 
   // view is either a nav id, "welcome", or a nested { name, ... }
-  const [view, setView] = useState("welcome");
+  // Entry-friction fix (2026-09-24): the Welcome splash used to show on
+  // EVERY visit, even for a returning user who already knows they want
+  // Solo Practice — "Home -> tap app -> app opens" shouldn't need a second
+  // "Enter"/mode-picker tap once HSD already knows this person has been
+  // here before. Skip straight to the dashboard when there's any existing
+  // progress; a genuinely first-time learner still sees Welcome once.
+  const [view, setView] = useState(() => {
+    const stats = getStats(storageUid);
+    const hasHistory = stats.completed > 0 || stats.speakingMinutes > 0 || stats.savedCount > 0 || stats.conversationsCompleted > 0;
+    return hasHistory ? "dashboard" : "welcome";
+  });
   const go = (v) => { setView(v); window.scrollTo?.(0, 0); };
 
   // ── Welcome (full-bleed, no chrome) ──
