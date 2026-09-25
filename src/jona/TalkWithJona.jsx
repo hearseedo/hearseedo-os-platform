@@ -19,7 +19,7 @@
 // switch, logout, route exit) all call the same endSession() path, which
 // closes the Live session, stops the microphone track, and reports the
 // end to the server.
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { auth } from "../lib/firebase";
 import { useLang } from "../hooks/useLang";
@@ -51,10 +51,117 @@ function pcm16ToFloat32(int16) {
 const OUTPUT_SAMPLE_RATE = 24000;
 const INPUT_SAMPLE_RATE  = 16000;
 
+// Floating-card layout (2026-09-25 UX rewrite — see requirement #1-#13 in
+// the redesign brief). Jona is a companion beside the lesson now, not a
+// full-screen takeover: no modal backdrop, the underlying app stays live
+// and interactive, and the card is small, draggable, and collapsible.
+// None of this touches the connection/session logic above — only how it's
+// presented on screen.
+const CARD_W = 240;
+const CARD_H = 128;
+const PILL_SIZE = 60;
+const EDGE_MARGIN = 12;
+const TOP_RESERVE = 16;
+const BOTTOM_RESERVE = 90; // clears mobile bottom-nav bars and browser chrome
+const DRAG_CLICK_THRESHOLD = 6; // px of movement below which a release counts as a tap, not a drag
+
+function getViewportSize() {
+  const vv = typeof window !== "undefined" ? window.visualViewport : null;
+  return { w: vv?.width ?? window.innerWidth, h: vv?.height ?? window.innerHeight };
+}
+
+function clampPos(x, y, w, h) {
+  const { w: vw, h: vh } = getViewportSize();
+  const maxX = Math.max(EDGE_MARGIN, vw - w - EDGE_MARGIN);
+  const maxY = Math.max(TOP_RESERVE, vh - h - BOTTOM_RESERVE);
+  return { x: Math.min(Math.max(x, EDGE_MARGIN), maxX), y: Math.min(Math.max(y, TOP_RESERVE), maxY) };
+}
+
+function defaultPos(w, h) {
+  const { w: vw, h: vh } = getViewportSize();
+  return clampPos(vw - w - EDGE_MARGIN, vh - h - BOTTOM_RESERVE, w, h);
+}
+
 export default function TalkWithJona({ context, profileId, lang, onClose, closeSignal }) {
   const { t } = useLang();
   const [phase, setPhase] = useState("connecting"); // connecting | listening | thinking | speaking | error | ended
   const [errorMsg, setErrorMsg] = useState("");
+
+  // UI-only state — position/collapse are purely visual, never touch the
+  // Live session (requirement #2, #5).
+  const [collapsed, setCollapsed] = useState(false);
+  const [pos, setPos] = useState(null); // null until first measured on mount
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef({ pointerId: null, startX: 0, startY: 0, origX: 0, origY: 0, moved: 0 });
+
+  useLayoutEffect(() => {
+    setPos(defaultPos(CARD_W, CARD_H));
+    const onResize = () => {
+      setPos((p) => {
+        if (!p) return p;
+        const w = collapsed ? PILL_SIZE : CARD_W;
+        const h = collapsed ? PILL_SIZE : CARD_H;
+        return clampPos(p.x, p.y, w, h);
+      });
+    };
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-clamp (never re-center) when toggling collapsed <-> expanded, since
+  // the two states have different footprints.
+  useEffect(() => {
+    setPos((p) => {
+      if (!p) return p;
+      const w = collapsed ? PILL_SIZE : CARD_W;
+      const h = collapsed ? PILL_SIZE : CARD_H;
+      return clampPos(p.x, p.y, w, h);
+    });
+  }, [collapsed]);
+
+  const snapToNearestEdge = useCallback((p, w) => {
+    const { w: vw } = getViewportSize();
+    const cardCenterX = p.x + w / 2;
+    const snappedX = cardCenterX < vw / 2 ? EDGE_MARGIN : vw - w - EDGE_MARGIN;
+    return { x: snappedX, y: p.y };
+  }, []);
+
+  const onDragPointerDown = useCallback((e) => {
+    if (!pos) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, moved: 0 };
+    setDragging(true);
+  }, [pos]);
+
+  const onDragPointerMove = useCallback((e) => {
+    if (dragRef.current.pointerId !== e.pointerId) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    dragRef.current.moved = Math.max(dragRef.current.moved, Math.abs(dx), Math.abs(dy));
+    const w = collapsed ? PILL_SIZE : CARD_W;
+    const h = collapsed ? PILL_SIZE : CARD_H;
+    setPos(clampPos(dragRef.current.origX + dx, dragRef.current.origY + dy, w, h));
+  }, [collapsed]);
+
+  const onDragPointerUp = useCallback((e) => {
+    if (dragRef.current.pointerId !== e.pointerId) return;
+    const wasTap = dragRef.current.moved < DRAG_CLICK_THRESHOLD;
+    dragRef.current.pointerId = null;
+    setDragging(false);
+    if (wasTap) {
+      // A tap on the collapsed pill expands it (requirement #5); a tap on
+      // the expanded card's own drag handle does nothing extra.
+      if (collapsed) setCollapsed(false);
+      return;
+    }
+    const w = collapsed ? PILL_SIZE : CARD_W;
+    setPos((p) => snapToNearestEdge(p, w));
+  }, [collapsed, snapToNearestEdge]);
 
   const sessionRef       = useRef(null);
   const sessionIdRef     = useRef(null);
@@ -303,52 +410,115 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     phase === "error"      ? errorMsg :
     t("talk_jona_ended");
 
+  const micActive = phase === "listening" || phase === "thinking" || phase === "speaking";
+  if (!pos) return null; // one frame to measure the viewport before first paint
+
+  const w = collapsed ? PILL_SIZE : CARD_W;
+  const h = collapsed ? PILL_SIZE : CARD_H;
+
+  // Floating companion card (requirement #1, #12) — no modal backdrop, no
+  // inset:0; the underlying HSD app stays fully visible and interactive
+  // everywhere except this small footprint. Dragging (via the header/avatar
+  // row's pointer handlers below) only ever changes `pos`/`collapsed`
+  // state — it never touches the session refs above.
   return (
     <div
-      role="dialog"
+      role="complementary"
       aria-label={t("talk_jona_title")}
       style={{
-        position: "fixed", inset: 0, zIndex: 1000,
+        position: "fixed", left: pos.x, top: pos.y, width: w, height: h, zIndex: 1000,
         background: "linear-gradient(160deg, #2b0f24, #4a1638)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        borderRadius: collapsed ? "50%" : 20,
+        boxShadow: "0 8px 28px rgba(0,0,0,0.4)",
         color: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        padding: 24, textAlign: "center", gap: 28,
+        overflow: "hidden", userSelect: "none",
+        transition: dragging ? "none" : "left 0.25s ease, top 0.25s ease, width 0.15s ease, height 0.15s ease",
+        touchAction: "none",
       }}
     >
-      <img
-        src="/assets/hsd/jona/jona-avatar.png"
-        alt="Jona"
-        style={{
-          width: 140, height: 140, borderRadius: "50%", objectFit: "cover",
-          boxShadow: phase === "speaking" ? "0 0 0 10px rgba(255,255,255,0.18)" : phase === "listening" ? "0 0 0 6px rgba(255,255,255,0.28)" : "0 0 0 0 rgba(255,255,255,0)",
-          transition: "box-shadow 0.3s ease",
-        }}
-      />
+      {collapsed ? (
+        <div
+          onPointerDown={onDragPointerDown}
+          onPointerMove={onDragPointerMove}
+          onPointerUp={onDragPointerUp}
+          onPointerCancel={onDragPointerUp}
+          style={{
+            width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: dragging ? "grabbing" : "grab", position: "relative",
+          }}
+        >
+          <img src="/assets/hsd/jona/jona-avatar.png" alt="Jona" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+          {micActive && (
+            <span style={{
+              position: "absolute", bottom: 2, right: 2, width: 16, height: 16, borderRadius: "50%",
+              background: "#ff5c7a", border: "2px solid #2b0f24",
+              animation: "hsdJonaPulse 1.4s ease-in-out infinite",
+            }} />
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <div
+            onPointerDown={onDragPointerDown}
+            onPointerMove={onDragPointerMove}
+            onPointerUp={onDragPointerUp}
+            onPointerCancel={onDragPointerUp}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "10px 10px 8px 12px",
+              cursor: dragging ? "grabbing" : "grab",
+            }}
+          >
+            <img
+              src="/assets/hsd/jona/jona-avatar.png"
+              alt="Jona"
+              style={{
+                width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+                boxShadow: phase === "speaking" ? "0 0 0 4px rgba(255,255,255,0.22)" : phase === "listening" ? "0 0 0 3px rgba(255,255,255,0.3)" : "none",
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1.2 }}>{t("talk_jona_title")}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+            </div>
+            {/* Collapse toggle — separate from the drag handle's own tap-to-expand
+                so expanded -> collapsed is always one deliberate tap here.
+                stopPropagation on pointerdown keeps the parent header's own
+                drag handler from capturing this pointer and swallowing the
+                click (found via manual testing, 2026-09-25). */}
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setCollapsed(true)}
+              aria-label={t("talk_jona_collapse")}
+              title={t("talk_jona_collapse")}
+              style={{ background: "rgba(255,255,255,0.14)", border: "none", borderRadius: 8, width: 22, height: 22, color: "#fff", fontSize: 12, cursor: "pointer", flexShrink: 0, lineHeight: 1 }}
+            >
+              –
+            </button>
+          </div>
 
-      {/* Unmistakable mic-active indicator (requirement #8) — visible
-          whenever the microphone is actually open, not just while Jona
-          is speaking. */}
-      {(phase === "listening" || phase === "thinking" || phase === "speaking") && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, opacity: 0.85 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff5c7a", display: "inline-block", animation: "pulse 1.4s ease-in-out infinite" }} />
-          {t("talk_jona_mic_active")}
+          {micActive && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, opacity: 0.8, padding: "0 12px" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5c7a", display: "inline-block", animation: "hsdJonaPulse 1.4s ease-in-out infinite" }} />
+              {t("talk_jona_mic_active")}
+            </div>
+          )}
+
+          <div style={{ marginTop: "auto", padding: 10 }}>
+            <button
+              onClick={handleEndClick}
+              style={{
+                width: "100%", padding: "9px 0", borderRadius: 20, border: "1px solid rgba(255,255,255,0.5)",
+                background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 13, fontWeight: 800,
+                cursor: "pointer", letterSpacing: 0.2,
+              }}
+            >
+              {t("talk_jona_end")}
+            </button>
+          </div>
         </div>
       )}
 
-      <div style={{ fontSize: 20, fontWeight: 700, minHeight: 28 }}>{label}</div>
-
-      <button
-        onClick={handleEndClick}
-        style={{
-          padding: "14px 32px", borderRadius: 30, border: "2px solid rgba(255,255,255,0.5)",
-          background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 15, fontWeight: 800,
-          cursor: "pointer", letterSpacing: 0.3,
-        }}
-      >
-        {t("talk_jona_end")}
-      </button>
-
-      <style>{`@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+      <style>{`@keyframes hsdJonaPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
     </div>
   );
 }

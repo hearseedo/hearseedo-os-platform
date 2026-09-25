@@ -546,6 +546,7 @@ export const STRINGS = {
     talk_jona_ended:      "Conversation ended",
     talk_jona_mic_active: "Microphone is on",
     talk_jona_end:        "End conversation",
+    talk_jona_collapse:   "Collapse",
     talk_jona_error:      "Talk with Jona isn't available right now — try Ask Jona instead.",
     talk_jona_mic_error:  "Couldn't access your microphone. Check your browser's microphone permission and try again.",
 
@@ -1140,6 +1141,7 @@ export const STRINGS = {
     talk_jona_ended:      "会話が終了しました",
     talk_jona_mic_active: "マイクがオンです",
     talk_jona_end:        "会話を終了",
+    talk_jona_collapse:   "折りたたむ",
     talk_jona_error:      "現在Jonaと話すことができません — 「Jonaに聞く」をお試しください。",
     talk_jona_mic_error:  "マイクにアクセスできませんでした。ブラウザのマイク権限を確認してもう一度お試しください。",
 
