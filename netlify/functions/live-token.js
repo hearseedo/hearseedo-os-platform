@@ -29,10 +29,17 @@ const { buildLiveSystemInstruction } = require("./_liveSafetyInstruction");
 const PROJECT_ID   = process.env.FIREBASE_PROJECT_ID || "hear-see-do-os-ai";
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 const FS_BASE       = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-// Confirmed against @google/genai's own Live.connect() doc example (the
-// installed SDK's type definitions) — this is the Developer API's (not
-// Vertex's) documented live model name, not a guess.
-const LIVE_MODEL    = "gemini-live-2.5-flash-preview";
+// Confirmed 2026-09-25 against Google's own models.list endpoint for THIS
+// project's API key (GET /v1alpha/models — see the now-deleted
+// debug-latest-live-session.js diagnostic), filtered to models whose
+// supportedGenerationMethods includes bidiGenerateContent — not taken from
+// SDK doc comments this time, which were wrong twice before this (both
+// "gemini-2.5-flash-native-audio-preview-09-2025" guessed without
+// verification, and "gemini-live-2.5-flash-preview" copied from a stale
+// @google/genai doc example) failed in production with WebSocket close
+// code 1008 ("model ... is not found ... or is not supported for
+// bidiGenerateContent"). This exact string IS in that verified list.
+const LIVE_MODEL    = "gemini-2.5-flash-native-audio-preview-09-2025";
 
 // Matches firestore.rules' isAdminEmail() exactly. Talk with Jona is
 // admin-only for this beta (requirement #13) — kept as a hand-maintained
