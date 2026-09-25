@@ -242,8 +242,11 @@ exports.handler = async (event) => {
   const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   // 7. One active session per account, across devices — real atomicity,
-  // not a read-then-write race (see acquireSessionLock's own comment).
-  const gotLock = await acquireSessionLock(uid, sessionId, maxSessionSeconds);
+  // not a read-then-write race (see acquireSessionLock's own comment). A
+  // SHORT, client-renewed lease (not maxSessionSeconds+30) — see
+  // docs/JONA_LIVE_LOCK_RECOVERY_2026-09-25.md — so an abnormal disconnect
+  // recovers in ~lockLeaseSeconds, not up to 5.5 minutes.
+  const gotLock = await acquireSessionLock(uid, sessionId, policy.lockLeaseSeconds);
   if (!gotLock) {
     return { statusCode: 409, headers: CORS, body: JSON.stringify({ error: "Jona is already in a live conversation on another device.", code: "concurrent_session" }) };
   }
@@ -308,6 +311,7 @@ exports.handler = async (event) => {
         maxSessionSeconds,
         idleCheckSeconds: policy.idleCheckSeconds,
         idleDisconnectSeconds: policy.idleDisconnectSeconds,
+        heartbeatIntervalSeconds: policy.heartbeatIntervalSeconds,
         remainingMinutes,
         usageClass,
       }),

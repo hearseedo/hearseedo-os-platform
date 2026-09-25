@@ -196,6 +196,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   const maxSecondsRef    = useRef(180);
   const hardTimeoutRef   = useRef(null);
   const warningTimeoutRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
   const scheduledSourcesRef = useRef([]);
 
   // Cost/idle guardrails — usage metadata is whatever Gemini's own
@@ -218,13 +219,21 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     try {
       const idToken = await auth.currentUser?.getIdToken();
       const durationSeconds = startedAtRef.current ? (Date.now() - startedAtRef.current) / 1000 : null;
+      const payload = JSON.stringify({
+        idToken, sessionId: sessionIdRef.current, durationSeconds, endReason: reason,
+        usageMetadata: usageMetadataRef.current,
+      });
+      // keepalive (2026-09-25 lock-recovery fix): without it, a fetch that's
+      // still in flight when the tab actually closes/navigates away can be
+      // cancelled by the browser before the server ever receives it — the
+      // concurrency lock would then only clear via its lease timeout
+      // instead of this clean release. See onPageHide below for the
+      // "browser tab closed outright" case specifically.
       await fetch("/api/live-session-end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idToken, sessionId: sessionIdRef.current, durationSeconds, endReason: reason,
-          usageMetadata: usageMetadataRef.current,
-        }),
+        body: payload,
+        keepalive: true,
       });
     } catch { /* best-effort logging only — never blocks the user from leaving */ }
   }, []);
@@ -237,6 +246,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     endedRef.current = true;
     if (hardTimeoutRef.current) clearTimeout(hardTimeoutRef.current);
     if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+    if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     idleWatchRef.current?.stop();
 
     for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
@@ -383,6 +393,25 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
               startedAtRef.current = Date.now();
               startMic();
               updatePhase("listening");
+              // Concurrency-lock heartbeat (2026-09-25 lock-recovery fix)
+              // — only starts once the session is genuinely open. A tab
+              // that goes fully unresponsive (crash, device sleep, hard
+              // network loss) simply stops sending these; the lock's own
+              // short lease (renewed by each successful heartbeat) then
+              // self-expires within about one lease window instead of
+              // waiting for the old fixed 5.5-minute hold.
+              const heartbeatMs = (minted.heartbeatIntervalSeconds ?? 20) * 1000;
+              heartbeatIntervalRef.current = setInterval(async () => {
+                if (endedRef.current) return;
+                try {
+                  const hbToken = await auth.currentUser?.getIdToken();
+                  await fetch("/api/live-session-heartbeat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ idToken: hbToken, sessionId: sessionIdRef.current }),
+                  });
+                } catch { /* a missed heartbeat is fine — the next one retries; the lease just needs SOME recent success */ }
+              }, heartbeatMs);
             },
             onmessage: (message) => {
               if (cancelled) return;
@@ -524,9 +553,23 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       }
     }
 
+    // Tab closed/navigated away outright (2026-09-25 lock-recovery fix) —
+    // a hard browser close doesn't reliably run React's own unmount
+    // cleanup in time for an async operation to complete, which is
+    // exactly the scenario this addresses. `pagehide` (not `beforeunload`,
+    // which is unreliable on mobile Safari and increasingly restricted)
+    // fires reliably on both tab close and normal navigation; combined
+    // with reportEnd's `keepalive: true` fetch, the release request is
+    // given a real chance to reach the server before the page is gone.
+    function onPageHide() {
+      endSession("route_change");
+    }
+    window.addEventListener("pagehide", onPageHide);
+
     connect();
     return () => {
       cancelled = true;
+      window.removeEventListener("pagehide", onPageHide);
       endSession(closeReasonRef.current || "route_change");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

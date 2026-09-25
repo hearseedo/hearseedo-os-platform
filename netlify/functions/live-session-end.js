@@ -89,10 +89,16 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Could not verify session." }) };
   }
 
-  // Release the concurrency lock — best-effort, never blocks the response;
-  // a session that ends must free the account up for its next session
-  // immediately, not after a Firestore round-trip succeeds.
-  releaseSessionLockIfOwned(uid, sessionId).catch(() => {});
+  // Release the concurrency lock — AWAITED (2026-09-25 fix). This was
+  // previously fire-and-forget on the theory that it "never blocks the
+  // response," but a serverless function's execution environment can be
+  // frozen/torn down immediately after the response is returned, with no
+  // guarantee an un-awaited promise actually completes first — this was
+  // the real reason a clean session end didn't always release the lock,
+  // not the lock's lease duration (see
+  // docs/JONA_LIVE_LOCK_RECOVERY_2026-09-25.md). It's a single small
+  // Firestore round-trip, cheap enough to simply wait for.
+  await releaseSessionLockIfOwned(uid, sessionId).catch(() => {});
 
   const safeDuration = Number.isFinite(durationSeconds) && durationSeconds >= 0 ? Math.round(durationSeconds) : null;
   const safeReason = VALID_END_REASONS.has(endReason) ? endReason : "unknown";

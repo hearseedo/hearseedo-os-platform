@@ -22,6 +22,18 @@ const DEFAULTS = {
   idleDisconnectSeconds: 60, // total idle seconds (including the check-in's own ~15s grace window) before auto-ending
   maxConcurrentSessions:  1, // one live session per account at a time, across all devices
 
+  // Concurrency-lock lease/heartbeat (2026-09-25 — see
+  // docs/JONA_LIVE_LOCK_RECOVERY_2026-09-25.md). The lock is now a SHORT,
+  // renewable lease instead of "maxSessionSeconds + 30s" — a live client
+  // renews it periodically; an orphaned lock (tab closed, network dead,
+  // crash) self-expires within roughly lockLeaseSeconds of the last
+  // successful renewal, not up to 5.5 minutes. lockLeaseSeconds must stay
+  // comfortably above heartbeatIntervalSeconds (a few missed beats of
+  // tolerance for transient network blips) without exceeding the ~60-90s
+  // recovery target.
+  heartbeatIntervalSeconds: 20,
+  lockLeaseSeconds:         75,
+
   // Admin/test tier — generous, not unlimited, still logged and still
   // capped so a runaway test script can't produce unbounded spend.
   adminMonthlyMinutes:   600,
@@ -47,6 +59,8 @@ async function loadLiveBetaPolicy(firestoreFetch, fromFirestoreFields) {
       idleCheckSeconds:       num("idleCheckSeconds"),
       idleDisconnectSeconds:  num("idleDisconnectSeconds"),
       maxConcurrentSessions:  num("maxConcurrentSessions"),
+      heartbeatIntervalSeconds: num("heartbeatIntervalSeconds"),
+      lockLeaseSeconds:         num("lockLeaseSeconds"),
       adminMonthlyMinutes:    num("adminMonthlyMinutes"),
       adminMaxSessionMinutes: num("adminMaxSessionMinutes"),
       adminDailySessions:     num("adminDailySessions"),

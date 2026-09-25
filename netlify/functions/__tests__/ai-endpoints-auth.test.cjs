@@ -104,6 +104,24 @@ test("live-session-end: rejects a request with no sessionId (400)", async () => 
   assert.equal(res.statusCode, 400);
 });
 
+test("live-session-heartbeat: rejects a request with no idToken (400 or 401, never 200)", async () => {
+  const { handler } = require("../live-session-heartbeat.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ sessionId: "attacker-guessed-id" }) });
+  assert.ok(res.statusCode === 400 || res.statusCode === 401, `expected 400/401, got ${res.statusCode}`);
+});
+
+test("live-session-heartbeat: rejects a request with no sessionId (400)", async () => {
+  const { handler } = require("../live-session-heartbeat.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "irrelevant-invalid-token" }) });
+  assert.equal(res.statusCode, 400);
+});
+
+test("live-session-heartbeat: an invalid/unverifiable idToken is rejected, never treated as authenticated", async () => {
+  const { handler } = require("../live-session-heartbeat.js");
+  const res = await handler({ httpMethod: "POST", body: JSON.stringify({ idToken: "not-a-real-token", sessionId: "x" }) });
+  assert.equal(res.statusCode, 401);
+});
+
 test("customer-portal: rejects a request with no idToken (400)", async () => {
   const { handler } = require("../customer-portal.js");
   const res = await handler({
