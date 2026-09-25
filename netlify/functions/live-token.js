@@ -210,6 +210,15 @@ exports.handler = async (event) => {
           config: {
             responseModalities: ["AUDIO"],
             systemInstruction: { parts: [{ text: systemInstruction }] },
+            // "Puck" (2026-09-25) — without this, Gemini Live used its own
+            // default voice, which came through female and didn't match
+            // Jona's established character. This is Google's own most
+            // consistently documented example voice across the Gemini
+            // API's official samples (a male-toned voice) — not verified
+            // against a per-project voices.list (no such public endpoint
+            // exists), so treat as the first real candidate, not a
+            // confirmed value, if it needs to change.
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } },
           },
         },
         // Empty array (not field-path strings — Google's API rejected
