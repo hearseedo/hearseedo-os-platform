@@ -213,6 +213,30 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Talk with Jona (Gemini Live) cost/quota bookkeeping (2026-09-25).
+      // Purely server-internal — never read by the client UI (the small
+      // "N min remaining" display comes back in live-token.js's own mint
+      // response, not a direct Firestore read) — so these are fully
+      // server-only, admin-readable for support/debugging, no owner read
+      // needed. Written only via the service-account firestoreFetch from
+      // live-token.js / live-session-end.js / _liveSessionLock.js, which
+      // bypasses these rules entirely, same shape as liveSessions above.
+      match /liveSessionUsage/{day} {
+        allow read: if request.auth != null && isAdminEmail();
+        allow write: if false;
+      }
+      match /liveUsageMonthly/{month} {
+        allow read: if request.auth != null && isAdminEmail();
+        allow write: if false;
+      }
+      // The one-active-session-per-account concurrency lock — genuinely
+      // nobody's business but the server's; not even admin-readable,
+      // since it's a short-lived implementation detail (auto-expires),
+      // not a record worth keeping or displaying.
+      match /liveActiveSession/{doc} {
+        allow read, write: if false;
+      }
+
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
 

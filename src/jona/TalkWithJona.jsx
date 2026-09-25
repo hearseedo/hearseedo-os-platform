@@ -19,6 +19,23 @@
 // switch, logout, route exit) all call the same endSession() path, which
 // closes the Live session, stops the microphone track, and reports the
 // end to the server.
+//
+// Cost/idle guardrails (2026-09-25) — see
+// docs/JONA_LIVE_BETA_GUARDRAILS_2026-09-25.md for the full design. This
+// file owns two client-side timers, both driven by phase transitions the
+// server already reports (never a new voice-activity-detection scheme):
+//   - a ~1-minute-remaining session warning, sent as a natural spoken
+//     turn via sendClientContent so Jona says it in character rather than
+//     the UI popping a countdown in front of a child.
+//   - an idle watch that only counts time while Jona is genuinely waiting
+//     for the learner (phase === "listening"), never while Jona is
+//     thinking/speaking. At idleCheckSeconds of that, Jona checks in;
+//     if the learner doesn't respond within the remaining
+//     idleDisconnectSeconds, the session ends itself.
+// Standardized end reasons (must match live-session-end.js's
+// VALID_END_REASONS exactly): user_end, idle_timeout, session_limit,
+// monthly_limit, daily_limit, profile_switch, logout, route_change,
+// connection_error, admin_disabled, safety, unknown.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { auth } from "../lib/firebase";
@@ -58,7 +75,7 @@ const INPUT_SAMPLE_RATE  = 16000;
 // None of this touches the connection/session logic above — only how it's
 // presented on screen.
 const CARD_W = 240;
-const CARD_H = 128;
+const CARD_H = 144; // 128 + room for the static "N min remaining" line
 const PILL_SIZE = 60;
 const EDGE_MARGIN = 12;
 const TOP_RESERVE = 16;
@@ -82,7 +99,7 @@ function defaultPos(w, h) {
   return clampPos(vw - w - EDGE_MARGIN, vh - h - BOTTOM_RESERVE, w, h);
 }
 
-export default function TalkWithJona({ context, profileId, lang, onClose, closeSignal }) {
+export default function TalkWithJona({ context, profileId, lang, onClose, closeSignal, closeReason = "route_change" }) {
   const { t } = useLang();
   const [phase, setPhase] = useState("connecting"); // connecting | listening | thinking | speaking | error | ended
   const [errorMsg, setErrorMsg] = useState("");
@@ -155,7 +172,9 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     setDragging(false);
     if (wasTap) {
       // A tap on the collapsed pill expands it (requirement #5); a tap on
-      // the expanded card's own drag handle does nothing extra.
+      // the expanded card's own drag handle does nothing extra. Either
+      // way, a deliberate tap counts as "still here" for the idle watch.
+      resetIdleOnInteractionRef.current();
       if (collapsed) setCollapsed(false);
       return;
     }
@@ -175,7 +194,26 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   const endedRef         = useRef(false);
   const maxSecondsRef    = useRef(180);
   const hardTimeoutRef   = useRef(null);
+  const warningTimeoutRef = useRef(null);
   const scheduledSourcesRef = useRef([]);
+
+  // Cost/idle guardrails — usage metadata is whatever Gemini's own
+  // serverContent messages most recently reported (cumulative per
+  // Google's documented shape, see onmessage below); never audio, never a
+  // transcript. idlePhase/idle timer refs implement the check-in ->
+  // final-wait -> disconnect state machine described in the file header.
+  const usageMetadataRef = useRef(null);
+  const phaseRef         = useRef("connecting");
+  const idlePhaseRef     = useRef("active"); // active | checkinSent | awaitingFinal
+  const idleTimerRef     = useRef(null);
+  const idleFinalTimerRef = useRef(null);
+  const idleCheckSecondsRef      = useRef(45);
+  const idleDisconnectSecondsRef = useRef(60);
+  // Assigned inside the connect effect once the idle-watch helpers exist;
+  // called from the render layer's collapse/expand taps so a deliberate
+  // interaction with the card counts as "still here" too, not just speech.
+  const resetIdleOnInteractionRef = useRef(() => {});
+  const [remainingMinutes, setRemainingMinutes] = useState(null);
 
   const reportEnd = useCallback(async (reason) => {
     if (!sessionIdRef.current) return;
@@ -185,7 +223,10 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       await fetch("/api/live-session-end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, sessionId: sessionIdRef.current, durationSeconds, endReason: reason }),
+        body: JSON.stringify({
+          idToken, sessionId: sessionIdRef.current, durationSeconds, endReason: reason,
+          usageMetadata: usageMetadataRef.current,
+        }),
       });
     } catch { /* best-effort logging only — never blocks the user from leaving */ }
   }, []);
@@ -197,6 +238,9 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     if (endedRef.current) return;
     endedRef.current = true;
     if (hardTimeoutRef.current) clearTimeout(hardTimeoutRef.current);
+    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (idleFinalTimerRef.current) clearTimeout(idleFinalTimerRef.current);
 
     for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
     scheduledSourcesRef.current = [];
@@ -214,7 +258,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   }, [reportEnd]);
 
   const handleEndClick = useCallback(() => {
-    endSession("user_ended");
+    endSession("user_end");
     onClose?.();
   }, [endSession, onClose]);
 
@@ -230,8 +274,78 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     endSession("profile_switch");
   }, [closeSignal, endSession]);
 
+  // Read at unmount time (below) via a ref rather than the prop directly,
+  // since the cleanup closure captures values from mount — this stays
+  // current across re-renders without needing to be a connect-effect
+  // dependency (which would restart the whole connection).
+  const closeReasonRef = useRef(closeReason);
+  closeReasonRef.current = closeReason;
+
   useEffect(() => {
     let cancelled = false;
+
+    // ── Idle watch + phase tracking (2026-09-25 guardrails) ────────────
+    // phaseRef mirrors React's `phase` state synchronously so these
+    // callbacks (which close over refs, not state) always see the
+    // current value rather than a stale one.
+    function clearIdleTimers() {
+      if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
+      if (idleFinalTimerRef.current) { clearTimeout(idleFinalTimerRef.current); idleFinalTimerRef.current = null; }
+    }
+    function sendSystemTurn(text) {
+      try { sessionRef.current?.sendClientContent({ turns: text, turnComplete: true }); } catch { /* mid-close — drop it */ }
+    }
+    // Only counts time while Jona is genuinely waiting for the learner
+    // (phase === "listening") — never while Jona is thinking/speaking, and
+    // never a raw "N seconds since anything happened on the socket".
+    function armIdleCheck() {
+      clearIdleTimers();
+      idleTimerRef.current = setTimeout(() => {
+        idlePhaseRef.current = "checkinSent";
+        sendSystemTurn("[SYSTEM: The learner has been quiet for a while. In one short, warm sentence, check in naturally — e.g. ask if they're still there or want to keep going. Do not mention time, limits, or anything technical.]");
+      }, idleCheckSecondsRef.current * 1000);
+    }
+    // fromInterruption=true (native barge-in) always means real learner
+    // activity, so it always fully resets regardless of idlePhaseRef.
+    function onEnterListening(fromInterruption) {
+      if (endedRef.current) return;
+      if (!fromInterruption && idlePhaseRef.current === "checkinSent") {
+        // Jona just finished delivering ITS OWN check-in line — now wait
+        // for a real reply within the remaining grace window before
+        // ending the session. A genuine reply arriving here re-enters
+        // this function via the "else" path below (phase leaves and
+        // re-enters listening), which resets to "active" — exactly the
+        // "if the learner speaks, reset the timer" behavior.
+        idlePhaseRef.current = "awaitingFinal";
+        const finalSeconds = Math.max(5, idleDisconnectSecondsRef.current - idleCheckSecondsRef.current);
+        idleFinalTimerRef.current = setTimeout(() => endSession("idle_timeout"), finalSeconds * 1000);
+        return;
+      }
+      idlePhaseRef.current = "active";
+      armIdleCheck();
+    }
+    function onLeaveListening() {
+      // Jona is now thinking/speaking — this must never count against the
+      // learner, whether it's a real reply or Jona's own check-in/warning
+      // line. Also cancels a pending idle_timeout if the learner replied
+      // during the post-check-in grace window.
+      clearIdleTimers();
+    }
+    function updatePhase(next) {
+      const prev = phaseRef.current;
+      phaseRef.current = next;
+      setPhase(next);
+      if (prev !== "listening" && next === "listening") onEnterListening(false);
+      else if (prev === "listening" && next !== "listening") onLeaveListening();
+    }
+    // Exposed so the render layer's collapse/expand taps can count as
+    // "meaningfully interacting with the controls" without needing the
+    // whole idle machinery to live outside this effect.
+    resetIdleOnInteractionRef.current = () => {
+      if (endedRef.current) return;
+      idlePhaseRef.current = "active";
+      if (phaseRef.current === "listening") armIdleCheck(); else clearIdleTimers();
+    };
 
     async function connect() {
       try {
@@ -245,18 +359,43 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         });
         if (!tokenRes.ok) {
           const err = await tokenRes.json().catch(() => ({}));
-          throw new Error(err.error || "unavailable");
+          // Server returns a specific `code` for the guardrail cases so
+          // the learner sees the right friendly message rather than the
+          // generic fallback (requirement: never expose provider/quota
+          // terminology, but DO tell them which friendly thing happened).
+          const friendly =
+            err.code === "monthly_limit"      ? t("talk_jona_monthly_limit") :
+            err.code === "daily_limit"        ? t("talk_jona_daily_limit")   :
+            err.code === "concurrent_session" ? t("talk_jona_concurrent")    :
+            tokenRes.status === 503           ? t("talk_jona_disabled")      :
+            null;
+          const e = new Error(err.error || "unavailable");
+          e.friendly = friendly;
+          throw e;
         }
         const minted = await tokenRes.json();
         if (cancelled) return;
 
         sessionIdRef.current  = minted.sessionId;
         maxSecondsRef.current = minted.maxSessionSeconds ?? 180;
+        idleCheckSecondsRef.current      = minted.idleCheckSeconds ?? 45;
+        idleDisconnectSecondsRef.current = minted.idleDisconnectSeconds ?? 60;
+        if (Number.isFinite(minted.remainingMinutes)) setRemainingMinutes(minted.remainingMinutes);
 
-        // Requirement #9 backstop — server also enforces this on the token
-        // itself (expireTime), this is a client-side belt-and-braces close
+        // Session-limit backstop — server also enforces this on the token
+        // itself (expireTime); this is a client-side belt-and-braces close
         // so the UI ends the conversation cleanly rather than erroring.
-        hardTimeoutRef.current = setTimeout(() => endSession("timeout"), maxSecondsRef.current * 1000);
+        hardTimeoutRef.current = setTimeout(() => endSession("session_limit"), maxSecondsRef.current * 1000);
+
+        // ~1-minute-remaining warning — a natural spoken turn via
+        // sendClientContent, never a UI countdown in front of a child. No
+        // separate timer needed if the session itself is already <=60s.
+        const warnDelaySeconds = maxSecondsRef.current - 60;
+        if (warnDelaySeconds > 5) {
+          warningTimeoutRef.current = setTimeout(() => {
+            sendSystemTurn("[SYSTEM: About one minute remains in this session. Wrap up naturally in one short sentence — e.g. ask what they'd like to work on before you finish. Do not mention time, limits, tokens, or anything technical.]");
+          }, warnDelaySeconds * 1000);
+        }
 
         // apiVersion must match live-token.js's minting call — ephemeral
         // auth tokens are v1alpha-only; connecting with the SDK's default
@@ -274,17 +413,25 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
               if (cancelled) return;
               startedAtRef.current = Date.now();
               startMic();
-              setPhase("listening");
+              updatePhase("listening");
             },
             onmessage: (message) => {
               if (cancelled) return;
+              // Cumulative per Google's documented shape — keep only the
+              // latest, never raw audio/transcript.
+              if (message.usageMetadata) usageMetadataRef.current = message.usageMetadata;
+
               // Native barge-in signal (requirement #5) — stop local
-              // playback immediately, never a hand-rolled interruption timer.
+              // playback immediately, never a hand-rolled interruption
+              // timer. Always real learner activity, so it always fully
+              // resets the idle watch regardless of its current phase.
               if (message.serverContent?.interrupted) {
                 for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
                 scheduledSourcesRef.current = [];
                 playTimeRef.current = playCtxRef.current?.currentTime ?? 0;
+                phaseRef.current = "listening";
                 setPhase("listening");
+                onEnterListening(true);
                 return;
               }
               const parts = message.serverContent?.modelTurn?.parts ?? [];
@@ -293,8 +440,8 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
                   playChunk(part.inlineData.data);
                 }
               }
-              if (message.serverContent?.turnComplete) {
-                setPhase((p) => (p === "speaking" ? "listening" : p));
+              if (message.serverContent?.turnComplete && phaseRef.current === "speaking") {
+                updatePhase("listening");
               }
             },
             onerror: (e) => {
@@ -309,7 +456,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
             onclose: (e) => {
               if (cancelled) return;
               console.warn("Talk with Jona session closed:", e?.code, e?.reason);
-              if (!endedRef.current) endSession("abnormal_disconnect");
+              if (!endedRef.current) endSession("connection_error");
             },
           },
         });
@@ -318,7 +465,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       } catch (e) {
         if (cancelled) return;
         console.error("Talk with Jona failed to start:", e.message);
-        setErrorMsg(t("talk_jona_error"));
+        setErrorMsg(e.friendly || t("talk_jona_error"));
         setPhase("error");
       }
     }
@@ -344,7 +491,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       src.onended = () => {
         scheduledSourcesRef.current = scheduledSourcesRef.current.filter((s) => s !== src);
       };
-      setPhase("speaking");
+      updatePhase("speaking");
     }
 
     async function startMic() {
@@ -397,7 +544,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     connect();
     return () => {
       cancelled = true;
-      endSession("route_exit");
+      endSession(closeReasonRef.current || "route_change");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -487,7 +634,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
                 click (found via manual testing, 2026-09-25). */}
             <button
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => setCollapsed(true)}
+              onClick={() => { resetIdleOnInteractionRef.current(); setCollapsed(true); }}
               aria-label={t("talk_jona_collapse")}
               title={t("talk_jona_collapse")}
               style={{ background: "rgba(255,255,255,0.14)", border: "none", borderRadius: 8, width: 22, height: 22, color: "#fff", fontSize: 12, cursor: "pointer", flexShrink: 0, lineHeight: 1 }}
@@ -500,6 +647,15 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, opacity: 0.8, padding: "0 12px" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5c7a", display: "inline-block", animation: "hsdJonaPulse 1.4s ease-in-out infinite" }} />
               {t("talk_jona_mic_active")}
+            </div>
+          )}
+
+          {/* Static, not a ticking countdown — shown once from the mint
+              response and never updated live during the conversation, so
+              it never reads as a stressful clock in front of a child. */}
+          {remainingMinutes != null && (
+            <div style={{ fontSize: 10.5, opacity: 0.6, padding: "2px 12px 0" }}>
+              {t("talk_jona_remaining").replace("{min}", remainingMinutes)}
             </div>
           )}
 

@@ -10,6 +10,7 @@ import { confidenceLabel, trendIcon } from "../lib/confidenceEngine";
 import { FOUNDING_LIMIT, FOUNDING_BADGE, REFERRAL_BADGES, LEGACY_FOUNDER_BADGE } from "../lib/founding";
 import FoundingBadge from "../components/FoundingBadge";
 import { PATHWAYS } from "../constants/pathways";
+import AdminLiveJonaTab from "./AdminLiveJonaTab";
 
 // Admin-only light theme (2026-09-23) — same key names as
 // constants/colors.js's shared dark COLORS (which the rest of the
@@ -49,6 +50,7 @@ const TABS = [
   { id: "warnings",      label: "Warnings",       icon: "⚠️" },
   { id: "gemini",        label: "Gemini Activity",icon: "🤖" },
   { id: "api_costs",     label: "API Costs",      icon: "💰" },
+  { id: "live_jona",     label: "Live Jona",      icon: "🎙️" },
   { id: "support",       label: "Support",        icon: "💬" },
   { id: "feedback",      label: "Feedback",       icon: "📣" },
   { id: "family_beta",   label: "Family Beta",    icon: "👨‍👩‍👧" },
@@ -409,6 +411,7 @@ export default function Admin() {
           {tab === "warnings"     && <WarningsTab     warnings={warnings} loading={loading} />}
           {tab === "gemini"       && <GeminiActivityTab />}
           {tab === "api_costs"    && <ApiCostsTab />}
+          {tab === "live_jona"    && <AdminLiveJonaTab />}
           {tab === "support"      && <SupportTab />}
           {tab === "intelligence" && <IntelligenceTab users={realUsers} platform={platform} loading={loading} avgConfidence={avgConfidence} />}
           {tab === "eiken"        && <EikenTeacherTab users={realUsers} loading={loading} />}

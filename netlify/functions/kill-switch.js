@@ -21,12 +21,21 @@ const CORS = {
 };
 
 const ACTIONS = {
-  disable_all:      { allEnabled: false, geminiEnabled: false, elevenLabsEnabled: false },
-  enable_all:       { allEnabled: true,  geminiEnabled: true,  elevenLabsEnabled: true  },
-  disable_gemini:   { geminiEnabled: false },
-  enable_gemini:    { geminiEnabled: true  },
-  disable_tts:      { elevenLabsEnabled: false },
-  enable_tts:       { elevenLabsEnabled: true  },
+  disable_all:        { allEnabled: false, geminiEnabled: false, elevenLabsEnabled: false, geminiLiveEnabled: false },
+  enable_all:         { allEnabled: true,  geminiEnabled: true,  elevenLabsEnabled: true,  geminiLiveEnabled: true  },
+  disable_gemini:     { geminiEnabled: false },
+  enable_gemini:      { geminiEnabled: true  },
+  disable_tts:        { elevenLabsEnabled: false },
+  enable_tts:         { elevenLabsEnabled: true  },
+  // Talk with Jona (Gemini Live) — a dedicated switch separate from
+  // disable_gemini (which stops Ask Jona's text pipeline too). Preventing
+  // NEW sessions immediately is the chosen behavior for beta (see
+  // docs/JONA_LIVE_BETA_GUARDRAILS_2026-09-25.md) — live-token.js checks
+  // this before minting any token, so an already-open session already in
+  // progress is allowed to finish naturally (it was minted before the
+  // flag flipped) rather than being forcibly cut off mid-conversation.
+  disable_gemini_live: { geminiLiveEnabled: false },
+  enable_gemini_live:  { geminiLiveEnabled: true  },
   status:           null, // read-only
 };
 
@@ -52,15 +61,16 @@ exports.handler = async (event) => {
   if (action === "status") {
     try {
       const r = await firestoreFetch("/config/killSwitch");
-      if (r.status === 404) return { statusCode: 200, headers: CORS, body: JSON.stringify({ allEnabled: true, geminiEnabled: true, elevenLabsEnabled: true }) };
+      if (r.status === 404) return { statusCode: 200, headers: CORS, body: JSON.stringify({ allEnabled: true, geminiEnabled: true, elevenLabsEnabled: true, geminiLiveEnabled: true }) };
       const doc = await r.json();
       const f   = doc.fields ?? {};
       return { statusCode: 200, headers: CORS, body: JSON.stringify({
-        allEnabled:       f.allEnabled?.booleanValue       ?? true,
-        geminiEnabled:    f.geminiEnabled?.booleanValue    ?? true,
+        allEnabled:        f.allEnabled?.booleanValue        ?? true,
+        geminiEnabled:     f.geminiEnabled?.booleanValue     ?? true,
         elevenLabsEnabled: f.elevenLabsEnabled?.booleanValue ?? true,
-        updatedAt:        f.updatedAt?.integerValue        ?? null,
-        lastAction:       f.action?.stringValue            ?? null,
+        geminiLiveEnabled: f.geminiLiveEnabled?.booleanValue ?? true,
+        updatedAt:         f.updatedAt?.integerValue         ?? null,
+        lastAction:        f.action?.stringValue             ?? null,
       })};
     } catch {
       return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Could not read status" }) };

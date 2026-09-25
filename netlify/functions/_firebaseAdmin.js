@@ -132,6 +132,37 @@ async function incrementField(path, fieldPath, amount = 1) {
   if (!res.ok) throw new Error(`Firestore increment failed: ${await res.text()}`);
 }
 
+// Atomic "create only if this document doesn't already exist" via the
+// :commit API's currentDocument precondition — the REST equivalent of a
+// Firestore transaction for exactly this one shape (2026-09-25, Talk with
+// Jona concurrency guard). Returns true if this call created the document
+// (i.e. this caller now holds the lock), false if it already existed
+// (someone else holds it) or PERMISSION_DENIED-shaped conflict occurred.
+// Real atomicity, not read-then-write — two simultaneous callers cannot
+// both succeed, which a plain read+PATCH race could allow.
+async function createIfAbsent(path, fields) {
+  const token = await getAccessToken();
+  const res = await fetch(`${FS_BASE}:commit`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      writes: [{
+        update: { name: `projects/${PROJECT_ID}/databases/(default)/documents${path}`, fields },
+        currentDocument: { exists: false },
+      }],
+    }),
+  });
+  return res.ok;
+}
+
+// Plain document delete via the REST API — used to release the Talk with
+// Jona concurrency lock. Idempotent: deleting an already-gone doc is not
+// treated as an error by the caller.
+async function deleteDoc(path) {
+  const token = await getAccessToken();
+  return fetch(`${FS_BASE}${path}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+}
+
 // Verifies a client Firebase ID token via Google's introspection endpoint
 // (same lightweight pattern chat.js already uses) — returns the uid, or
 // throws if the token is invalid/expired.
@@ -192,6 +223,7 @@ function fromFirestoreFields(fields) {
 
 module.exports = {
   PROJECT_ID, FS_BASE, firestoreFetch, verifyIdToken, incrementField,
+  createIfAbsent, deleteDoc,
   toFirestoreValue, toFirestoreFields, fromFirestoreValue, fromFirestoreFields,
   FirestoreConfigError, resolvePrivateKeyPem,
 };

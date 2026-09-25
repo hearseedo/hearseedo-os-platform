@@ -62,6 +62,11 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // chat panel below — opening it does not close/replace "Ask Jona"; they
   // are two independent entry points per requirement #4's ⌨️/🎙 framing.
   const [talkOpen, setTalkOpen] = useState(false);
+  // Distinguishes *why* TalkWithJona is unmounting for its end-reason
+  // reporting — logout vs. an ordinary route/component exit. Defaults to
+  // the generic reason; only ever set right before a logout-triggered
+  // unmount below.
+  const [talkCloseReason, setTalkCloseReason] = useState("route_change");
   const { t, lang: uiLang } = useLang();
   // I18n fix (2026-09-24): this component's own chrome (buttons, labels,
   // placeholders) was entirely hardcoded English regardless of the app's
@@ -102,7 +107,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // only fires on a UID/profile CHANGE, which a sign-out to `user === null`
   // wouldn't otherwise produce, so unmounting it here is the actual close.
   useEffect(() => {
-    if (!user && talkOpen) setTalkOpen(false);
+    if (!user && talkOpen) { setTalkCloseReason("logout"); setTalkOpen(false); }
   }, [user, talkOpen]);
 
   useEffect(() => {
@@ -155,10 +160,10 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
 
   return (
     <>
-      {/* Talk with Jona (Gemini Live beta) — a separate full-screen overlay,
-          entirely independent of the chat panel below. If it's open, it
-          owns the screen; closing it (its own End conversation button)
-          returns here with nothing else disturbed. */}
+      {/* Talk with Jona (Gemini Live beta) — a small floating companion
+          card, entirely independent of the chat panel below; the app
+          underneath stays visible and usable. Closing it (its own End
+          conversation button) returns here with nothing else disturbed. */}
       {talkOpen && (
         <TalkWithJona
           context={context}
@@ -166,6 +171,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
           lang={effectiveLang}
           onClose={() => setTalkOpen(false)}
           closeSignal={user ? `${user.uid}:${user.activeProfileId}` : null}
+          closeReason={talkCloseReason}
         />
       )}
 
