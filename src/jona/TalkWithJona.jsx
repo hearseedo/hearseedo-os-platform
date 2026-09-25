@@ -40,6 +40,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react
 import { GoogleGenAI, Modality } from "@google/genai";
 import { auth } from "../lib/firebase";
 import { useLang } from "../hooks/useLang";
+import { createIdleWatch } from "./idleWatch";
 
 // PCM16/16kHz input conversion — Gemini Live's documented input format.
 function floatTo16BitPCM(float32) {
@@ -200,15 +201,12 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   // Cost/idle guardrails — usage metadata is whatever Gemini's own
   // serverContent messages most recently reported (cumulative per
   // Google's documented shape, see onmessage below); never audio, never a
-  // transcript. idlePhase/idle timer refs implement the check-in ->
-  // final-wait -> disconnect state machine described in the file header.
+  // transcript. The check-in -> final-wait -> disconnect state machine
+  // itself lives in idleWatch.js (a pure, unit-tested module) — this ref
+  // holds the one instance for the current session.
   const usageMetadataRef = useRef(null);
   const phaseRef         = useRef("connecting");
-  const idlePhaseRef     = useRef("active"); // active | checkinSent | awaitingFinal
-  const idleTimerRef     = useRef(null);
-  const idleFinalTimerRef = useRef(null);
-  const idleCheckSecondsRef      = useRef(45);
-  const idleDisconnectSecondsRef = useRef(60);
+  const idleWatchRef     = useRef(null);
   // Assigned inside the connect effect once the idle-watch helpers exist;
   // called from the render layer's collapse/expand taps so a deliberate
   // interaction with the card counts as "still here" too, not just speech.
@@ -239,8 +237,7 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     endedRef.current = true;
     if (hardTimeoutRef.current) clearTimeout(hardTimeoutRef.current);
     if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    if (idleFinalTimerRef.current) clearTimeout(idleFinalTimerRef.current);
+    idleWatchRef.current?.stop();
 
     for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
     scheduledSourcesRef.current = [];
@@ -284,67 +281,34 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   useEffect(() => {
     let cancelled = false;
 
-    // ── Idle watch + phase tracking (2026-09-25 guardrails) ────────────
+    // ── Phase tracking (2026-09-25 guardrails) ─────────────────────────
     // phaseRef mirrors React's `phase` state synchronously so these
     // callbacks (which close over refs, not state) always see the
-    // current value rather than a stale one.
-    function clearIdleTimers() {
-      if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
-      if (idleFinalTimerRef.current) { clearTimeout(idleFinalTimerRef.current); idleFinalTimerRef.current = null; }
-    }
+    // current value rather than a stale one. The idle check-in/disconnect
+    // state machine itself lives in idleWatch.js (createIdleWatch,
+    // instantiated below once the mint response gives us the real
+    // idleCheckSeconds/idleDisconnectSeconds) — this effect only tells it
+    // about phase transitions, it never re-implements the timing logic.
     function sendSystemTurn(text) {
       try { sessionRef.current?.sendClientContent({ turns: text, turnComplete: true }); } catch { /* mid-close — drop it */ }
-    }
-    // Only counts time while Jona is genuinely waiting for the learner
-    // (phase === "listening") — never while Jona is thinking/speaking, and
-    // never a raw "N seconds since anything happened on the socket".
-    function armIdleCheck() {
-      clearIdleTimers();
-      idleTimerRef.current = setTimeout(() => {
-        idlePhaseRef.current = "checkinSent";
-        sendSystemTurn("[SYSTEM: The learner has been quiet for a while. In one short, warm sentence, check in naturally — e.g. ask if they're still there or want to keep going. Do not mention time, limits, or anything technical.]");
-      }, idleCheckSecondsRef.current * 1000);
-    }
-    // fromInterruption=true (native barge-in) always means real learner
-    // activity, so it always fully resets regardless of idlePhaseRef.
-    function onEnterListening(fromInterruption) {
-      if (endedRef.current) return;
-      if (!fromInterruption && idlePhaseRef.current === "checkinSent") {
-        // Jona just finished delivering ITS OWN check-in line — now wait
-        // for a real reply within the remaining grace window before
-        // ending the session. A genuine reply arriving here re-enters
-        // this function via the "else" path below (phase leaves and
-        // re-enters listening), which resets to "active" — exactly the
-        // "if the learner speaks, reset the timer" behavior.
-        idlePhaseRef.current = "awaitingFinal";
-        const finalSeconds = Math.max(5, idleDisconnectSecondsRef.current - idleCheckSecondsRef.current);
-        idleFinalTimerRef.current = setTimeout(() => endSession("idle_timeout"), finalSeconds * 1000);
-        return;
-      }
-      idlePhaseRef.current = "active";
-      armIdleCheck();
-    }
-    function onLeaveListening() {
-      // Jona is now thinking/speaking — this must never count against the
-      // learner, whether it's a real reply or Jona's own check-in/warning
-      // line. Also cancels a pending idle_timeout if the learner replied
-      // during the post-check-in grace window.
-      clearIdleTimers();
     }
     function updatePhase(next) {
       const prev = phaseRef.current;
       phaseRef.current = next;
       setPhase(next);
-      if (prev !== "listening" && next === "listening") onEnterListening(false);
-      else if (prev === "listening" && next !== "listening") onLeaveListening();
+      // true: every non-barge-in arrival at "listening" is eligible to be
+      // "the check-in completing" — idleWatch's own idlePhase tracking is
+      // the real gate (it's only actually treated that way if a check-in
+      // was genuinely in flight); onBargeIn (below) is the only caller
+      // that ever passes the "definitely not a check-in" case.
+      if (prev !== "listening" && next === "listening") idleWatchRef.current?.onEnterListening(true);
+      else if (prev === "listening" && next !== "listening") idleWatchRef.current?.onLeaveListening();
     }
     // Exposed so the render layer's collapse/expand taps can count as
-    // "meaningfully interacting with the controls" without needing the
-    // whole idle machinery to live outside this effect.
+    // "meaningfully interacting with the controls" too, without needing
+    // the idle watch instance to live outside this effect.
     resetIdleOnInteractionRef.current = () => {
-      if (endedRef.current) return;
-      idlePhaseRef.current = "active";
-      if (phaseRef.current === "listening") armIdleCheck(); else clearIdleTimers();
+      idleWatchRef.current?.resetOnInteraction(phaseRef.current === "listening");
     };
 
     async function connect() {
@@ -378,9 +342,14 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
 
         sessionIdRef.current  = minted.sessionId;
         maxSecondsRef.current = minted.maxSessionSeconds ?? 180;
-        idleCheckSecondsRef.current      = minted.idleCheckSeconds ?? 45;
-        idleDisconnectSecondsRef.current = minted.idleDisconnectSeconds ?? 60;
         if (Number.isFinite(minted.remainingMinutes)) setRemainingMinutes(minted.remainingMinutes);
+
+        idleWatchRef.current = createIdleWatch({
+          idleCheckSeconds:      minted.idleCheckSeconds ?? 45,
+          idleDisconnectSeconds: minted.idleDisconnectSeconds ?? 60,
+          onCheckIn: () => sendSystemTurn("[SYSTEM: The learner has been quiet for a while. In one short, warm sentence, check in naturally — e.g. ask if they're still there or want to keep going. Do not mention time, limits, or anything technical.]"),
+          onDisconnect: () => endSession("idle_timeout"),
+        });
 
         // Session-limit backstop — server also enforces this on the token
         // itself (expireTime); this is a client-side belt-and-braces close
@@ -423,15 +392,29 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
 
               // Native barge-in signal (requirement #5) — stop local
               // playback immediately, never a hand-rolled interruption
-              // timer. Always real learner activity, so it always fully
-              // resets the idle watch regardless of its current phase.
+              // timer.
+              //
+              // IDLE-TIMING FIX (2026-09-25): Gemini's VAD runs continuously
+              // on the mic, including during the 45s idle wait itself, not
+              // only while Jona is speaking — so `interrupted` can arrive
+              // when nothing was actually being said (background noise,
+              // room sound). The original code treated every `interrupted`
+              // message as real learner activity and force-reset the idle
+              // watch unconditionally, so one spurious signal during the
+              // wait silently doubled it to ~90-120s instead of ~60s
+              // (confirmed via manual testing 2026-09-25). Only a signal
+              // that arrives while Jona was ACTUALLY speaking is a real
+              // barge-in and counts as activity; one arriving while already
+              // "listening" interrupted nothing and must not touch the
+              // idle timers.
               if (message.serverContent?.interrupted) {
+                const wasActuallySpeaking = phaseRef.current === "speaking";
                 for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
                 scheduledSourcesRef.current = [];
                 playTimeRef.current = playCtxRef.current?.currentTime ?? 0;
                 phaseRef.current = "listening";
                 setPhase("listening");
-                onEnterListening(true);
+                idleWatchRef.current?.onBargeIn(wasActuallySpeaking);
                 return;
               }
               const parts = message.serverContent?.modelTurn?.parts ?? [];
