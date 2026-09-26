@@ -42,7 +42,13 @@ export function openGlobalJona() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, demoState, demoGeneration, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, demoState, demoGeneration, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang, size = 60 }) {
+  // size (2026-09-27) — the launcher bubble's diameter in px, default 60
+  // (unchanged everywhere it isn't passed). Added so a call site that wants
+  // the bubble more visually prominent (e.g. the public ecosystem demo,
+  // where a first-time visitor needs to actually notice it) can do so
+  // without a second component — the open panel's own position is derived
+  // from this so it never overlaps the (now possibly larger) launcher.
   // freeText=false (2026-09-24) — for young-child apps (Phonics V2, ages
   // 4-8): tap a suggested prompt only, no free-text input to an AI. Caller
   // must pass suggestedPrompts in this mode.
@@ -217,7 +223,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
         aria-label={open ? t("jona_close") : t("jona_ask")}
         style={{
           position: anchor, bottom: bottomOffset, right: 20, zIndex: 999,
-          width: 60, height: 60, borderRadius: "50%", border: "none", cursor: "pointer",
+          width: size, height: size, borderRadius: "50%", border: "none", cursor: "pointer",
           background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
           boxShadow: `0 6px 20px ${accent}66`,
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -225,7 +231,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
         }}
       >
         {open ? (
-          <span style={{ color: "#fff", fontSize: 22, fontWeight: 700 }}>✕</span>
+          <span style={{ color: "#fff", fontSize: Math.round(size * 0.37), fontWeight: 700 }}>✕</span>
         ) : (
           <img src="/assets/hsd/jona/jona-avatar.png" alt="Jona" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         )}
@@ -234,7 +240,7 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       {open && (
         <div
           style={{
-            position: anchor, bottom: bottomOffset + 72, right: 20, zIndex: 999,
+            position: anchor, bottom: bottomOffset + size + 12, right: 20, zIndex: 999,
             width: anchor === "absolute" ? "calc(100% - 40px)" : "min(360px, calc(100vw - 40px))",
             maxHeight: anchor === "absolute" ? "min(460px, calc(100% - 140px))" : "min(520px, calc(100vh - 140px))",
             background: "#fff", borderRadius: 20, boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
