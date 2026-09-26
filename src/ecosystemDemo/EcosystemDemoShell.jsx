@@ -9,6 +9,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMobile } from "../hooks/useMobile";
 import { cancelBrowserTts } from "../lib/browserNarration";
+import { useLang } from "../hooks/useLang";
 
 // Background fix (2026-09-24) — this shell previously had no imagery at
 // all, just a flat ECO.bg fill, which looked unfinished next to
@@ -70,6 +71,7 @@ export default function EcosystemDemoShell() {
   // lands past Step 2 (e.g. a bookmarked/shared deep link), the effect
   // below redirects to the picker instead of guessing — see the redirect
   // effect further down.
+  const { t } = useLang();
   const [pathwayId, setPathwayIdState] = useState(readStoredPathwayId);
   const setPathwayId = (id) => {
     setPathwayIdState(id);
@@ -137,8 +139,8 @@ export default function EcosystemDemoShell() {
             >
               {voiceOn ? "🔊" : "🔇"} Jona's voice
             </button>
-            <button onClick={restart} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
-            <button onClick={() => { cancelBrowserTts(); navigate("/"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Exit</button>
+            <button onClick={restart} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t("eco_demo_restart")}</button>
+            <button onClick={() => { cancelBrowserTts(); navigate("/"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t("eco_demo_exit")}</button>
           </div>
         </header>
 

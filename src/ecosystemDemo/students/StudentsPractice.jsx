@@ -27,7 +27,7 @@ function buildStudentsJonaScript(demoState) {
   return {
     "Can you give me a hint?": "Sure — after saying what you like, add “because” and finish the thought. That's the whole trick.",
     "Is my answer okay?": answerLine,
-    _default: "Good question — in the real app, I'd help you with exactly that, right here, without you needing to leave the lesson.",
+    _default: "This guided demo only responds to a few set questions and to your actual typed answer — try typing your answer below, then ask me again and I'll respond to exactly what you wrote.",
   };
 }
 

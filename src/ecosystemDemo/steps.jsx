@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ECO, useJourney } from "./EcosystemDemoShell";
 import { PATHWAYS_DEMO, CONFIDENCE_EXAMPLE } from "./data";
 import { speakWithBrowserTts } from "../lib/browserNarration";
+import { useLang } from "../hooks/useLang";
 import StudentsPractice from "./students/StudentsPractice";
 import FamilyPractice from "./family/FamilyPractice";
 import AdultsPractice from "./adults/AdultsPractice";
@@ -153,6 +154,7 @@ const PATHWAY_PRACTICE = {
 export function Step4MeetJona() {
   const navigate = useNavigate();
   const { pathwayId } = useJourney();
+  const { t } = useLang();
   const Practice = PATHWAY_PRACTICE[pathwayId] ?? FamilyPractice;
 
   return (
@@ -162,7 +164,7 @@ export function Step4MeetJona() {
       <Practice />
 
       <button onClick={() => navigate("/eco-demo/confidence")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer", marginTop: 8 }}>
-        See Confidence First →
+        {t("eco_demo_see_confidence")}
       </button>
     </div>
   );
