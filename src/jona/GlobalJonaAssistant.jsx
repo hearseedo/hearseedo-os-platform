@@ -41,7 +41,7 @@ export function openGlobalJona() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, demoState, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
   // freeText=false (2026-09-24) — for young-child apps (Phonics V2, ages
   // 4-8): tap a suggested prompt only, no free-text input to an AI. Caller
   // must pass suggestedPrompts in this mode.
@@ -123,12 +123,20 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     setError("");
 
     if (demoScript) {
-      // Scripted demo path — no live call. Falls back to a friendly
-      // generic line if this exact prompt wasn't scripted, so the demo
-      // never looks broken for an unscripted question.
+      // Scripted demo path — no live call. demoScript may be a plain object
+      // (a fixed script table, original behavior) or a function of
+      // demoState, re-evaluated fresh here so a scripted reply can honestly
+      // reflect the visitor's actual current attempt/selection instead of
+      // always returning the same canned line (2026-09-26 — this is the
+      // fix for the "praised the wrong answer as correct" class of bug:
+      // the script table itself must be able to vary by real state, not
+      // just by which exact message text was sent). Falls back to a
+      // friendly generic line if this exact prompt wasn't scripted, so the
+      // demo never looks broken for an unscripted question.
       setSending(true);
       await new Promise((r) => setTimeout(r, 500));
-      const reply = demoScript[trimmed] ?? demoScript._default ?? "Good question — in the real app I'd help you with exactly that, right here.";
+      const scriptTable = typeof demoScript === "function" ? demoScript(demoState) : demoScript;
+      const reply = scriptTable[trimmed] ?? scriptTable._default ?? "Good question — in the real app I'd help you with exactly that, right here.";
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setSending(false);
       // voiceUid gives an anonymous demo visitor a stable placeholder

@@ -59,13 +59,27 @@ export const PATHWAYS_DEMO = [
 // writing a second copy, per "reuse it as one example" — imported directly
 // in steps.jsx.
 
-export const JONA_HELP_SCRIPT = {
-  "I don't understand this": "No problem — let's slow down. “Fr” is a blend of two sounds, F and R, said together quickly. Try saying “ffff” then “rrr”, then put them together: “fr…og.”",
-  "Can you give me a hint?": "Sure — listen for the word that starts with the same blend as “free”. One of the three pictures matches that sound.",
-  "Can we practise this together?": "Let's do it. Say “frog” with me: fr…og. One more time, a little slower: ffrr…og. Nice — you've got it.",
-  "Is my answer okay?": "You picked the frog — that's exactly right! And even if it wasn't, trying counts. That's how the sound sticks.",
-  _default: "Good question — in the real app, I'd help you with exactly that, right here, without you needing to leave the lesson.",
-};
+// A function of `picked` (the option id the visitor actually tapped, or
+// null before they've chosen) so "Is my answer okay?" reflects the real
+// selection instead of always claiming the correct one was picked — see
+// GlobalJonaAssistant.jsx's demoState/demoScript-as-function support.
+const OPTION_LABELS = { frog: "frog", flag: "flag", fox: "fox" };
+
+export function JONA_HELP_SCRIPT(picked) {
+  const answerLine = picked == null
+    ? "Give it a try first — tap one of the three pictures, then ask me again and I'll tell you how it went."
+    : picked === "frog"
+      ? "You picked the frog — that's exactly right! And even if it wasn't, trying counts. That's how the sound sticks."
+      : `You picked the ${OPTION_LABELS[picked] ?? picked} — that's not quite it this time. Listen for the “fr” blend again: “ffff…rrr…og.” Want to try once more?`;
+
+  return {
+    "I don't understand this": "No problem — let's slow down. “Fr” is a blend of two sounds, F and R, said together quickly. Try saying “ffff” then “rrr”, then put them together: “fr…og.”",
+    "Can you give me a hint?": "Sure — listen for the word that starts with the same blend as “free”. One of the three pictures matches that sound.",
+    "Can we practise this together?": "Let's do it. Say “frog” with me: fr…og. One more time, a little slower: ffrr…og. Nice — you've got it.",
+    "Is my answer okay?": answerLine,
+    _default: "Good question — in the real app, I'd help you with exactly that, right here, without you needing to leave the lesson.",
+  };
+}
 
 export const CONFIDENCE_EXAMPLE = {
   learnerAttempt: "“I go to... um... the... store yesterday.”",

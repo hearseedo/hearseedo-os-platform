@@ -19,6 +19,7 @@
     "test:canonical-schema": "node --test tests/canonical-schema-mapping.test.js",
     "test:monkey-yoga-contract": "node --test tests/monkey-yoga-progress-contract.test.js",
     "test:pathway-route": "node --test tests/pathway-route-access.test.js",
+    "test:eco-demo-students": "node --test tests/eco-demo-students-evaluate.test.js tests/eco-demo-students-reducer.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.cjs\""
   },
   "dependencies": {
