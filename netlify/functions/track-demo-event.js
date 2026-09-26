@@ -32,6 +32,9 @@ const VALID_EVENTS = new Set([
   "eco_demo_entry", "eco_demo_pathway_selected", "eco_demo_cta_clicked", "eco_demo_error",
   "students_first_attempt_submitted", "students_help_requested", "students_retry_submitted",
   "students_task_completed", "students_next_question_started",
+  "family_first_pick", "family_retry", "family_help_requested", "family_task_completed",
+  "adults_order_started", "adults_order_turn", "adults_help_requested", "adults_task_completed", "adults_order_again",
+  "educators_learner_selected", "educators_added_to_plan", "educators_task_completed",
 ]);
 const VALID_PATHWAYS = new Set(["family", "student", "adult", "educator"]);
 const VALID_META_KEYS = new Set(["pathwayId", "hasReason", "promptId", "questionsCompleted", "addedReason", "target", "code"]);

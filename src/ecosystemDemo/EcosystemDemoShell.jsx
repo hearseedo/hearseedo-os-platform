@@ -40,13 +40,41 @@ const STEPS = [
   { path: "/eco-demo/connected", key: "Connected" },
 ];
 
-const JourneyContext = createContext({ pathwayId: "family", setPathwayId: () => {}, voiceOn: true });
+const JourneyContext = createContext({ pathwayId: null, setPathwayId: () => {}, voiceOn: true });
 export function useJourney() {
   return useContext(JourneyContext);
 }
 
+const PATHWAY_STORAGE_KEY = "eco-demo-pathwayId";
+const VALID_PATHWAY_IDS = ["family", "student", "adult", "educator"];
+
+function readStoredPathwayId() {
+  try {
+    const stored = sessionStorage.getItem(PATHWAY_STORAGE_KEY);
+    return VALID_PATHWAY_IDS.includes(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function EcosystemDemoShell() {
-  const [pathwayId, setPathwayId] = useState("family");
+  // Session-state discipline (2026-09-26, requirement #3): pathwayId is no
+  // longer a component-only useState defaulting silently to "family" — a
+  // refresh, a direct link straight to a later step, or browser back/
+  // forward must never silently show the WRONG pathway's content just
+  // because in-memory state reset. Persisted to sessionStorage (per-tab,
+  // cleared on tab close — appropriate for ephemeral demo state, never
+  // meant to look like a saved account) so a refresh/back/forward within
+  // the same visit restores the real selection. If there's truly no
+  // selection yet this session (fresh sessionStorage) AND the visitor
+  // lands past Step 2 (e.g. a bookmarked/shared deep link), the effect
+  // below redirects to the picker instead of guessing — see the redirect
+  // effect further down.
+  const [pathwayId, setPathwayIdState] = useState(readStoredPathwayId);
+  const setPathwayId = (id) => {
+    setPathwayIdState(id);
+    try { sessionStorage.setItem(PATHWAY_STORAGE_KEY, id); } catch {}
+  };
   // Step narration voice (2026-09-24, "voice needs to follow through, each
   // step") — on by default so it's felt immediately, same "core
   // interaction, not an opt-in" reasoning as GlobalJonaAssistant's own
@@ -58,7 +86,23 @@ export default function EcosystemDemoShell() {
   const isMobile = useMobile();
   const currentIndex = Math.max(0, STEPS.findIndex((s) => s.path === location.pathname));
 
+  // No selection yet, but landed past the picker (Welcome=0, Choose=1) —
+  // a fresh deep link or a restart-then-back-navigate case. Redirect to
+  // the picker rather than rendering any pathway's content by default.
+  useEffect(() => {
+    if (!pathwayId && currentIndex > 1) {
+      navigate("/eco-demo/journey", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathwayId, currentIndex]);
+
   const goTo = (i) => { cancelBrowserTts(); navigate(STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)].path); };
+  const restart = () => {
+    cancelBrowserTts();
+    setPathwayIdState(null);
+    try { sessionStorage.removeItem(PATHWAY_STORAGE_KEY); } catch {}
+    navigate("/eco-demo");
+  };
 
   return (
     <JourneyContext.Provider value={{ pathwayId, setPathwayId, voiceOn }}>
@@ -73,7 +117,15 @@ export default function EcosystemDemoShell() {
       />
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", color: ECO.text, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
         <header style={{ position: "sticky", top: 0, zIndex: 10, minHeight: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.85)", backdropFilter: "blur(6px)", flexWrap: "wrap", gap: 10 }}>
-          <span style={{ fontWeight: 900, letterSpacing: 0.5, color: ECO.gold, fontSize: 16 }}>HSD OS AI</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 900, letterSpacing: 0.5, color: ECO.gold, fontSize: 16 }}>HSD OS AI</span>
+            {/* Requirement #1 — unobtrusive, always-visible disclosure that
+                this demo is scripted/local, never a live model call. Small
+                and muted by design, not a modal or banner. */}
+            <span style={{ fontSize: 10.5, color: ECO.textMuted, fontWeight: 600 }}>
+              Guided demo · scripted, not live AI
+            </span>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button
               onClick={() => { if (voiceOn) cancelBrowserTts(); setVoiceOn((v) => !v); }}
@@ -85,7 +137,7 @@ export default function EcosystemDemoShell() {
             >
               {voiceOn ? "🔊" : "🔇"} Jona's voice
             </button>
-            <button onClick={() => { cancelBrowserTts(); navigate("/eco-demo"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
+            <button onClick={restart} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Restart</button>
             <button onClick={() => { cancelBrowserTts(); navigate("/"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Exit</button>
           </div>
         </header>
@@ -109,8 +161,18 @@ export default function EcosystemDemoShell() {
           })}
         </nav>
 
-        <main style={{ flex: 1, padding: "28px 20px 110px", maxWidth: 860, margin: "0 auto", width: "100%" }}>
-          <Outlet />
+        {/* Bottom padding (2026-09-26, premium design pass): 110px only
+            cleared the fixed footer nav (68px), not GlobalJonaAssistant's
+            floating launcher above it (bottomOffset 88 + its own 60px
+            circle ≈ 150px) — confirmed via mobile testing that the last
+            action row of every pathway's practice card could render
+            partly under the launcher. 180px gives real clearance for both
+            fixed elements on every step, not just the ones that happened
+            to have less content. */}
+        <main style={{ flex: 1, padding: "28px 20px 180px", maxWidth: 860, margin: "0 auto", width: "100%" }}>
+          {/* Guard the one-frame flash of stale/default content while the
+              redirect effect above fires for a no-selection deep link. */}
+          {!pathwayId && currentIndex > 1 ? null : <Outlet />}
         </main>
 
         <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 68, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderTop: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.9)", backdropFilter: "blur(6px)", zIndex: 2 }}>

@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ECO, useJourney } from "./EcosystemDemoShell";
-import { PATHWAYS_DEMO, JONA_HELP_SCRIPT, CONFIDENCE_EXAMPLE } from "./data";
-import { ACTIVITY_SCRIPT } from "../familyDemo/data";
-import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
+import { PATHWAYS_DEMO, CONFIDENCE_EXAMPLE } from "./data";
 import { speakWithBrowserTts } from "../lib/browserNarration";
 import StudentsPractice from "./students/StudentsPractice";
+import FamilyPractice from "./family/FamilyPractice";
+import AdultsPractice from "./adults/AdultsPractice";
+import EducatorsPractice from "./educators/EducatorsPractice";
 
 function PageTitle({ eyebrow, title, subtitle }) {
   return (
@@ -142,47 +143,23 @@ export function Step3Discover() {
 // regardless of pathwayId). Only "student" has its own rebuilt experience
 // so far (Phase 1); every other pathway keeps today's Family block exactly
 // as it was, unchanged, until its own phase.
-function Step4Family() {
-  const [picked, setPicked] = useState(null);
-  return (
-    <>
-      <div style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 18, padding: 24, textAlign: "center", marginBottom: 20, position: "relative" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: ECO.gold, textTransform: "uppercase", marginBottom: 8 }}>{ACTIVITY_SCRIPT.title}</div>
-        <div style={{ fontSize: 13, color: ECO.textMuted, marginBottom: 8 }}>{ACTIVITY_SCRIPT.prompt}</div>
-        <div style={{ fontSize: 28, fontWeight: 900, color: "#2f8fed", marginBottom: 18 }}>{ACTIVITY_SCRIPT.word}</div>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-          {ACTIVITY_SCRIPT.options.map((opt) => (
-            <button key={opt.id} onClick={() => setPicked(opt.id)} style={{ fontSize: 30, background: picked === opt.id ? "rgba(201,168,76,0.15)" : "#0d0d0d", border: `2px solid ${picked === opt.id ? ECO.gold : ECO.border}`, borderRadius: 14, padding: "12px 18px", cursor: "pointer" }}>
-              <div>{opt.emoji}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: ECO.textMuted, marginTop: 4 }}>{opt.label}</div>
-            </button>
-          ))}
-        </div>
-        <p style={{ fontSize: 12, color: ECO.textMuted, marginTop: 18 }}>
-          Stuck? Tap the Jona bubble in the corner — a real student never needs to leave this screen to get help.
-        </p>
-      </div>
-
-      <GlobalJonaAssistant
-        context={{ pathway: "family", appName: "Monkey Yoga Phonics", lesson: ACTIVITY_SCRIPT.title }}
-        suggestedPrompts={["I don't understand this", "Can you give me a hint?", "Can we practise this together?", "Is my answer okay?"]}
-        demoScript={JONA_HELP_SCRIPT}
-        demoState={picked}
-        bottomOffset={88}
-      />
-    </>
-  );
-}
+const PATHWAY_PRACTICE = {
+  family: FamilyPractice,
+  student: StudentsPractice,
+  adult: AdultsPractice,
+  educator: EducatorsPractice,
+};
 
 export function Step4MeetJona() {
   const navigate = useNavigate();
   const { pathwayId } = useJourney();
+  const Practice = PATHWAY_PRACTICE[pathwayId] ?? FamilyPractice;
 
   return (
     <div>
       <PageTitle eyebrow="Step 4 · The aha moment" title="Jona is available inside every experience" subtitle="Not just on a dashboard, not on a separate page — right here, while you're learning." />
 
-      {pathwayId === "student" ? <StudentsPractice /> : <Step4Family />}
+      <Practice />
 
       <button onClick={() => navigate("/eco-demo/confidence")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer", marginTop: 8 }}>
         See Confidence First →
