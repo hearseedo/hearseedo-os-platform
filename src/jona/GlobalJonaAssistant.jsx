@@ -25,6 +25,7 @@ import { useLang } from "../hooks/useLang";
 import { sendMessage } from "../lib/claude";
 import { useJonaVoice } from "../hooks/useJonaVoice";
 import TalkWithJona from "./TalkWithJona";
+import { resolveJonaAction, DEMO_ERROR_FALLBACK } from "./jonaSendDecision";
 
 // Talk with Jona (Gemini Live beta, 2026-09-24) — feature-flagged, visible
 // only when useAuth()'s isAdmin is true (same OWNER_EMAILS allowlist
@@ -41,7 +42,7 @@ export function openGlobalJona() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, demoState, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
+export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScript, demoState, demoGeneration, accent = "#e0559c", bottomOffset = 20, anchor = "fixed", freeText = true, voiceMode = "full", lang }) {
   // freeText=false (2026-09-24) — for young-child apps (Phonics V2, ages
   // 4-8): tap a suggested prompt only, no free-text input to an AI. Caller
   // must pass suggestedPrompts in this mode.
@@ -95,6 +96,18 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
   // mute control still needs to exist for a shared/public device or a
   // moment that just needs to be quiet.
   const [voiceOn, setVoiceOn] = useState(voiceMode !== "off");
+  // Pending-reply invalidation (2026-09-27) — demoGeneration is a value the
+  // caller bumps whenever it wants any in-flight scripted reply to become
+  // stale (a new attempt submitted, a retry, a new question, a restart, a
+  // learner switch, etc.). Read via a ref so the async send() below always
+  // sees the CURRENT value when its delay resolves, not the value it
+  // closed over at call time — that's the whole mechanism: capture at
+  // send-time, compare against the ref's latest value after the delay, and
+  // silently drop the reply if they differ. The `sending` flag alone only
+  // prevents a second concurrent request; it says nothing about whether a
+  // request already in flight is still relevant by the time it resolves.
+  const demoGenerationRef = useRef(demoGeneration);
+  demoGenerationRef.current = demoGeneration;
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -122,21 +135,33 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
     setInput("");
     setError("");
 
+    const genAtSend = demoGenerationRef.current;
+
     if (demoScript) {
-      // Scripted demo path — no live call. demoScript may be a plain object
-      // (a fixed script table, original behavior) or a function of
+      // Scripted demo path — no live call, ever. demoScript may be a plain
+      // object (a fixed script table, original behavior) or a function of
       // demoState, re-evaluated fresh here so a scripted reply can honestly
       // reflect the visitor's actual current attempt/selection instead of
-      // always returning the same canned line (2026-09-26 — this is the
-      // fix for the "praised the wrong answer as correct" class of bug:
-      // the script table itself must be able to vary by real state, not
-      // just by which exact message text was sent). Falls back to a
-      // friendly generic line if this exact prompt wasn't scripted, so the
-      // demo never looks broken for an unscripted question.
+      // always returning the same canned line (2026-09-26 fix). Branch
+      // selection and failure handling (a script that throws, returns
+      // nothing usable, or has no matching line and no _default) are pure
+      // and unit-tested in jonaSendDecision.js — this call can never throw
+      // into here and can never fall through to a live request.
       setSending(true);
       await new Promise((r) => setTimeout(r, 500));
-      const scriptTable = typeof demoScript === "function" ? demoScript(demoState) : demoScript;
-      const reply = scriptTable[trimmed] ?? scriptTable._default ?? "Good question — in the real app I'd help you with exactly that, right here.";
+
+      // Stale by the time the delay resolved — the caller has moved on
+      // (new attempt, retry, next question, restart, learner switch, ...).
+      // Drop it silently rather than let it attach to whatever's on screen
+      // now. This never affects the visitor's actual recorded attempt —
+      // that lives in the pathway's own reducer, untouched by this bubble.
+      if (demoGenerationRef.current !== genAtSend) {
+        setSending(false);
+        return;
+      }
+
+      const decision = resolveJonaAction({ demoScript, demoState, user, trimmed });
+      const reply = decision.type === "demo" ? decision.reply : DEMO_ERROR_FALLBACK;
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
       setSending(false);
       // voiceUid gives an anonymous demo visitor a stable placeholder

@@ -49,20 +49,18 @@ function JonaLine({ children }) {
 // 1. Welcome ------------------------------------------------------------
 export function Step1Welcome() {
   const navigate = useNavigate();
+  const { t } = useLang();
   return (
     <div>
-      <PageTitle eyebrow="HSD OS AI" title="One journey. One platform. Confidence first." subtitle="HSD OS AI brings together learning experiences for children, students, adults, families, and educators — all guided by one companion." />
-      <JonaLine>
-        Hi, I'm Jona. I'm your guide, teacher, practice partner, and confidence coach — wherever you are in HSD OS AI, I'm with you. You are never learning alone.
-      </JonaLine>
+      <PageTitle eyebrow={t("eco_step1_eyebrow")} title={t("eco_step1_title")} subtitle={t("eco_step1_subtitle")} />
+      <JonaLine>{t("eco_step1_jona_line")}</JonaLine>
       <div style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 18, padding: 20, marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: ECO.textMuted, lineHeight: 1.7, margin: 0 }}>
-          Over the next few minutes you'll choose a journey, see the real experiences inside it, watch Jona help someone who's stuck,
-          and see how HSD OS AI puts confidence before correctness.
+          {t("eco_step1_body")}
         </p>
       </div>
       <button onClick={() => navigate("/eco-demo/journey")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-        Start →
+        {t("eco_step1_start")}
       </button>
     </div>
   );
@@ -72,11 +70,12 @@ export function Step1Welcome() {
 export function Step2Journey() {
   const { pathwayId, setPathwayId } = useJourney();
   const navigate = useNavigate();
+  const { t } = useLang();
   const active = PATHWAYS_DEMO.find((p) => p.id === pathwayId);
 
   return (
     <div>
-      <PageTitle eyebrow="Step 2" title="Choose Your Journey" subtitle="HSD OS AI isn't one course — it's an ecosystem. Pick a pathway to preview it (you can explore all of them)." />
+      <PageTitle eyebrow={t("eco_step2_eyebrow")} title={t("eco_step2_title")} subtitle={t("eco_step2_subtitle")} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
         {PATHWAYS_DEMO.map((p) => (
           <button key={p.id} onClick={() => setPathwayId(p.id)} style={{
@@ -91,13 +90,13 @@ export function Step2Journey() {
       </div>
       {active && (
         <div style={{ background: ECO.card, border: `2px solid ${active.accent}55`, borderRadius: 16, padding: 18, marginBottom: 20 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: active.accent, textTransform: "uppercase", marginBottom: 6 }}>Previewing</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: active.accent, textTransform: "uppercase", marginBottom: 6 }}>{t("eco_step2_previewing")}</div>
           <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{active.name}</div>
-          <div style={{ fontSize: 13, color: ECO.textMuted }}>{active.apps.length} experiences inside — see them next.</div>
+          <div style={{ fontSize: 13, color: ECO.textMuted }}>{t("eco_step2_experiences_inside").replace("{count}", String(active.apps.length))}</div>
         </div>
       )}
       <button onClick={() => navigate("/eco-demo/discover")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-        Discover the experiences →
+        {t("eco_step2_discover")}
       </button>
     </div>
   );
@@ -107,11 +106,12 @@ export function Step2Journey() {
 export function Step3Discover() {
   const { pathwayId } = useJourney();
   const navigate = useNavigate();
+  const { t } = useLang();
   const active = PATHWAYS_DEMO.find((p) => p.id === pathwayId) ?? PATHWAYS_DEMO[0];
 
   return (
     <div>
-      <PageTitle eyebrow="Step 3" title={`Inside ${active.name}`} subtitle="HSD OS AI isn't one course. It's an expanding ecosystem of real learning experiences." />
+      <PageTitle eyebrow={t("eco_step3_eyebrow")} title={t("eco_step3_title").replace("{name}", active.name)} subtitle={t("eco_step3_subtitle")} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 24 }}>
         {active.apps.map((app) => (
           <div key={app.name} style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 16, overflow: "hidden" }}>
@@ -123,7 +123,7 @@ export function Step3Discover() {
             <div style={{ padding: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 {app.name}
-                {app.comingSoon && <span style={{ fontSize: 9, fontWeight: 800, color: ECO.gold, border: `1px solid ${ECO.gold}`, borderRadius: 999, padding: "2px 6px" }}>SOON</span>}
+                {app.comingSoon && <span style={{ fontSize: 9, fontWeight: 800, color: ECO.gold, border: `1px solid ${ECO.gold}`, borderRadius: 999, padding: "2px 6px" }}>{t("eco_step3_soon")}</span>}
                 {app.badge && <span style={{ fontSize: 9, fontWeight: 800, color: active.accent, border: `1px solid ${active.accent}`, borderRadius: 999, padding: "2px 6px" }}>{app.badge}</span>}
               </div>
               <div style={{ fontSize: 11.5, color: ECO.textMuted, lineHeight: 1.4 }}>{app.desc}</div>
@@ -132,7 +132,7 @@ export function Step3Discover() {
         ))}
       </div>
       <button onClick={() => navigate("/eco-demo/meet-jona")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-        Meet Jona →
+        {t("eco_step3_meet_jona")}
       </button>
     </div>
   );
@@ -159,7 +159,7 @@ export function Step4MeetJona() {
 
   return (
     <div>
-      <PageTitle eyebrow="Step 4 · The aha moment" title="Jona is available inside every experience" subtitle="Not just on a dashboard, not on a separate page — right here, while you're learning." />
+      <PageTitle eyebrow={t("eco_step4_eyebrow")} title={t("eco_step4_title")} subtitle={t("eco_step4_subtitle")} />
 
       <Practice />
 
@@ -173,18 +173,19 @@ export function Step4MeetJona() {
 // 5. Confidence First -------------------------------------------------------
 export function Step5Confidence() {
   const navigate = useNavigate();
+  const { t } = useLang();
   return (
     <div>
-      <PageTitle eyebrow="Step 5" title="Confidence before correctness" subtitle="HSD OS AI isn't simply checking right and wrong answers." />
+      <PageTitle eyebrow={t("eco_step5_eyebrow")} title={t("eco_step5_title")} subtitle={t("eco_step5_subtitle")} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 20 }}>
         <div style={{ background: ECO.card, border: "2px solid rgba(224,16,16,0.4)", borderRadius: 16, padding: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#ff5050", textTransform: "uppercase", marginBottom: 10 }}>The old way</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#ff5050", textTransform: "uppercase", marginBottom: 10 }}>{t("eco_step5_old_way")}</div>
           <div style={{ fontSize: 13, color: ECO.textMuted, marginBottom: 10, fontStyle: "italic" }}>{CONFIDENCE_EXAMPLE.learnerAttempt}</div>
           <div style={{ fontSize: 13, color: "#ff8080" }}>✕ {CONFIDENCE_EXAMPLE.wrongWay}</div>
         </div>
         <div style={{ background: ECO.card, border: `2px solid ${ECO.gold}66`, borderRadius: 16, padding: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: ECO.gold, textTransform: "uppercase", marginBottom: 10 }}>Jona's way</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: ECO.gold, textTransform: "uppercase", marginBottom: 10 }}>{t("eco_step5_jona_way")}</div>
           <div style={{ fontSize: 13, color: ECO.textMuted, marginBottom: 10, fontStyle: "italic" }}>{CONFIDENCE_EXAMPLE.learnerAttempt}</div>
           <div style={{ fontSize: 13, color: "#e8d9a8" }}>✓ "{CONFIDENCE_EXAMPLE.jonaWay}"</div>
         </div>
@@ -192,13 +193,12 @@ export function Step5Confidence() {
 
       <div style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 16, padding: 18, marginBottom: 20 }}>
         <p style={{ fontSize: 13, color: ECO.textMuted, lineHeight: 1.7, margin: 0 }}>
-          A learner who feels safe will try. A learner who tries will communicate. A learner who communicates can then improve.
-          Jona protects that first attempt — real speaking practice, not a red pen.
+          {t("eco_step5_body")}
         </p>
       </div>
 
       <button onClick={() => navigate("/eco-demo/connected")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-        Finish →
+        {t("eco_step5_finish")}
       </button>
     </div>
   );
@@ -207,16 +207,17 @@ export function Step5Confidence() {
 // 6. One Connected Journey ---------------------------------------------------
 export function Step6Connected() {
   const navigate = useNavigate();
+  const { t } = useLang();
   return (
     <div style={{ textAlign: "center" }}>
-      <PageTitle eyebrow="One HSD OS AI" title="One connected journey" subtitle="Progress, learning experiences, and Jona all belong to the same platform — wherever you go next." />
-      <JonaLine>Learn. Practise. Ask. Grow. I'm with you along the way.</JonaLine>
+      <PageTitle eyebrow={t("eco_step6_eyebrow")} title={t("eco_step6_title")} subtitle={t("eco_step6_subtitle")} />
+      <JonaLine>{t("eco_step6_jona_line")}</JonaLine>
       <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 10 }}>
         <button onClick={() => navigate("/eco-demo")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-          Explore HSD OS AI again
+          {t("eco_step6_explore_again")}
         </button>
         <button onClick={() => navigate("/")} style={{ padding: "12px 22px", borderRadius: 14, border: `2px solid ${ECO.border}`, background: "transparent", color: ECO.text, fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-          Exit
+          {t("eco_demo_exit")}
         </button>
       </div>
     </div>

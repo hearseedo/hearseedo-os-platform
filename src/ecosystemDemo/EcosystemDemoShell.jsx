@@ -32,13 +32,16 @@ export const ECO = {
   gold: "#C9A84C",
 };
 
+// `key` stays a stable English identifier (used for React's own list key
+// and as a lookup into the i18n keys below) — the VISIBLE label is always
+// looked up through t() at render time, never this literal string.
 const STEPS = [
-  { path: "/eco-demo", key: "Welcome" },
-  { path: "/eco-demo/journey", key: "Choose" },
-  { path: "/eco-demo/discover", key: "Discover" },
-  { path: "/eco-demo/meet-jona", key: "Meet Jona" },
-  { path: "/eco-demo/confidence", key: "Confidence" },
-  { path: "/eco-demo/connected", key: "Connected" },
+  { path: "/eco-demo", key: "Welcome", i18nKey: "eco_nav_welcome" },
+  { path: "/eco-demo/journey", key: "Choose", i18nKey: "eco_nav_choose" },
+  { path: "/eco-demo/discover", key: "Discover", i18nKey: "eco_nav_discover" },
+  { path: "/eco-demo/meet-jona", key: "Meet Jona", i18nKey: "eco_nav_meet_jona" },
+  { path: "/eco-demo/confidence", key: "Confidence", i18nKey: "eco_nav_confidence" },
+  { path: "/eco-demo/connected", key: "Connected", i18nKey: "eco_nav_connected" },
 ];
 
 const JourneyContext = createContext({ pathwayId: null, setPathwayId: () => {}, voiceOn: true });
@@ -137,7 +140,7 @@ export default function EcosystemDemoShell() {
                 color: voiceOn ? ECO.gold : ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer",
               }}
             >
-              {voiceOn ? "🔊" : "🔇"} Jona's voice
+              {voiceOn ? "🔊" : "🔇"} {t("eco_nav_jona_voice")}
             </button>
             <button onClick={restart} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t("eco_demo_restart")}</button>
             <button onClick={() => { cancelBrowserTts(); navigate("/"); }} style={{ background: "none", border: "none", color: ECO.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t("eco_demo_exit")}</button>
@@ -157,7 +160,7 @@ export default function EcosystemDemoShell() {
                 <span style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, background: complete ? "#22c55e" : active ? ECO.gold : ECO.border, color: complete || active ? "#0a0700" : ECO.textMuted }}>
                   {complete ? "✓" : i + 1}
                 </span>
-                {step.key}
+                {t(step.i18nKey)}
               </button>
             );
           })}
@@ -179,11 +182,11 @@ export default function EcosystemDemoShell() {
 
         <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 68, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderTop: `2px solid ${ECO.border}`, background: "rgba(13,13,13,0.9)", backdropFilter: "blur(6px)", zIndex: 2 }}>
           <button onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0} style={{ padding: "10px 18px", borderRadius: 12, border: `2px solid ${ECO.border}`, background: "transparent", color: currentIndex === 0 ? ECO.border : ECO.text, fontSize: 13, fontWeight: 700, cursor: currentIndex === 0 ? "default" : "pointer" }}>
-            ← Back
+            {t("eco_nav_back")}
           </button>
-          <span style={{ fontSize: 12, color: ECO.textMuted, fontWeight: 700 }}>Step {currentIndex + 1} of {STEPS.length}</span>
+          <span style={{ fontSize: 12, color: ECO.textMuted, fontWeight: 700 }}>{t("eco_nav_step_of").replace("{current}", String(currentIndex + 1)).replace("{total}", String(STEPS.length))}</span>
           <button onClick={() => goTo(currentIndex + 1)} disabled={currentIndex === STEPS.length - 1} style={{ padding: "10px 18px", borderRadius: 12, border: "none", background: currentIndex === STEPS.length - 1 ? ECO.border : ECO.gold, color: currentIndex === STEPS.length - 1 ? ECO.textMuted : "#0a0700", fontSize: 13, fontWeight: 800, cursor: currentIndex === STEPS.length - 1 ? "default" : "pointer" }}>
-            Next →
+            {t("eco_nav_next")}
           </button>
         </footer>
       </div>

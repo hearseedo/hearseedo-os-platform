@@ -13,14 +13,16 @@ import { ACTIVITY_SCRIPT } from "../../familyDemo/data";
 import { JONA_HELP_SCRIPT } from "../data";
 import { familyReducer, initialState } from "./familyReducer";
 import { trackDemoEvent as trackEvent } from "../trackDemoEvent";
+import { withGeneration } from "../withGeneration";
 import FamilyResults from "./FamilyResults";
 
 const trackDemoEvent = (event, meta) => trackEvent(event, "family", meta);
+const reducer = withGeneration(familyReducer);
 
 export default function FamilyPractice() {
   const { t } = useLang();
   const { voiceOn } = useJourney();
-  const [state, dispatch] = useReducer(familyReducer, undefined, initialState);
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const [showResults, setShowResults] = useState(false);
   const spokenRef = useRef("");
 
@@ -117,6 +119,7 @@ export default function FamilyPractice() {
         suggestedPrompts={["I don't understand this", "Can you give me a hint?", "Can we practise this together?", "Is my answer okay?"]}
         demoScript={JONA_HELP_SCRIPT}
         demoState={lastAttempt?.optionId ?? null}
+        demoGeneration={state.generation}
         bottomOffset={88}
       />
     </>
