@@ -27,7 +27,7 @@ function baristaReplyKey(order) {
 function buildAdultsJonaScript() {
   return {
     "Can you help me say this?": "Try naming the drink, the size, and whether it's for here or to go — all in one sentence if you can.",
-    _default: "Good question — in the real app, I'd help you with exactly that, right here, without you needing to leave the lesson.",
+    _default: "This guided demo only responds to a few set questions and to what you actually say to the barista — try typing your order below, then ask me again and I'll respond to exactly what you said.",
   };
 }
 

@@ -77,7 +77,7 @@ export function JONA_HELP_SCRIPT(picked) {
     "Can you give me a hint?": "Sure — listen for the word that starts with the same blend as “free”. One of the three pictures matches that sound.",
     "Can we practise this together?": "Let's do it. Say “frog” with me: fr…og. One more time, a little slower: ffrr…og. Nice — you've got it.",
     "Is my answer okay?": answerLine,
-    _default: "Good question — in the real app, I'd help you with exactly that, right here, without you needing to leave the lesson.",
+    _default: "This guided demo only responds to a few set questions and to your actual picture pick — try tapping frog, flag, or fox above, then ask me again and I'll respond to exactly what you chose.",
   };
 }
 

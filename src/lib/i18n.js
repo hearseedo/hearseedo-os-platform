@@ -631,6 +631,9 @@ export const STRINGS = {
     students_demo_coach_reason_from_start: "Nice — your answer already has a reason: “{attempt}” Want to try another question, or see your results?",
     students_demo_coach_still_missing:     "Not quite yet — I still don't hear a reason. Try adding “because…” to your sentence.",
     students_demo_see_results:      "See my results",
+    eco_demo_see_confidence:        "See Confidence First →",
+    eco_demo_restart:               "Restart",
+    eco_demo_exit:                  "Exit",
 
     // ── Eco demo — Family pathway (Phase 2, 2026-09-26) ─────────────────────
     family_demo_hint_button:      "Can you give me a hint?",
@@ -1320,6 +1323,9 @@ export const STRINGS = {
     students_demo_coach_reason_from_start: "いいですね — あなたの答えにはすでに理由が含まれています：「{attempt}」 別の質問に挑戦しますか？それとも結果を見ますか？",
     students_demo_coach_still_missing:     "もう少しです — まだ理由が聞こえてきません。「because…」を加えてみましょう。",
     students_demo_see_results:      "結果を見る",
+    eco_demo_see_confidence:        "自信を大切にする学び方へ →",
+    eco_demo_restart:               "はじめから",
+    eco_demo_exit:                  "終了",
 
     // ── Eco demo — Family pathway (Phase 2, 2026-09-26) ─────────────────────
     family_demo_hint_button:      "ヒントをもらう",
