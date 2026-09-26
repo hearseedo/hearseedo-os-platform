@@ -36,6 +36,7 @@ const { resolveProfileContext: resolveProfileContextWith } = require("./_profile
 const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
 const { loadLiveBetaPolicy } = require("./_liveBetaPolicy");
 const { buildLiveSystemInstruction } = require("./_liveSafetyInstruction");
+const { isApprovedAdultTesterProfile, APPROVED_ADULT_TESTERS } = require("./_approvedJonaTesters");
 
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 // Confirmed 2026-09-25 against Google's own models.list endpoint for THIS
@@ -52,7 +53,11 @@ const LIVE_MODEL    = "gemini-2.5-flash-native-audio-preview-09-2025";
 // accidentally expose this to non-admin accounts by a stray config write
 // while both release gates (financial controls + Live child safety) are
 // still open. See docs/JONA_LIVE_BETA_GUARDRAILS_2026-09-25.md.
-const LIVE_BETA_ADMIN_EMAILS = ["hearseedo.english@gmail.com", "waltho79@gmail.com"];
+//
+// Sourced from _approvedJonaTesters.js (2026-09-26 containment) so this
+// list and Ask Jona's (chat.js) containment allowlist can never drift
+// apart — the same literal values as before this change.
+const LIVE_BETA_ADMIN_EMAILS = APPROVED_ADULT_TESTERS;
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -197,8 +202,14 @@ exports.handler = async (event) => {
   // decision (see file header). usageClass tags every session from here
   // on so admin testing is always distinguishable from real beta usage in
   // accounting/dashboards, never silently mixed in.
-  if (!email || !LIVE_BETA_ADMIN_EMAILS.includes(email)) {
-    return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: "Talk with Jona isn't available on this account yet." }) };
+  //
+  // Containment (2026-09-26): this now ALSO requires profileId to be the
+  // account's own "self" profile — an approved account's family-member
+  // profile (e.g. a child profile configured under an admin account) is
+  // still denied. Being an approved tester's family member is not the
+  // same as being the approved tester. See _approvedJonaTesters.js.
+  if (!isApprovedAdultTesterProfile({ email, profileId })) {
+    return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: "Talk with Jona isn't available for this account/profile yet." }) };
   }
   const usageClass = "admin_test"; // every account that can reach this point today is admin/test by construction
 
