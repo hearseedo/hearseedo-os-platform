@@ -13,15 +13,9 @@ import { studentsReducer, initialState } from "./studentsReducer";
 import { evaluateAttempt } from "./evaluateAttempt";
 import { STUDENTS_QUESTIONS } from "./data";
 import StudentsResults from "./StudentsResults";
+import { trackDemoEvent as trackEvent } from "../trackDemoEvent";
 
-function trackDemoEvent(event, meta) {
-  // Fire-and-forget, never blocks the UI or throws into the caller.
-  fetch("/.netlify/functions/track-demo-event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event, pathwayId: "student", meta: meta ?? {} }),
-  }).catch(() => {});
-}
+const trackDemoEvent = (event, meta) => trackEvent(event, "student", meta);
 
 function buildStudentsJonaScript(demoState) {
   const { lastAttemptText, evaluation } = demoState ?? {};
