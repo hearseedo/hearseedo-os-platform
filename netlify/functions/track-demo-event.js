@@ -37,15 +37,32 @@ const VALID_EVENTS = new Set([
   "educators_learner_selected", "educators_added_to_plan", "educators_task_completed",
 ]);
 const VALID_PATHWAYS = new Set(["family", "student", "adult", "educator"]);
-const VALID_META_KEYS = new Set(["pathwayId", "hasReason", "promptId", "questionsCompleted", "addedReason", "target", "code"]);
+
+// Field-specific validation, not just "any primitive of a plausible type" —
+// a boolean-shaped field must actually be a boolean, an id/enum-shaped
+// field must match a safe charset (never arbitrary free text), and a count
+// must be a small non-negative integer. Any field failing its own check is
+// dropped, not coerced or truncated-and-kept.
+const SAFE_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+const META_VALIDATORS = {
+  pathwayId:          (v) => typeof v === "string" && VALID_PATHWAYS.has(v),
+  hasReason:          (v) => typeof v === "boolean",
+  addedReason:        (v) => typeof v === "boolean",
+  promptId:           (v) => typeof v === "string" && SAFE_ID_PATTERN.test(v),
+  target:             (v) => typeof v === "string" && SAFE_ID_PATTERN.test(v),
+  code:               (v) => typeof v === "string" && SAFE_ID_PATTERN.test(v),
+  questionsCompleted: (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 50,
+};
+const VALID_META_KEYS = new Set(Object.keys(META_VALIDATORS));
 
 function sanitizeMeta(meta) {
-  if (!meta || typeof meta !== "object") return {};
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return {};
   const clean = {};
   for (const [key, value] of Object.entries(meta)) {
-    if (!VALID_META_KEYS.has(key)) continue;
-    if (typeof value === "boolean" || typeof value === "number") clean[key] = value;
-    else if (typeof value === "string" && value.length <= 64) clean[key] = value;
+    const validate = META_VALIDATORS[key];
+    if (!validate) continue; // unknown field — dropped, not stored, not logged
+    if (!validate(value)) continue; // known field, wrong type/shape/value — dropped
+    clean[key] = value;
   }
   return clean;
 }
@@ -142,3 +159,10 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Internal error" }) };
   }
 };
+
+// Exported for direct unit testing only (validation logic + full handler
+// with fetch/crypto mocked) — the handler itself only ever uses these
+// internally.
+exports.sanitizeMeta = sanitizeMeta;
+exports.VALID_EVENTS = VALID_EVENTS;
+exports.VALID_PATHWAYS = VALID_PATHWAYS;

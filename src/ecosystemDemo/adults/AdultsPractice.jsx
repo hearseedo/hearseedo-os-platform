@@ -12,9 +12,11 @@ import GlobalJonaAssistant from "../../jona/GlobalJonaAssistant";
 import { adultsReducer, initialState } from "./adultsReducer";
 import { nextMissingSlot } from "./evaluateOrder";
 import { trackDemoEvent as trackEvent } from "../trackDemoEvent";
+import { withGeneration } from "../withGeneration";
 import AdultsResults from "./AdultsResults";
 
 const trackDemoEvent = (event, meta) => trackEvent(event, "adult", meta);
+const reducer = withGeneration(adultsReducer);
 
 function baristaReplyKey(order) {
   const missing = nextMissingSlot(order);
@@ -34,7 +36,7 @@ function buildAdultsJonaScript() {
 export default function AdultsPractice() {
   const { t } = useLang();
   const { voiceOn } = useJourney();
-  const [state, dispatch] = useReducer(adultsReducer, undefined, initialState);
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const [draft, setDraft] = useState("");
   const [showResults, setShowResults] = useState(false);
   const spokenRef = useRef("");
@@ -157,6 +159,7 @@ export default function AdultsPractice() {
         suggestedPrompts={["Can you help me say this?"]}
         demoScript={buildAdultsJonaScript}
         demoState={null}
+        demoGeneration={state.generation}
         bottomOffset={88}
       />
     </div>

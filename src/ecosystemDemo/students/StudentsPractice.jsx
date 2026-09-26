@@ -10,12 +10,14 @@ import { useLang } from "../../hooks/useLang";
 import { speakWithBrowserTts } from "../../lib/browserNarration";
 import GlobalJonaAssistant from "../../jona/GlobalJonaAssistant";
 import { studentsReducer, initialState } from "./studentsReducer";
+import { withGeneration } from "../withGeneration";
 import { evaluateAttempt } from "./evaluateAttempt";
 import { STUDENTS_QUESTIONS } from "./data";
 import StudentsResults from "./StudentsResults";
 import { trackDemoEvent as trackEvent } from "../trackDemoEvent";
 
 const trackDemoEvent = (event, meta) => trackEvent(event, "student", meta);
+const reducer = withGeneration(studentsReducer);
 
 function buildStudentsJonaScript(demoState) {
   const { lastAttemptText, evaluation } = demoState ?? {};
@@ -34,7 +36,7 @@ function buildStudentsJonaScript(demoState) {
 export default function StudentsPractice() {
   const { t } = useLang();
   const { voiceOn } = useJourney();
-  const [state, dispatch] = useReducer(studentsReducer, undefined, () => initialState(0));
+  const [state, dispatch] = useReducer(reducer, undefined, () => initialState(0));
   const [draft, setDraft] = useState("");
   const [showResults, setShowResults] = useState(false);
   const attemptSeqRef = useRef(0);
@@ -238,6 +240,7 @@ export default function StudentsPractice() {
         suggestedPrompts={["Can you give me a hint?", "Is my answer okay?"]}
         demoScript={buildStudentsJonaScript}
         demoState={{ lastAttemptText: lastAttempt?.text ?? null, evaluation }}
+        demoGeneration={state.generation}
         bottomOffset={88}
       />
     </div>

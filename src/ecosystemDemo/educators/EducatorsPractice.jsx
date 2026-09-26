@@ -11,8 +11,10 @@ import GlobalJonaAssistant from "../../jona/GlobalJonaAssistant";
 import { educatorsReducer, initialState } from "./educatorsReducer";
 import { SAMPLE_LEARNERS } from "./data";
 import { trackDemoEvent as trackEvent } from "../trackDemoEvent";
+import { withGeneration } from "../withGeneration";
 
 const trackDemoEvent = (event, meta) => trackEvent(event, "educator", meta);
+const reducer = withGeneration(educatorsReducer);
 
 function buildEducatorsJonaScript() {
   return {
@@ -22,7 +24,7 @@ function buildEducatorsJonaScript() {
 
 export default function EducatorsPractice() {
   const { t } = useLang();
-  const [state, dispatch] = useReducer(educatorsReducer, undefined, initialState);
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const [justAdded, setJustAdded] = useState(false);
 
   useEffect(() => {
@@ -125,6 +127,7 @@ export default function EducatorsPractice() {
         suggestedPrompts={["How does this work?"]}
         demoScript={buildEducatorsJonaScript}
         demoState={null}
+        demoGeneration={state.generation}
         bottomOffset={88}
       />
     </div>
