@@ -5,6 +5,7 @@ import { PATHWAYS_DEMO, JONA_HELP_SCRIPT, CONFIDENCE_EXAMPLE } from "./data";
 import { ACTIVITY_SCRIPT } from "../familyDemo/data";
 import GlobalJonaAssistant from "../jona/GlobalJonaAssistant";
 import { speakWithBrowserTts } from "../lib/browserNarration";
+import StudentsPractice from "./students/StudentsPractice";
 
 function PageTitle({ eyebrow, title, subtitle }) {
   return (
@@ -136,14 +137,15 @@ export function Step3Discover() {
 }
 
 // 4. Meet Jona — the "aha" moment, inside a real lesson --------------------
-export function Step4MeetJona() {
-  const navigate = useNavigate();
+// Branches on the pathway actually selected in Step 2 (2026-09-26 fix —
+// this previously always rendered the Family/Monkey-Yoga-Phonics activity
+// regardless of pathwayId). Only "student" has its own rebuilt experience
+// so far (Phase 1); every other pathway keeps today's Family block exactly
+// as it was, unchanged, until its own phase.
+function Step4Family() {
   const [picked, setPicked] = useState(null);
-
   return (
-    <div>
-      <PageTitle eyebrow="Step 4 · The aha moment" title="Jona is available inside every experience" subtitle="Not just on a dashboard, not on a separate page — right here, while you're learning." />
-
+    <>
       <div style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 18, padding: 24, textAlign: "center", marginBottom: 20, position: "relative" }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: ECO.gold, textTransform: "uppercase", marginBottom: 8 }}>{ACTIVITY_SCRIPT.title}</div>
         <div style={{ fontSize: 13, color: ECO.textMuted, marginBottom: 8 }}>{ACTIVITY_SCRIPT.prompt}</div>
@@ -165,10 +167,24 @@ export function Step4MeetJona() {
         context={{ pathway: "family", appName: "Monkey Yoga Phonics", lesson: ACTIVITY_SCRIPT.title }}
         suggestedPrompts={["I don't understand this", "Can you give me a hint?", "Can we practise this together?", "Is my answer okay?"]}
         demoScript={JONA_HELP_SCRIPT}
+        demoState={picked}
         bottomOffset={88}
       />
+    </>
+  );
+}
 
-      <button onClick={() => navigate("/eco-demo/confidence")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+export function Step4MeetJona() {
+  const navigate = useNavigate();
+  const { pathwayId } = useJourney();
+
+  return (
+    <div>
+      <PageTitle eyebrow="Step 4 · The aha moment" title="Jona is available inside every experience" subtitle="Not just on a dashboard, not on a separate page — right here, while you're learning." />
+
+      {pathwayId === "student" ? <StudentsPractice /> : <Step4Family />}
+
+      <button onClick={() => navigate("/eco-demo/confidence")} style={{ padding: "12px 22px", borderRadius: 14, border: "none", background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 14, cursor: "pointer", marginTop: 8 }}>
         See Confidence First →
       </button>
     </div>
