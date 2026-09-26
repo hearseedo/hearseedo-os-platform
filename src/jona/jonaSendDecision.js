@@ -57,3 +57,36 @@ export function resolveJonaAction({ demoScript, demoState, user, trimmed }) {
   }
   return { type: "send" };
 }
+
+/**
+ * Executes the ordinary (non-demo) live send: calls the given sendMessage
+ * implementation and normalizes the outcome into a plain result object,
+ * never throwing. Extracted from GlobalJonaAssistant's send() (2026-09-27)
+ * so the "authenticated caller sends, gets a reply, recovers from an error"
+ * path is directly testable with a mocked sendMessage — no React, no DOM
+ * renderer, no real network/model call.
+ *
+ * @param {{
+ *   sendMessage: (messages: any[], user: any, lang: string, context: any, onMeta: (meta: any) => void) => Promise<string>,
+ *   messages: any[],
+ *   user: object,
+ *   lang: string,
+ *   context: any,
+ *   errorFallback: string,
+ * }} params
+ * @returns {Promise<
+ *   | { ok: true, reply: string, safetyToken: string | null }
+ *   | { ok: false, error: string }
+ * >}
+ */
+export async function performLiveSend({ sendMessage, messages, user, lang, context, errorFallback }) {
+  let safetyToken = null;
+  try {
+    const reply = await sendMessage(messages, user, lang, context, (meta) => {
+      safetyToken = meta?.safetyToken ?? null;
+    });
+    return { ok: true, reply, safetyToken };
+  } catch (e) {
+    return { ok: false, error: e?.message ?? errorFallback };
+  }
+}

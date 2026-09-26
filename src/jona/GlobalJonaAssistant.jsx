@@ -25,7 +25,7 @@ import { useLang } from "../hooks/useLang";
 import { sendMessage } from "../lib/claude";
 import { useJonaVoice } from "../hooks/useJonaVoice";
 import TalkWithJona from "./TalkWithJona";
-import { resolveJonaAction, DEMO_ERROR_FALLBACK } from "./jonaSendDecision";
+import { resolveJonaAction, performLiveSend, DEMO_ERROR_FALLBACK } from "./jonaSendDecision";
 
 // Talk with Jona (Gemini Live beta, 2026-09-24) — feature-flagged, visible
 // only when useAuth()'s isAdmin is true (same OWNER_EMAILS allowlist
@@ -176,19 +176,22 @@ export default function GlobalJonaAssistant({ context, suggestedPrompts, demoScr
       return;
     }
     setSending(true);
-    try {
-      // safetyToken (2026-09-24): non-null only when chat.js's own
-      // server-side risk classification fired on this exact message —
-      // lets the reply's audio bypass the normal TTS rate cap, single-use.
-      let safetyToken = null;
-      const reply = await sendMessage(next, user, effectiveLang, context, (meta) => { safetyToken = meta.safetyToken; });
-      setMessages((m) => [...m, { role: "assistant", text: reply }]);
-      if (voiceOn) voice.speak(reply, safetyToken);
-    } catch (e) {
-      setError(e.message ?? t("jona_error_fallback"));
-    } finally {
-      setSending(false);
+    // safetyToken (2026-09-24): non-null only when chat.js's own
+    // server-side risk classification fired on this exact message — lets
+    // the reply's audio bypass the normal TTS rate cap, single-use.
+    // Send/response/error handling itself lives in performLiveSend
+    // (jonaSendDecision.js) so it's testable with a mocked sendMessage.
+    const result = await performLiveSend({
+      sendMessage, messages: next, user, lang: effectiveLang, context,
+      errorFallback: t("jona_error_fallback"),
+    });
+    if (result.ok) {
+      setMessages((m) => [...m, { role: "assistant", text: result.reply }]);
+      if (voiceOn) voice.speak(result.reply, result.safetyToken);
+    } else {
+      setError(result.error);
     }
+    setSending(false);
   }
 
   return (

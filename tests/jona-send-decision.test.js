@@ -21,7 +21,7 @@
 // production behavior — this test does not claim to cover that).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveJonaAction, DEMO_ERROR_FALLBACK } from "../src/jona/jonaSendDecision.js";
+import { resolveJonaAction, performLiveSend, DEMO_ERROR_FALLBACK } from "../src/jona/jonaSendDecision.js";
 
 // ── Demo path — happy cases ─────────────────────────────────────────────
 
@@ -149,4 +149,82 @@ test("resolveJonaAction: demoScript present ALWAYS wins over an authenticated us
     trimmed: "anything",
   });
   assert.deepEqual(result, { type: "demo", reply: "scripted reply" });
+});
+
+// ── performLiveSend — the ordinary caller ACTUALLY sending, with a MOCKED
+// sendMessage. Closes the previously-open gap: resolveJonaAction only
+// proved branch selection; this proves the "send" branch's own execution
+// (success, reply, safetyToken, and error recovery) with no real network
+// or model call, no DOM renderer, no real account. ────────────────────────
+
+test("performLiveSend: a mocked successful sendMessage yields the reply and its safetyToken", async () => {
+  const mockSendMessage = async (messages, user, lang, context, onMeta) => {
+    onMeta({ safetyToken: "mock-token-abc" });
+    return "This is a mocked reply.";
+  };
+  const result = await performLiveSend({
+    sendMessage: mockSendMessage,
+    messages: [{ role: "user", text: "hello" }],
+    user: { uid: "mock-uid-123" },
+    lang: "en",
+    context: { pathway: "students" },
+    errorFallback: "fallback",
+  });
+  assert.deepEqual(result, { ok: true, reply: "This is a mocked reply.", safetyToken: "mock-token-abc" });
+});
+
+test("performLiveSend: a mocked successful sendMessage that never calls onMeta yields a null safetyToken (never undefined/crash)", async () => {
+  const mockSendMessage = async () => "reply with no meta call";
+  const result = await performLiveSend({
+    sendMessage: mockSendMessage,
+    messages: [],
+    user: { uid: "mock-uid-123" },
+    lang: "en",
+    context: null,
+    errorFallback: "fallback",
+  });
+  assert.deepEqual(result, { ok: true, reply: "reply with no meta call", safetyToken: null });
+});
+
+test("performLiveSend: a mocked sendMessage that REJECTS is caught and recovered as an error result, never an unhandled throw", async () => {
+  const mockSendMessage = async () => { throw new Error("simulated network failure"); };
+  const result = await performLiveSend({
+    sendMessage: mockSendMessage,
+    messages: [{ role: "user", text: "hello" }],
+    user: { uid: "mock-uid-123" },
+    lang: "en",
+    context: {},
+    errorFallback: "fallback message",
+  });
+  assert.deepEqual(result, { ok: false, error: "simulated network failure" });
+});
+
+test("performLiveSend: a rejection with no .message falls back to the caller-supplied errorFallback", async () => {
+  const mockSendMessage = async () => { throw { code: "no-message-field" }; };
+  const result = await performLiveSend({
+    sendMessage: mockSendMessage,
+    messages: [],
+    user: { uid: "mock-uid-123" },
+    lang: "en",
+    context: {},
+    errorFallback: "fallback message",
+  });
+  assert.deepEqual(result, { ok: false, error: "fallback message" });
+});
+
+test("performLiveSend: after a failure, a subsequent call with a working mock succeeds — proves the caller can recover and retry, not get stuck", async () => {
+  let callCount = 0;
+  const flakySendMessage = async () => {
+    callCount += 1;
+    if (callCount === 1) throw new Error("first attempt fails");
+    return "second attempt succeeds";
+  };
+  const first = await performLiveSend({
+    sendMessage: flakySendMessage, messages: [], user: { uid: "u" }, lang: "en", context: {}, errorFallback: "fallback",
+  });
+  assert.equal(first.ok, false);
+  const second = await performLiveSend({
+    sendMessage: flakySendMessage, messages: [], user: { uid: "u" }, lang: "en", context: {}, errorFallback: "fallback",
+  });
+  assert.deepEqual(second, { ok: true, reply: "second attempt succeeds", safetyToken: null });
 });
