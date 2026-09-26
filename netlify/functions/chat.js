@@ -3,6 +3,7 @@ const { firestoreFetch, fromFirestoreFields } = require("./_firebaseAdmin");
 const { classifyRisk } = require("./_safetyClassifier");
 const { resolveProfileContext: resolveProfileContextWith, buildProfileContextLine } = require("./_profileContext");
 const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
+const { isApprovedAdultTesterProfile } = require("./_approvedJonaTesters");
 
 // Phase 4 (Jona adversarial safety testing) — the `system` prompt is
 // client-supplied (see body destructuring below), which means a signed-in
@@ -262,6 +263,27 @@ exports.handler = async (event) => {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Invalid session. Please sign in again." }) };
     }
     uid = firebaseUser.localId;
+    const email = firebaseUser.email;
+
+    // Containment (2026-09-27) — public Gemini-backed generation is paused
+    // while the Gemini Developer API's child-directed-use eligibility
+    // question is unresolved (see _approvedJonaTesters.js). Denied BEFORE
+    // profile resolution, BEFORE the quota check, BEFORE classifyRisk, and
+    // BEFORE any Gemini call — a denial here must never consume a message
+    // allowance or touch the model. This is a temporary pause, not a
+    // resolution of the eligibility question. The message is deliberately
+    // generic and never mentions an alternative Jona surface as a
+    // workaround, since Talk with Jona is paused for the exact same reason.
+    if (!isApprovedAdultTesterProfile({ email, profileId })) {
+      return {
+        statusCode: 503,
+        headers: { ...CORS, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "jona_paused",
+          message: "Jona is taking a short break while we finish a safety review. Your lessons and activities are still available — check back soon!",
+        }),
+      };
+    }
 
     // Who is actually talking to Jona right now (P0, 2026-09-24) — resolved
     // and verified server-side; see resolveProfileContext() above for why
