@@ -23,8 +23,23 @@
 // can never be widened by a stray config write while this containment is
 // in effect (same reasoning live-token.js's own admin allowlist already
 // uses).
-const { isSelfProfileId } = require("./_profileContext");
-
+//
+// Deliberately NOT _profileContext.js's isSelfProfileId (2026-09-28
+// hardening) — that helper treats a MISSING profileId (undefined/null/"")
+// as equivalent to an explicit "self", which is the right, lenient
+// behavior for its own purpose (personalization for legacy single-profile
+// callers). It is the wrong behavior for a security gate: this file's own
+// caller (the real client, both chat.js's sendMessage in src/lib/claude.js
+// and TalkWithJona.jsx's POST body) ALWAYS sends an explicit profileId —
+// either the literal string "self" or a real family-member id — because
+// useAuth.jsx's own activeProfileId already defaults to "self" client-side
+// (`profile?.activeProfileId ?? SELF_PROFILE_ID`) before it ever reaches a
+// network call. So requiring the literal string here costs nothing against
+// any real request. What it closes: a hand-crafted request (bypassing the
+// web client, but still using a real approved account's real idToken) that
+// omits profileId entirely must not be silently treated as self just
+// because "self" is the friendly default elsewhere in this codebase.
+// Unresolved must fail closed, not normalize to the most-privileged case.
 const APPROVED_ADULT_TESTERS = ["hearseedo.english@gmail.com", "waltho79@gmail.com"];
 
 /**
@@ -33,7 +48,7 @@ const APPROVED_ADULT_TESTERS = ["hearseedo.english@gmail.com", "waltho79@gmail.c
  */
 function isApprovedAdultTesterProfile({ email, profileId }) {
   if (!email || !APPROVED_ADULT_TESTERS.includes(email)) return false;
-  return isSelfProfileId(profileId);
+  return profileId === "self";
 }
 
 module.exports = { APPROVED_ADULT_TESTERS, isApprovedAdultTesterProfile };

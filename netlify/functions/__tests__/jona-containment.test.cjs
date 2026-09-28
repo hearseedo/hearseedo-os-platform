@@ -61,8 +61,22 @@ for (const email of APPROVED_ADULT_TESTERS) {
     assert.equal(isApprovedAdultTesterProfile({ email, profileId: "self" }), true);
   });
 
-  test(`isApprovedAdultTesterProfile: allows an approved tester (${email}) with no profileId supplied (defaults to self)`, () => {
-    assert.equal(isApprovedAdultTesterProfile({ email, profileId: undefined }), true);
+  // 2026-09-28 hardening: profileId must be the EXPLICIT string "self" —
+  // missing/null/blank is no longer treated as an implicit self, even for
+  // an approved account. The real client always sends an explicit value
+  // (see _approvedJonaTesters.js's own comment), so this costs nothing to
+  // legitimate traffic; it only closes a hand-crafted request that omits
+  // profileId from silently landing on the most-privileged interpretation.
+  test(`isApprovedAdultTesterProfile: DENIES an approved tester (${email}) with profileId undefined — no implicit self`, () => {
+    assert.equal(isApprovedAdultTesterProfile({ email, profileId: undefined }), false);
+  });
+
+  test(`isApprovedAdultTesterProfile: DENIES an approved tester (${email}) with profileId null — no implicit self`, () => {
+    assert.equal(isApprovedAdultTesterProfile({ email, profileId: null }), false);
+  });
+
+  test(`isApprovedAdultTesterProfile: DENIES an approved tester (${email}) with profileId "" (blank) — no implicit self`, () => {
+    assert.equal(isApprovedAdultTesterProfile({ email, profileId: "" }), false);
   });
 
   test(`isApprovedAdultTesterProfile: DENIES an approved tester's (${email}) non-self / family-member profile — the child-profile-under-admin-account case`, () => {
@@ -71,6 +85,10 @@ for (const email of APPROVED_ADULT_TESTERS) {
 
   test(`isApprovedAdultTesterProfile: DENIES an approved tester (${email}) with a manipulated/garbage profileId`, () => {
     assert.equal(isApprovedAdultTesterProfile({ email, profileId: "'; DROP TABLE profiles; --" }), false);
+  });
+
+  test(`isApprovedAdultTesterProfile: DENIES an approved tester (${email}) with profileId "Self" (case mismatch) — exact match only, not case-insensitive`, () => {
+    assert.equal(isApprovedAdultTesterProfile({ email, profileId: "Self" }), false);
   });
 }
 
