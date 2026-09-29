@@ -53,14 +53,16 @@ import { listenOnce, isBrowserSpeechInputSupported } from "../lib/browserSpeechI
 // never reaches SENSITIVE or higher, and Live remains admin/adult-tester
 // only regardless (enforced server-side, unaffected by anything here).
 //
-// UNVERIFIED ASSUMPTION, flagged explicitly (see the Stage 4 implementation
-// report): Gemini Live's inputTranscription messages are accumulated per
-// serverContent message and flushed as one "final" chunk when the model's
-// own turnComplete fires for that turn. This is a reasonable reading of the
-// documented shape but has not been confirmed against a live session in
-// this environment — real-device testing (Stage 4 report's own manual test
-// procedure) must confirm transcript chunks actually arrive and flush at
-// the expected points before this is trusted for real supervision.
+// Gemini Live's inputTranscription messages are accumulated per
+// serverContent message and flushed as one "final" chunk when THAT
+// transcription's own `finished` flag is true (confirmed against the
+// installed @google/genai SDK's type definitions during the Stage 4V
+// pre-deploy audit, 2026-09-29 — NOT `turnComplete`, which the SDK
+// explicitly documents as having no guaranteed ordering relative to
+// transcription). Still UNVERIFIED against a live session: whether `text`
+// on each message is a delta to concatenate or the full cumulative
+// transcript so far — real-device testing must confirm this specifically
+// (see the Stage 4V validation report's test procedure).
 const STATIC_SAFETY_MESSAGE_EN = "Jona needs to stop for now. If you need to talk to someone right now, please find a parent, guardian, or teacher.";
 const STATIC_SAFETY_MESSAGE_JP = "Jonaは今、話をやめる必要があります。今すぐ誰かに話したいときは、保護者や先生を見つけてください。";
 
@@ -683,24 +685,52 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
                 }
               }
 
-              // Gate B Stage 4 — accumulate the learner's own transcribed
-              // speech (text only, never audio) and forward it once the
-              // turn that followed it is complete. See this file's own
-              // top-of-file note on why turnComplete is used as the flush
-              // point, and that this needs real-device confirmation.
-              const inputText = message.serverContent?.inputTranscription?.text;
-              if (typeof inputText === "string" && inputText) {
-                if (!inputTranscriptBufferRef.current) speechEndAtRef.current = null;
-                inputTranscriptBufferRef.current += inputText;
+              // Gate B Stage 4V pre-deploy audit finding (2026-09-29):
+              // the installed @google/genai SDK's own type definitions
+              // (genai.d.ts, LiveServerContent) explicitly document that
+              // inputTranscription/outputTranscription are "independent to
+              // the model turn which means it doesn't imply any ordering
+              // between transcription and model turn." The original Stage 4
+              // implementation flushed on `turnComplete` (the MODEL's own
+              // generation-done signal) — per the SDK's own documented
+              // contract, that ordering is NOT guaranteed, so a disclosure
+              // could be flushed truncated (mid-utterance) or conflated
+              // with an adjacent utterance's transcript before ever
+              // reaching the classifier. The SDK's own `Transcription` type
+              // has the actual correct field for this: `finished?: boolean`
+              // — a per-transcription-message boundary, not a model-turn
+              // one. This is the smallest correction: flush on
+              // inputTranscription.finished, not on turnComplete.
+              //
+              // STILL AN OPEN ASSUMPTION, reported rather than invented
+              // (Stage 4V audit item 3): whether `text` on each message is
+              // a DELTA to concatenate or the FULL cumulative transcript so
+              // far is not specified by the type comment either way, and is
+              // not confirmed here. This code assumes delta/concatenate
+              // (consistent with the field being named "text" alongside a
+              // separate "finished" boundary flag, and with how
+              // Gemini's other streaming transcription surfaces are
+              // documented elsewhere) — real-device testing must confirm
+              // this specifically, e.g. by checking a multi-word utterance
+              // classifies as the whole sentence, not a duplicated or
+              // truncated fragment.
+              const inputTranscription = message.serverContent?.inputTranscription;
+              if (inputTranscription) {
+                if (typeof inputTranscription.text === "string" && inputTranscription.text) {
+                  if (!inputTranscriptBufferRef.current) speechEndAtRef.current = null;
+                  inputTranscriptBufferRef.current += inputTranscription.text;
+                }
+                if (inputTranscription.finished) {
+                  if (inputTranscriptBufferRef.current.trim()) {
+                    speechEndAtRef.current = speechEndAtRef.current ?? Date.now();
+                    forwardTranscriptChunk(inputTranscriptBufferRef.current);
+                  }
+                  inputTranscriptBufferRef.current = "";
+                }
               }
 
-              if (message.serverContent?.turnComplete) {
-                if (inputTranscriptBufferRef.current.trim()) {
-                  speechEndAtRef.current = speechEndAtRef.current ?? Date.now();
-                  forwardTranscriptChunk(inputTranscriptBufferRef.current);
-                }
-                inputTranscriptBufferRef.current = "";
-                if (phaseRef.current === "speaking") updatePhase("listening");
+              if (message.serverContent?.turnComplete && phaseRef.current === "speaking") {
+                updatePhase("listening");
               }
             },
             onerror: (e) => {
