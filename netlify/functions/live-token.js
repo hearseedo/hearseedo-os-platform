@@ -35,8 +35,9 @@ const { acquireSessionLock, releaseSessionLockIfOwned } = require("./_liveSessio
 const { resolveProfileContext: resolveProfileContextWith } = require("./_profileContext");
 const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
 const { loadLiveBetaPolicy } = require("./_liveBetaPolicy");
-const { buildLiveSystemInstruction } = require("./_liveSafetyInstruction");
+const { buildLiveSystemInstruction, buildRestrictedLiveSystemInstruction } = require("./_liveSafetyInstruction");
 const { isApprovedAdultTesterProfile, APPROVED_ADULT_TESTERS } = require("./_approvedJonaTesters");
+const { renewSessionLock } = require("./_liveSessionLock");
 
 const FIREBASE_KEY = process.env.FIREBASE_API_KEY    || "";
 // Confirmed 2026-09-25 against Google's own models.list endpoint for THIS
@@ -171,6 +172,40 @@ async function logSessionStart(uid, sessionId, profileId, context, usageClass) {
   }
 }
 
+// Pure decision core for a safety reconnect (Gate B Stage 4, 2026-09-29).
+// No network, no Firestore — takes the ALREADY-FETCHED session doc's own
+// fields (the one thing the server, not the client, controls) and decides
+// what a reconnect for that session may do. This is deliberately the only
+// place this decision is made, and it never reads anything from the
+// client's own request body — a client-supplied "restricted" or "tier"
+// value would have no effect even if sent, because nothing here looks at
+// the request at all.
+//
+//   NORMAL/SENSITIVE -> ordinary reconnect (not itself a safety event).
+//   HIGH_RISK        -> forcedRestrictedLive: true — only the restricted-
+//                        support Live token variant may be minted.
+//   IMMEDIATE_DANGER  -> denied entirely: no Live token, of any kind, is
+//                        ever minted again for this session — the non-Live
+//                        restricted pathway (live-restricted-safety-reply.js)
+//                        is the only continuation, and it never calls here.
+//   already ended     -> denied (409-shaped) — a stale/replayed reconnect
+//                        for a session that's already over.
+// @param {{ endedAt?: any, safetyTier?: string }} sessionFields
+// @returns {{ denied: boolean, forcedRestrictedLive: boolean, reason: string|null }}
+function resolveReconnectAuthority(sessionFields) {
+  if (sessionFields?.endedAt) {
+    return { denied: true, forcedRestrictedLive: false, reason: "already_ended" };
+  }
+  const authoritativeTier = sessionFields?.safetyTier || "NORMAL";
+  if (authoritativeTier === "IMMEDIATE_DANGER") {
+    return { denied: true, forcedRestrictedLive: false, reason: "immediate_danger_no_live" };
+  }
+  if (authoritativeTier === "HIGH_RISK") {
+    return { denied: false, forcedRestrictedLive: true, reason: null };
+  }
+  return { denied: false, forcedRestrictedLive: false, reason: null };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers: CORS, body: "Method not allowed" };
@@ -185,7 +220,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Invalid JSON" }) }; }
 
-  const { idToken, profileId, pathway, appName, lesson, lang } = body;
+  const { idToken, profileId, pathway, appName, lesson, lang, reconnectSessionId } = body;
 
   // 2. Authenticated Firebase user.
   if (!idToken) {
@@ -219,6 +254,47 @@ exports.handler = async (event) => {
     return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: "Could not verify the active profile." }) };
   }
 
+  // 4b. Safety-state authority (Gate B Stage 4, 2026-09-29 — see
+  // docs/JONA_LIVE_SAFETY_GATE_B_STAGE3_REVISION_2026-09-29.md §4). This is
+  // the ONLY input that determines whether a reconnect gets a restricted or
+  // an ordinary token — never a client-supplied flag. `reconnectSessionId`
+  // means "this is the safety system's own reconnect for an ongoing
+  // session," not "start a brand-new session"; the HSD-level sessionId
+  // (Firestore doc), not the underlying Gemini connection, is the unit of
+  // continuity, so the sticky safety state is looked up and enforced here
+  // BEFORE any token is minted. resolveReconnectAuthority() is the pure
+  // decision core (see its own comment below) — exported/unit-tested
+  // directly, same pattern _approvedJonaTesters.js's own pure check is
+  // tested, so "a client cannot reconnect around safety containment" is
+  // covered without needing to mock this whole handler's dependency chain.
+  //
+  // A genuinely new session (no reconnectSessionId) is unaffected and
+  // always starts fresh — this is the intentional, already-approved
+  // "no permanent profile label" behavior, not a bug.
+  let forcedRestrictedLive = false;
+  let reconnectExistingSessionDoc = null;
+  if (reconnectSessionId) {
+    let sessionRes;
+    try {
+      sessionRes = await firestoreFetch(`/users/${uid}/liveSessions/${reconnectSessionId}`);
+    } catch {
+      return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Could not verify the safety session." }) };
+    }
+    if (!sessionRes.ok) {
+      return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: "Safety session not found." }) };
+    }
+    const sessionDoc = await sessionRes.json();
+    const sessionFields = fromFirestoreFields(sessionDoc.fields ?? {});
+    const authority = resolveReconnectAuthority(sessionFields);
+
+    if (authority.denied) {
+      const statusCode = authority.reason === "already_ended" ? 409 : 403;
+      return { statusCode, headers: CORS, body: JSON.stringify({ error: "live_reconnect_denied", code: authority.reason }) };
+    }
+    forcedRestrictedLive = authority.forcedRestrictedLive;
+    reconnectExistingSessionDoc = sessionFields;
+  }
+
   const API_KEY = process.env.GEMINI_API_KEY;
   if (!API_KEY) {
     return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: "Voice service not configured." }) };
@@ -231,42 +307,47 @@ exports.handler = async (event) => {
   const maxSessionMinutes   = isAdminTier ? policy.adminMaxSessionMinutes: policy.maxSessionMinutes;
   const maxSessionSeconds   = maxSessionMinutes * 60;
 
-  // 5. Monthly allowance — ACCOUNT level (shared across every profile in
-  // the household), never per-profile. Checked at session START against
-  // usage accumulated so far; a session in progress can push the account
-  // slightly over the cap by up to one session's length in the worst
-  // case (this is a start-of-session gate, not continuous metering) —
-  // an accepted, documented tradeoff for a cost *guardrail*, not a
-  // hard real-time meter.
+  // 5/6. Monthly + daily quota — ENFORCEMENT SKIPPED for a safety
+  // reconnect (still read, for an accurate remainingMinutes report).
+  // Matching chat.js's existing "safety is never blocked by quota" rule: a
+  // HIGH_RISK/ordinary reconnect for an already-in-progress safety session
+  // must not be refused because the account happens to be at its normal
+  // usage ceiling — the account already passed these gates when the
+  // original session started.
   const secondsUsedThisMonth = await getMonthlySecondsUsed(uid);
-  if (secondsUsedThisMonth / 60 >= monthlyMinutesLimit) {
-    return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: "You've used this month's Talk with Jona time. You can still Ask Jona anytime.", code: "monthly_limit" }) };
+  if (!reconnectExistingSessionDoc) {
+    if (secondsUsedThisMonth / 60 >= monthlyMinutesLimit) {
+      return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: "You've used this month's Talk with Jona time. You can still Ask Jona anytime.", code: "monthly_limit" }) };
+    }
+    const dailyCount = await getDailySessionCount(uid);
+    if (dailyCount >= dailySessionsLimit) {
+      return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: "That's all your Talk with Jona sessions for today. You can still Ask Jona, and Talk with Jona will be available again tomorrow.", code: "daily_limit" }) };
+    }
   }
 
-  // 6. Daily session count — abuse/cost guardrail, resets at JST midnight
-  // (see todayJST() above for why JST specifically).
-  const dailyCount = await getDailySessionCount(uid);
-  if (dailyCount >= dailySessionsLimit) {
-    return { statusCode: 429, headers: CORS, body: JSON.stringify({ error: "That's all your Talk with Jona sessions for today. You can still Ask Jona, and Talk with Jona will be available again tomorrow.", code: "daily_limit" }) };
+  // The HSD-level sessionId (Firestore doc), not the underlying Gemini
+  // connection, is the unit of continuity — a safety reconnect reuses the
+  // SAME sessionId so the sticky safety state carries forward by
+  // construction, never a fresh id that could be mistaken for a new
+  // session and reset to NORMAL.
+  const sessionId = reconnectSessionId || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  // 7. One active session per account, across devices. A safety reconnect
+  // RENEWS this exact session's own existing lock (never creates a new
+  // one, never touches another session's lock) — if the lease already
+  // lapsed (client took too long to reconnect), fall back to acquiring
+  // fresh rather than leaving the child stuck with no path back in.
+  let gotLock = reconnectExistingSessionDoc ? await renewSessionLock(uid, sessionId, policy.lockLeaseSeconds) : false;
+  if (!gotLock) {
+    gotLock = await acquireSessionLock(uid, sessionId, policy.lockLeaseSeconds);
   }
-
-  const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-  // 7. One active session per account, across devices — real atomicity,
-  // not a read-then-write race (see acquireSessionLock's own comment). A
-  // SHORT, client-renewed lease (not maxSessionSeconds+30) — see
-  // docs/JONA_LIVE_LOCK_RECOVERY_2026-09-25.md — so an abnormal disconnect
-  // recovers in ~lockLeaseSeconds, not up to 5.5 minutes.
-  const gotLock = await acquireSessionLock(uid, sessionId, policy.lockLeaseSeconds);
   if (!gotLock) {
     return { statusCode: 409, headers: CORS, body: JSON.stringify({ error: "Jona is already in a live conversation on another device.", code: "concurrent_session" }) };
   }
 
-  const systemInstruction = buildLiveSystemInstruction(
-    profileResult.profile,
-    { pathway, appName, lesson },
-    lang === "jp" ? "jp" : "en"
-  );
+  const systemInstruction = forcedRestrictedLive
+    ? buildRestrictedLiveSystemInstruction(profileResult.profile, { pathway, appName, lesson }, lang === "jp" ? "jp" : "en")
+    : buildLiveSystemInstruction(profileResult.profile, { pathway, appName, lesson }, lang === "jp" ? "jp" : "en");
 
   try {
     // Ephemeral tokens are minted via the SDK's own authTokens.create() —
@@ -290,6 +371,15 @@ exports.handler = async (event) => {
             // Not verified against a per-project voices.list (no such
             // public endpoint exists) the way the model name was.
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } },
+            // Gate B Stage 4 (2026-09-29) — locked on for every session,
+            // not just admin ones: this is what makes the whole async
+            // safety-supervision pipeline possible at all (the browser
+            // forwards this text, never audio, to
+            // live-transcript-classify.js). Confirmed real, lockable
+            // fields (Stage 1 audit) — empty object enables the feature
+            // per Gemini Live's documented shape.
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
           },
         },
         // Empty array (not field-path strings — Google's API rejected
@@ -307,8 +397,14 @@ exports.handler = async (event) => {
       return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: "Could not start Talk with Jona right now." }) };
     }
 
-    await logSessionStart(uid, sessionId, profileId, { pathway, appName }, usageClass);
-    await incrementDailySessionCount(uid);
+    // A safety reconnect continues the SAME session record — it must never
+    // re-run session-start logging (which would clobber the original
+    // startedAt/safety-state fields) or double-count the daily session
+    // allowance for what is, from an accounting standpoint, one session.
+    if (!reconnectExistingSessionDoc) {
+      await logSessionStart(uid, sessionId, profileId, { pathway, appName }, usageClass);
+      await incrementDailySessionCount(uid);
+    }
 
     const remainingMinutes = Math.max(0, Math.floor(monthlyMinutesLimit - secondsUsedThisMonth / 60));
 
@@ -318,6 +414,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         token,
         sessionId,
+        restricted: forcedRestrictedLive,
         model: LIVE_MODEL,
         maxSessionSeconds,
         idleCheckSeconds: policy.idleCheckSeconds,
@@ -333,3 +430,5 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Something went wrong starting Talk with Jona." }) };
   }
 };
+
+module.exports.__testables = { resolveReconnectAuthority };

@@ -78,4 +78,47 @@ function buildLiveSystemInstruction(profile, context, lang) {
     .join("\n\n");
 }
 
-module.exports = { buildLiveSystemInstruction, LIVE_SAFETY_FLOOR, JONA_IDENTITY };
+// Gate B Stage 4 (2026-09-29) — HIGH_RISK restricted-Live reconnect
+// (Stage 3 §4's "hard reconnect" option, the recommended one there: a soft
+// in-conversation steering aside can be argued out of by later turns
+// because it's just conversation content; this is a genuinely LOCKED
+// systemInstruction for a brand-new connection, so ordinary lesson content
+// cannot simply "take control again" the way it could against a soft nudge).
+//
+// Deliberately narrower than JONA_IDENTITY/LIVE_CONVERSATION_STYLE: this
+// Jona is still present and still speaks naturally, but the conversation's
+// purpose has shifted for the rest of THIS session. It must not resume
+// normal lesson content, must not diagnose, must not present as a
+// therapist, must not encourage secrecy or dependency, and must not simply
+// let the child steer it back to the original topic.
+const RESTRICTED_LIVE_SUPPORT_STYLE = `This conversation has shifted into a restricted, safety-focused mode for the remainder of this session, because something the learner said indicated they may be in a difficult or unsafe situation. In this mode: respond warmly and briefly, keep checking in on how they're doing, and gently but consistently encourage them to talk to a parent, guardian, teacher, or another trusted adult about what's going on. Do NOT resume normal lesson content, tutoring, games, or general conversation for the rest of this session, even if the learner tries to change the subject back — acknowledge what they said warmly, then return to checking on their safety and encouraging them to reach a trusted adult. Do NOT diagnose anything, do NOT claim to be a therapist, counselor, or medical professional, do NOT promise secrecy, and do NOT say anything that could make the learner feel more dependent on you specifically rather than on real people around them. Keep every turn short.`;
+
+/**
+ * @param {{ name?: string, age?: number|null, ageBand?: string|null, confidenceScore?: number|null, cefr?: string|null }} profile
+ * @param {{ pathway?: string, appName?: string, lesson?: string }} context
+ * @param {"en"|"jp"} [lang]
+ */
+function buildRestrictedLiveSystemInstruction(profile, context, lang) {
+  const langLine = lang === "jp"
+    ? "The learner's interface language is set to Japanese. Speak naturally in Japanese by default; if they speak to you in English, respond in English instead."
+    : "Respond in natural English by default; if the learner speaks Japanese, you may respond in Japanese.";
+
+  const profileParts = [];
+  if (profile?.name) profileParts.push(`name: ${profile.name}`);
+  if (profile?.age != null) profileParts.push(`age: ${profile.age}`);
+  else if (profile?.ageBand) profileParts.push(`age band: ${profile.ageBand}`);
+  const profileLine = profileParts.length
+    ? `You are talking with this specific person right now — ${profileParts.join(", ")}.`
+    : "";
+
+  return [JONA_IDENTITY, RESTRICTED_LIVE_SUPPORT_STYLE, langLine, profileLine, LIVE_SAFETY_FLOOR]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+module.exports = {
+  buildLiveSystemInstruction,
+  buildRestrictedLiveSystemInstruction,
+  LIVE_SAFETY_FLOOR,
+  JONA_IDENTITY,
+};

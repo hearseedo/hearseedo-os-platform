@@ -27,6 +27,15 @@ const VALID_END_REASONS = new Set([
   "user_end", "idle_timeout", "session_limit", "monthly_limit", "daily_limit",
   "profile_switch", "logout", "route_change", "connection_error",
   "admin_disabled", "safety", "unknown",
+  // Gate B Stage 4 (2026-09-29) — see
+  // docs/JONA_LIVE_SAFETY_GATE_B_STAGE3_REVISION_2026-09-29.md §1/§5.
+  // Distinct from "safety" above: these two are specifically the
+  // IMMEDIATE_DANGER restricted-pathway's natural close (cap reached, or
+  // any failure inside it falling back to the static message) and the
+  // supervisor-unavailable fallback, so admin reporting can tell them
+  // apart from an ordinary HIGH_RISK session that just continued and ended
+  // normally.
+  "immediate_danger_intervention", "supervisor_unavailable",
 ]);
 // "Completed normally" for reporting purposes — every reason that isn't a
 // crash/error/unexpected-drop. Used only for the admin dashboard's
