@@ -42,6 +42,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useLang } from "../hooks/useLang";
 import { createIdleWatch } from "./idleWatch";
+import { createSupervisorHealthTracker } from "./supervisorHealth";
 import { speakWithBrowserTts, cancelBrowserTts } from "../lib/browserNarration";
 import { listenOnce, isBrowserSpeechInputSupported } from "../lib/browserSpeechInput";
 
@@ -245,6 +246,14 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   const restrictedLiveRef        = useRef(false); // true once a HIGH_RISK-forced restricted Live token is active
   const immediateDangerRef       = useRef(false);
   const intentionalCloseRef      = useRef(false); // suppresses onclose's auto-endSession during a deliberate safety reconnect/transition
+  // Gate B Stage 4V fix — client-side supervisor-health enforcement (the
+  // confirmed audit blocker: server tracked supervisor failures, nothing
+  // client-side ever acted on it). One tracker instance per component
+  // mount; reset() on a genuinely new session, left running (never reset)
+  // across a HIGH_RISK reconnect since that's the same continuing session.
+  const supervisorHealthRef      = useRef(null);
+  const currentSafetyTierRef     = useRef("NORMAL"); // for choosing the strict vs ordinary recovery window
+  const restrictedResponseLoggedRef = useRef(false); // logs "restricted response begins" only once per session
   const [restrictedPathwayActive, setRestrictedPathwayActive] = useState(false);
   // Assigned inside the connect effect once the idle-watch helpers exist;
   // called from the render layer's collapse/expand taps so a deliberate
@@ -286,6 +295,12 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
     if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     idleWatchRef.current?.stop();
+    // Gate B Stage 4V fix: every termination path funnels through here
+    // (idempotently, via endedRef above) — disposing the supervisor-health
+    // tracker here, once, is what makes "profile switch/logout/unmount
+    // clears all supervisor timers" true for every real trigger, not just
+    // the ones this file happens to think of individually.
+    supervisorHealthRef.current?.dispose();
     if (safetyUnsubscribeRef.current) { try { safetyUnsubscribeRef.current(); } catch { /* already unsubscribed */ } safetyUnsubscribeRef.current = null; }
     try { cancelBrowserTts(); } catch { /* best-effort */ }
 
@@ -363,11 +378,37 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
 
     // ── Gate B Stage 4 — safety supervision helpers ───────────────────────
 
-    // Fire-and-forget: forwards one FINAL transcript chunk (text only,
-    // never audio) to the async safety supervisor. Never awaited by the
-    // caller and never blocks Jona's own realtime response — this is the
-    // whole point of the asynchronous design (Stage 3 §4): zero intentional
-    // blocking latency on the normal conversational path.
+    function isElevatedTier() {
+      return currentSafetyTierRef.current === "HIGH_RISK" || currentSafetyTierRef.current === "IMMEDIATE_DANGER";
+    }
+
+    // Metadata/timing-only, best-effort (Stage 3 Revision §3's T4-T6 —
+    // directive received, audio muted, restricted response begins). Never
+    // awaited before a safety transition — a logging failure must have
+    // zero effect on mute/close/restricted-pathway behavior.
+    function logSafetyTiming(eventId, fields) {
+      (async () => {
+        try {
+          const idToken = await auth.currentUser?.getIdToken();
+          if (!idToken || !sessionIdRef.current) return;
+          await fetch("/api/live-safety-timing", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken, sessionId: sessionIdRef.current, eventId, ...fields }),
+          }).catch(() => {});
+        } catch { /* best-effort */ }
+      })();
+    }
+
+    // Gate B Stage 4V fix — the confirmed audit blocker: nothing previously
+    // observed whether forwarding a transcript chunk actually proved
+    // healthy supervision. This now inspects every outcome (a resolved
+    // response AND a network failure/timeout identically) and feeds it to
+    // supervisorHealthRef, which is the sole authority on whether
+    // unrestricted Live may continue. Still fire-and-forget with respect to
+    // Jona's own realtime audio — nothing here awaits this call or blocks
+    // the response path; it only feeds the supervisor-health tracker
+    // asynchronously, alongside the normal conversation.
     function forwardTranscriptChunk(text) {
       const trimmed = (text || "").trim();
       if (!trimmed) return;
@@ -377,11 +418,18 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       priorTurnsContextRef.current = [...contextSnapshot, trimmed].slice(-3);
 
       (async () => {
+        // A hung request must count as an inability to prove healthy
+        // supervision exactly like an explicit failure — this is what
+        // "client network failure itself must also count" means in
+        // practice, since fetch() alone never times out on its own.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
           const idToken = await auth.currentUser?.getIdToken();
-          await fetch("/api/live-transcript-classify", {
+          const res = await fetch("/api/live-transcript-classify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
             body: JSON.stringify({
               idToken, sessionId: sessionIdRef.current, profileId, chunkId,
               text: trimmed, isFinal: true, lang,
@@ -389,14 +437,54 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
               speechEndAt: speechEndAtRef.current, transcriptAvailableAt,
             }),
           });
+          let data = null;
+          try { data = await res.json(); } catch { /* non-JSON/empty — treated as failure below */ }
+          if (res.ok && data && data.error !== "supervisor_failure") {
+            supervisorHealthRef.current?.recordSuccess();
+          } else {
+            supervisorHealthRef.current?.recordFailure({ isElevated: isElevatedTier() });
+          }
         } catch (e) {
-          // Best-effort — a failed forward is a supervisor-availability
-          // concern (§5/§8's failure policy), never something that should
-          // interrupt the learner's actual conversation.
+          // Network error, abort/timeout, or getIdToken() failing — none of
+          // these ever reached a definitive server response, so this can
+          // never be distinguished from "the supervisor is unreachable."
+          // Per explicit instruction, this counts exactly like a
+          // server-reported failure, never as "unknown, assume healthy."
           console.error("Talk with Jona: transcript forward failed (non-blocking):", e.message);
+          supervisorHealthRef.current?.recordFailure({ isElevated: isElevatedTier() });
+        } finally {
+          clearTimeout(timeoutId);
         }
       })();
     }
+
+    // Gate B Stage 4V fix — the actual enforcement action: ordinary Live
+    // becomes unsupervised (recovery window expired) or was never provably
+    // healthy for too long. Deliberately calm/technical wording, never a
+    // crisis message — the supervisor failing is not evidence the child is
+    // in danger, and must never be presented as if it were.
+    function handleSupervisorUnavailable() {
+      if (cancelled || endedRef.current || immediateDangerRef.current) return;
+
+      for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
+      scheduledSourcesRef.current = [];
+
+      intentionalCloseRef.current = true;
+      try { sessionRef.current?.close(); } catch { /* already closed */ }
+      sessionRef.current = null;
+
+      (async () => {
+        try { await speakWithBrowserTts(t("talk_jona_supervisor_unavailable"), lang); } catch { /* best-effort */ }
+        endSession("supervisor_unavailable");
+      })();
+    }
+
+    // One tracker per mount. reset() is called explicitly in connect() for
+    // a genuinely new session only — never for a HIGH_RISK reconnect, which
+    // continues the SAME session's supervisor-health history on purpose.
+    supervisorHealthRef.current = createSupervisorHealthTracker({
+      onUnsupervised: handleSupervisorUnavailable,
+    });
 
     // HIGH_RISK: close the current Gemini Live connection and reconnect
     // into a NEW one, minted with a genuinely locked restricted-support
@@ -438,6 +526,10 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       // does not depend on the network or on closing the connection first.
       for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
       scheduledSourcesRef.current = [];
+      // Stage 3 Revision §3, T5 — logged after the mute itself, never
+      // before: this is a timing record of what already happened, not a
+      // gate on it.
+      logSafetyTiming(`mute-${sessionIdRef.current}`, { audioMutedAt: Date.now() });
 
       // 2. Close the ordinary Gemini Live connection entirely — no
       // reconnect, unlike HIGH_RISK.
@@ -494,6 +586,14 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
           if (!res.ok) break;
           const data = await res.json().catch(() => ({}));
           if (data.capped || !data.reply) break;
+          // Stage 3 Revision §3, T6 — only the FIRST restricted reply is
+          // the metric of interest ("disclosure -> restricted response
+          // begins"); later exchanges in the same bounded loop are not
+          // re-logged.
+          if (!restrictedResponseLoggedRef.current) {
+            restrictedResponseLoggedRef.current = true;
+            logSafetyTiming(`restricted-response-${sessionIdRef.current}`, { restrictedResponseBeginAt: Date.now() });
+          }
           await speakWithBrowserTts(data.reply, lang);
         }
       } finally {
@@ -551,6 +651,15 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         // running against the ORIGINAL session's budget. Only a genuinely
         // new session sets these up.
         if (!reconnectOpts) {
+          // Gate B Stage 4V fix — test 13's guarantee, at the real
+          // integration point: a stale timer from whatever this tracker
+          // observed before (impossible on first mount, but this keeps the
+          // invariant explicit and correct if connect() is ever called
+          // again for a truly new session within the same mount) can never
+          // affect this new session.
+          supervisorHealthRef.current?.reset();
+          currentSafetyTierRef.current = "NORMAL";
+          restrictedResponseLoggedRef.current = false;
           maxSecondsRef.current = minted.maxSessionSeconds ?? 180;
 
           idleWatchRef.current = createIdleWatch({
@@ -587,10 +696,23 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
               doc(db, "users", uidForSafety, "liveSessions", minted.sessionId),
               (snap) => {
                 const data = snap.data();
-                if (!data?.interventionDirective) return;
+                if (!data) return;
+
+                // Gate B Stage 4V fix: keep the elevated-tier flag current
+                // for supervisorHealthRef's strict-vs-ordinary recovery
+                // window choice, and feed the server's own authoritative
+                // supervisorStatus into it — preferred over this client's
+                // own fetch-outcome inference wherever it's available.
+                if (typeof data.safetyTier === "string") currentSafetyTierRef.current = data.safetyTier;
+                if (data.supervisorStatus === "ok" || data.supervisorStatus === "degraded") {
+                  supervisorHealthRef.current?.applyServerStatus(data.supervisorStatus, { isElevated: isElevatedTier() });
+                }
+
+                if (!data.interventionDirective) return;
                 const createdAt = data.interventionDirective.createdAt?.toMillis?.() ?? data.interventionDirective.createdAt;
                 if (handledDirectiveAtRef.current === createdAt) return; // already handled this exact directive
                 handledDirectiveAtRef.current = createdAt;
+                logSafetyTiming(`directive-${sessionIdRef.current}-${createdAt}`, { directiveReceivedAt: Date.now() });
                 if (data.interventionDirective.action === "reconnect_restricted_live") {
                   handleHighRiskReconnect();
                 } else if (data.interventionDirective.action === "restricted_safety_pathway") {

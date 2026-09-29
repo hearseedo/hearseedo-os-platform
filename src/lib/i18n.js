@@ -550,6 +550,11 @@ export const STRINGS = {
     talk_jona_error:      "Talk with Jona isn't available right now — try Ask Jona instead.",
     talk_jona_mic_error:  "Couldn't access your microphone. Check your browser's microphone permission and try again.",
     talk_jona_disabled:        "Talk with Jona is temporarily unavailable. You can still Ask Jona.",
+    // Gate B Stage 4V fix — deliberately calm/technical, never a crisis
+    // message: a degraded/unreachable supervisor is not evidence the
+    // learner is in danger, and must never be presented as if it were.
+    // Never mentions classifier/supervisor/API/Firestore/Gemini/failure.
+    talk_jona_supervisor_unavailable: "Jona needs a quick technical break. You can continue with Ask Jona.",
     talk_jona_monthly_limit:   "You've used this month's Talk with Jona time. You can still Ask Jona anytime.",
     talk_jona_daily_limit:     "That's all your Talk with Jona sessions for today. You can still Ask Jona, and Talk with Jona will be available again tomorrow.",
     talk_jona_concurrent:      "Jona is already in a live conversation on another device.",
@@ -1291,6 +1296,7 @@ export const STRINGS = {
     talk_jona_error:      "現在Jonaと話すことができません — 「Jonaに聞く」をお試しください。",
     talk_jona_mic_error:  "マイクにアクセスできませんでした。ブラウザのマイク権限を確認してもう一度お試しください。",
     talk_jona_disabled:        "Talk with Jonaは現在ご利用いただけません。Jonaに聞くはそのままお使いいただけます。",
+    talk_jona_supervisor_unavailable: "Jonaはただいま技術的な理由で少し休憩が必要です。「Jonaに聞く」は引き続きご利用いただけます。",
     talk_jona_monthly_limit:   "今月のTalk with Jonaの時間を使い切りました。Jonaに聞くはいつでもご利用いただけます。",
     talk_jona_daily_limit:     "本日のTalk with Jonaの回数は終了しました。Jonaに聞くはそのままお使いいただけ、Talk with Jonaは明日また利用できます。",
     talk_jona_concurrent:      "Jonaは別のデバイスで会話中です。",
