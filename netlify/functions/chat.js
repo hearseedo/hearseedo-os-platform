@@ -268,13 +268,15 @@ exports.handler = async (event) => {
     uid = firebaseUser.localId;
     const email = firebaseUser.email;
 
-    // Containment (2026-09-26) — public Gemini-backed generation is paused
+    // Containment (2026-09-27) — public Gemini-backed generation is paused
     // while the Gemini Developer API's child-directed-use eligibility
     // question is unresolved (see _approvedJonaTesters.js). Denied BEFORE
     // profile resolution, BEFORE the quota check, BEFORE classifyRisk, and
     // BEFORE any Gemini call — a denial here must never consume a message
-    // allowance or touch the model, regardless of why it's denied. This is
-    // a temporary pause, not a resolution of the eligibility question.
+    // allowance or touch the model. This is a temporary pause, not a
+    // resolution of the eligibility question. The message is deliberately
+    // generic and never mentions an alternative Jona surface as a
+    // workaround, since Talk with Jona is paused for the exact same reason.
     if (!isApprovedAdultTesterProfile({ email, profileId })) {
       return {
         statusCode: 503,

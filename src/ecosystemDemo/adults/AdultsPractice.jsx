@@ -161,6 +161,7 @@ export default function AdultsPractice() {
         demoState={null}
         demoGeneration={state.generation}
         bottomOffset={88}
+        size={84}
       />
     </div>
   );

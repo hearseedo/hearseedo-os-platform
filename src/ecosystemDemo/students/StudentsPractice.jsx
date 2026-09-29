@@ -242,6 +242,7 @@ export default function StudentsPractice() {
         demoState={{ lastAttemptText: lastAttempt?.text ?? null, evaluation }}
         demoGeneration={state.generation}
         bottomOffset={88}
+        size={84}
       />
     </div>
   );

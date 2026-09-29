@@ -55,7 +55,7 @@ const LIVE_MODEL    = "gemini-2.5-flash-native-audio-preview-09-2025";
 // while both release gates (financial controls + Live child safety) are
 // still open. See docs/JONA_LIVE_BETA_GUARDRAILS_2026-09-25.md.
 //
-// Sourced from _approvedJonaTesters.js (2026-09-26 containment) so this
+// Sourced from _approvedJonaTesters.js (2026-09-27 containment) so this
 // list and Ask Jona's (chat.js) containment allowlist can never drift
 // apart — the same literal values as before this change.
 const LIVE_BETA_ADMIN_EMAILS = APPROVED_ADULT_TESTERS;
@@ -238,11 +238,13 @@ exports.handler = async (event) => {
   // on so admin testing is always distinguishable from real beta usage in
   // accounting/dashboards, never silently mixed in.
   //
-  // Containment (2026-09-26): this now ALSO requires profileId to be the
+  // Containment (2026-09-27): this now ALSO requires profileId to be the
   // account's own "self" profile — an approved account's family-member
   // profile (e.g. a child profile configured under an admin account) is
   // still denied. Being an approved tester's family member is not the
-  // same as being the approved tester. See _approvedJonaTesters.js.
+  // same as being the approved tester. See _approvedJonaTesters.js. The
+  // message deliberately never suggests Ask Jona as a workaround — it is
+  // paused for the same account/profile for the same reason.
   if (!isApprovedAdultTesterProfile({ email, profileId })) {
     return { statusCode: 403, headers: CORS, body: JSON.stringify({ error: "Talk with Jona isn't available for this account/profile yet." }) };
   }

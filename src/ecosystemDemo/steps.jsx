@@ -26,14 +26,21 @@ function PageTitle({ eyebrow, title, subtitle }) {
 // narration for anything else rather than risk reading raw JSX/markup aloud.
 function JonaLine({ children }) {
   const { voiceOn } = useJourney();
+  // lang (2026-09-27 fix): narration previously always called
+  // speakWithBrowserTts(text) with no lang argument, so it silently spoke
+  // every line in English even with the JP toggle on and JP text passed in
+  // — speakWithBrowserTts's own EN/JP voice selection was simply never
+  // reached. Passing lang here is the actual fix; the text itself was
+  // already correctly localized via t() at each call site.
+  const { lang } = useLang();
   const spoken = useRef("");
   const text = typeof children === "string" ? children : null;
 
   useEffect(() => {
     if (!voiceOn || !text || spoken.current === text) return;
     spoken.current = text;
-    speakWithBrowserTts(text);
-  }, [voiceOn, text]);
+    speakWithBrowserTts(text, lang);
+  }, [voiceOn, text, lang]);
 
   return (
     <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 24 }}>
@@ -42,6 +49,37 @@ function JonaLine({ children }) {
         <div style={{ fontSize: 11, fontWeight: 800, color: ECO.gold, textTransform: "uppercase", marginBottom: 4 }}>Jona</div>
         <div style={{ fontSize: 14, color: ECO.text, lineHeight: 1.6 }}>{children}</div>
       </div>
+    </div>
+  );
+}
+
+// Points at the floating Jona launcher bubble (rendered by whichever
+// PATHWAY_PRACTICE component is active — see below; always bottomOffset=88,
+// size=84, right=20) so a first-time visitor on Step 4 actually notices
+// it's there and clickable, rather than discovering it by accident.
+// pointerEvents:none so it never blocks the real bubble underneath it.
+function JonaPointer({ label }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed", bottom: 88 + 84 + 14, right: 26, zIndex: 998,
+        display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6,
+        pointerEvents: "none", animation: "eco-jona-pointer-fade-in 0.6s ease-out",
+      }}
+    >
+      <style>{`
+        @keyframes eco-jona-pointer-bounce { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(6px, 6px); } }
+        @keyframes eco-jona-pointer-fade-in { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+      <div style={{
+        background: ECO.gold, color: "#0a0700", fontWeight: 800, fontSize: 12,
+        padding: "8px 14px", borderRadius: 12, boxShadow: "0 6px 18px rgba(201,168,76,0.45)",
+        maxWidth: 170, textAlign: "center", lineHeight: 1.35,
+      }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 30, lineHeight: 1, color: ECO.gold, animation: "eco-jona-pointer-bounce 1.3s ease-in-out infinite" }}>↘</div>
     </div>
   );
 }
@@ -76,6 +114,7 @@ export function Step2Journey() {
   return (
     <div>
       <PageTitle eyebrow={t("eco_step2_eyebrow")} title={t("eco_step2_title")} subtitle={t("eco_step2_subtitle")} />
+      <JonaLine>{t("eco_step2_jona_line")}</JonaLine>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
         {PATHWAYS_DEMO.map((p) => (
           <button key={p.id} onClick={() => setPathwayId(p.id)} style={{
@@ -112,6 +151,7 @@ export function Step3Discover() {
   return (
     <div>
       <PageTitle eyebrow={t("eco_step3_eyebrow")} title={t("eco_step3_title").replace("{name}", active.name)} subtitle={t("eco_step3_subtitle")} />
+      <JonaLine>{t("eco_step3_jona_line").replace("{name}", active.name)}</JonaLine>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 24 }}>
         {active.apps.map((app) => (
           <div key={app.name} style={{ background: ECO.card, border: `2px solid ${ECO.border}`, borderRadius: 16, overflow: "hidden" }}>
@@ -160,6 +200,8 @@ export function Step4MeetJona() {
   return (
     <div>
       <PageTitle eyebrow={t("eco_step4_eyebrow")} title={t("eco_step4_title")} subtitle={t("eco_step4_subtitle")} />
+      <JonaLine>{t("eco_step4_jona_line")}</JonaLine>
+      <JonaPointer label={t("eco_step4_pointer")} />
 
       <Practice />
 
@@ -177,6 +219,7 @@ export function Step5Confidence() {
   return (
     <div>
       <PageTitle eyebrow={t("eco_step5_eyebrow")} title={t("eco_step5_title")} subtitle={t("eco_step5_subtitle")} />
+      <JonaLine>{t("eco_step5_jona_line")}</JonaLine>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 20 }}>
         <div style={{ background: ECO.card, border: "2px solid rgba(224,16,16,0.4)", borderRadius: 16, padding: 18 }}>

@@ -121,6 +121,7 @@ export default function FamilyPractice() {
         demoState={lastAttempt?.optionId ?? null}
         demoGeneration={state.generation}
         bottomOffset={88}
+        size={84}
       />
     </>
   );
