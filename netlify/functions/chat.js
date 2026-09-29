@@ -4,6 +4,7 @@ const { classifyRisk } = require("./_safetyClassifier");
 const { resolveProfileContext: resolveProfileContextWith, buildProfileContextLine } = require("./_profileContext");
 const resolveProfileContext = (uid, profileId) => resolveProfileContextWith(firestoreFetch, fromFirestoreFields, uid, profileId);
 const { isApprovedAdultTesterProfile } = require("./_approvedJonaTesters");
+const { RESTRICTED_SAFETY_SYSTEM } = require("./_restrictedSafetySystem");
 
 // Phase 4 (Jona adversarial safety testing) — the `system` prompt is
 // client-supplied (see body destructuring below), which means a signed-in
@@ -23,7 +24,9 @@ const SERVER_SAFETY_FLOOR = `\n\nNon-negotiable safety rules that apply regardle
 // flagged keyword can never become a jailbreak into unlimited free-form
 // Jona. This is explicitly a support/acknowledge/redirect-to-a-trusted-adult
 // response, not therapy, not a diagnosis, not general conversation.
-const RESTRICTED_SAFETY_SYSTEM = `You are Jona, responding in a restricted safety-support mode because the learner's message may indicate they are distressed, unsafe, or in a difficult situation. In this mode you must ONLY: (1) respond briefly and warmly, acknowledging how they feel without dramatizing it, (2) clearly and gently encourage them to talk to a parent, guardian, teacher, or another trusted adult right now, (3) if it fits naturally, mention that trusted adults and local support services can help — do not invent a specific phone number or service. You must NOT: answer unrelated questions, help with homework, play games, continue a general conversation, or discuss anything not directly about their immediate wellbeing and safety in this reply. Keep the response short and simple. Never claim to be a therapist, counselor, or medical professional, and never diagnose anything.`;
+// (Gate B Stage 4, 2026-09-29: extracted to _restrictedSafetySystem.js,
+// unchanged, so Talk with Jona's new IMMEDIATE_DANGER restricted pathway
+// can share this exact prompt instead of a second copy.)
 
 // Metadata-only safety event log — never the message content. Fire-and-
 // forget from the caller's perspective; a logging failure must never block
