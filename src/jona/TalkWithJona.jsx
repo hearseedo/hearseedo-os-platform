@@ -38,9 +38,31 @@
 // connection_error, admin_disabled, safety, unknown.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { auth } from "../lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../lib/firebase";
 import { useLang } from "../hooks/useLang";
 import { createIdleWatch } from "./idleWatch";
+import { speakWithBrowserTts, cancelBrowserTts } from "../lib/browserNarration";
+import { listenOnce, isBrowserSpeechInputSupported } from "../lib/browserSpeechInput";
+
+// Gate B Stage 4 (2026-09-29) — safety-supervision wiring. See
+// docs/JONA_LIVE_SAFETY_GATE_B_STAGE3_FINAL_ARCHITECTURE_2026-09-28.md and
+// docs/JONA_LIVE_SAFETY_GATE_B_STAGE3_REVISION_2026-09-29.md for the
+// approved architecture. This is additive to the existing connection/idle/
+// barge-in logic above — it never changes behavior for a session that
+// never reaches SENSITIVE or higher, and Live remains admin/adult-tester
+// only regardless (enforced server-side, unaffected by anything here).
+//
+// UNVERIFIED ASSUMPTION, flagged explicitly (see the Stage 4 implementation
+// report): Gemini Live's inputTranscription messages are accumulated per
+// serverContent message and flushed as one "final" chunk when the model's
+// own turnComplete fires for that turn. This is a reasonable reading of the
+// documented shape but has not been confirmed against a live session in
+// this environment — real-device testing (Stage 4 report's own manual test
+// procedure) must confirm transcript chunks actually arrive and flush at
+// the expected points before this is trusted for real supervision.
+const STATIC_SAFETY_MESSAGE_EN = "Jona needs to stop for now. If you need to talk to someone right now, please find a parent, guardian, or teacher.";
+const STATIC_SAFETY_MESSAGE_JP = "Jonaは今、話をやめる必要があります。今すぐ誰かに話したいときは、保護者や先生を見つけてください。";
 
 // PCM16/16kHz input conversion — Gemini Live's documented input format.
 function floatTo16BitPCM(float32) {
@@ -208,6 +230,20 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
   const usageMetadataRef = useRef(null);
   const phaseRef         = useRef("connecting");
   const idleWatchRef     = useRef(null);
+
+  // Gate B Stage 4 — safety supervision state (all client-side, ephemeral;
+  // nothing here is persisted by the client itself — the server's own
+  // Firestore writes are the durable record, see live-transcript-classify.js).
+  const inputTranscriptBufferRef = useRef("");
+  const priorTurnsContextRef     = useRef([]); // last few FINAL transcript chunks, text only, never persisted
+  const chunkSeqRef              = useRef(0);
+  const speechEndAtRef           = useRef(null);
+  const safetyUnsubscribeRef     = useRef(null);
+  const handledDirectiveAtRef    = useRef(null); // dedupes re-firing onSnapshot updates for the same directive
+  const restrictedLiveRef        = useRef(false); // true once a HIGH_RISK-forced restricted Live token is active
+  const immediateDangerRef       = useRef(false);
+  const intentionalCloseRef      = useRef(false); // suppresses onclose's auto-endSession during a deliberate safety reconnect/transition
+  const [restrictedPathwayActive, setRestrictedPathwayActive] = useState(false);
   // Assigned inside the connect effect once the idle-watch helpers exist;
   // called from the render layer's collapse/expand taps so a deliberate
   // interaction with the card counts as "still here" too, not just speech.
@@ -248,6 +284,8 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
     if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     idleWatchRef.current?.stop();
+    if (safetyUnsubscribeRef.current) { try { safetyUnsubscribeRef.current(); } catch { /* already unsubscribed */ } safetyUnsubscribeRef.current = null; }
+    try { cancelBrowserTts(); } catch { /* best-effort */ }
 
     for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
     scheduledSourcesRef.current = [];
@@ -321,7 +359,155 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
       idleWatchRef.current?.resetOnInteraction(phaseRef.current === "listening");
     };
 
-    async function connect() {
+    // ── Gate B Stage 4 — safety supervision helpers ───────────────────────
+
+    // Fire-and-forget: forwards one FINAL transcript chunk (text only,
+    // never audio) to the async safety supervisor. Never awaited by the
+    // caller and never blocks Jona's own realtime response — this is the
+    // whole point of the asynchronous design (Stage 3 §4): zero intentional
+    // blocking latency on the normal conversational path.
+    function forwardTranscriptChunk(text) {
+      const trimmed = (text || "").trim();
+      if (!trimmed) return;
+      const chunkId = `${sessionIdRef.current}-${Date.now()}-${chunkSeqRef.current++}`;
+      const transcriptAvailableAt = Date.now();
+      const contextSnapshot = priorTurnsContextRef.current.slice(-3);
+      priorTurnsContextRef.current = [...contextSnapshot, trimmed].slice(-3);
+
+      (async () => {
+        try {
+          const idToken = await auth.currentUser?.getIdToken();
+          await fetch("/api/live-transcript-classify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              idToken, sessionId: sessionIdRef.current, profileId, chunkId,
+              text: trimmed, isFinal: true, lang,
+              priorTurnsContext: contextSnapshot,
+              speechEndAt: speechEndAtRef.current, transcriptAvailableAt,
+            }),
+          });
+        } catch (e) {
+          // Best-effort — a failed forward is a supervisor-availability
+          // concern (§5/§8's failure policy), never something that should
+          // interrupt the learner's actual conversation.
+          console.error("Talk with Jona: transcript forward failed (non-blocking):", e.message);
+        }
+      })();
+    }
+
+    // HIGH_RISK: close the current Gemini Live connection and reconnect
+    // into a NEW one, minted with a genuinely locked restricted-support
+    // system instruction (Stage 3 §4's recommended "hard reconnect" —
+    // a soft in-conversation nudge can be argued out of by later turns;
+    // a locked instruction for a new connection cannot). The mic capture
+    // itself is deliberately NOT torn down or restarted — its
+    // onaudioprocess handler reads sessionRef.current at call time, so it
+    // automatically starts feeding the NEW session the instant
+    // sessionRef.current is reassigned below, with no gap in capture.
+    async function handleHighRiskReconnect() {
+      if (cancelled || endedRef.current) return;
+      const sessionIdToReconnect = sessionIdRef.current;
+      intentionalCloseRef.current = true;
+      try { sessionRef.current?.close(); } catch { /* already closed */ }
+      sessionRef.current = null;
+      try {
+        await connect({ sessionId: sessionIdToReconnect });
+      } catch (e) {
+        console.error("Talk with Jona: HIGH_RISK restricted reconnect failed:", e.message);
+        // A failed safety reconnect must not silently leave the child
+        // talking to an un-restricted Jona — fail closed to a full end
+        // rather than retrying into an uncertain state.
+        endSession("safety");
+      }
+    }
+
+    // IMMEDIATE_DANGER: mute, close the ordinary Live connection, and
+    // transition to the bounded, server-controlled non-Live restricted
+    // pathway (approved Option C — see
+    // docs/JONA_LIVE_SAFETY_GATE_B_STAGE3_REVISION_2026-09-29.md §1). Not
+    // therapy, not counseling, not general Jona — acknowledge, orient
+    // toward safety, encourage a trusted adult, stay brief, then end.
+    async function handleImmediateDanger() {
+      if (cancelled || immediateDangerRef.current) return;
+      immediateDangerRef.current = true;
+
+      // 1. Mute ordinary Live output immediately — synchronous, client-side,
+      // does not depend on the network or on closing the connection first.
+      for (const src of scheduledSourcesRef.current) { try { src.stop(); } catch { /* already stopped */ } }
+      scheduledSourcesRef.current = [];
+
+      // 2. Close the ordinary Gemini Live connection entirely — no
+      // reconnect, unlike HIGH_RISK.
+      intentionalCloseRef.current = true;
+      try { sessionRef.current?.close(); } catch { /* already closed */ }
+      sessionRef.current = null;
+      try { micProcessorRef.current?.disconnect(); } catch { /* not connected */ }
+      try { micSourceRef.current?.disconnect(); } catch { /* not connected */ }
+      micStreamRef.current?.getTracks().forEach((tr) => tr.stop());
+
+      setRestrictedPathwayActive(true);
+      updatePhase("thinking");
+
+      const finish = async () => {
+        setRestrictedPathwayActive(false);
+        endSession("immediate_danger_intervention");
+      };
+
+      const speakStatic = async () => {
+        try { await speakWithBrowserTts(lang === "jp" ? STATIC_SAFETY_MESSAGE_JP : STATIC_SAFETY_MESSAGE_EN, lang); } catch { /* best-effort */ }
+      };
+
+      if (!isBrowserSpeechInputSupported()) {
+        await speakStatic();
+        await finish();
+        return;
+      }
+
+      // 3/4/5/6. Bounded exchange loop — the server (live-restricted-safety-
+      // reply.js) is the sole authority on how many exchanges are allowed;
+      // this loop just keeps asking until the server says to stop (capped,
+      // failed, or the child says nothing).
+      try {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          if (cancelled) return;
+          let heard = "";
+          try {
+            heard = await listenOnce({ lang, timeoutMs: 15000 });
+          } catch {
+            break; // speech input failed mid-loop — fall back to the static message below
+          }
+          const idToken = await auth.currentUser?.getIdToken();
+          let res;
+          try {
+            res = await fetch("/api/live-restricted-safety-reply", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken, sessionId: sessionIdRef.current, profileId, text: heard, lang }),
+            });
+          } catch {
+            break;
+          }
+          if (!res.ok) break;
+          const data = await res.json().catch(() => ({}));
+          if (data.capped || !data.reply) break;
+          await speakWithBrowserTts(data.reply, lang);
+        }
+      } finally {
+        await speakStatic();
+        await finish();
+      }
+    }
+
+    // reconnectOpts: { sessionId } when this is a Gate B Stage 4 safety
+    // reconnect (HIGH_RISK) for an ONGOING session, rather than starting a
+    // fresh one. See live-token.js's resolveReconnectAuthority() — the
+    // server, never this client, decides whether the resulting token is
+    // restricted; this function just passes the existing sessionId through
+    // and skips the "first time setup" pieces (idle watch, session-limit
+    // timers, mic (re)start, heartbeat) that must NOT reset mid-session.
+    async function connect(reconnectOpts = null) {
       try {
         const idToken = await auth.currentUser?.getIdToken();
         if (!idToken) throw new Error("not_signed_in");
@@ -329,7 +515,10 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         const tokenRes = await fetch("/api/live-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken, profileId, pathway: context?.pathway, appName: context?.appName, lesson: context?.lesson, lang }),
+          body: JSON.stringify({
+            idToken, profileId, pathway: context?.pathway, appName: context?.appName, lesson: context?.lesson, lang,
+            ...(reconnectOpts?.sessionId ? { reconnectSessionId: reconnectOpts.sessionId } : {}),
+          }),
         });
         if (!tokenRes.ok) {
           const err = await tokenRes.json().catch(() => ({}));
@@ -351,29 +540,64 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
         if (cancelled) return;
 
         sessionIdRef.current  = minted.sessionId;
-        maxSecondsRef.current = minted.maxSessionSeconds ?? 180;
+        restrictedLiveRef.current = Boolean(minted.restricted);
         if (Number.isFinite(minted.remainingMinutes)) setRemainingMinutes(minted.remainingMinutes);
 
-        idleWatchRef.current = createIdleWatch({
-          idleCheckSeconds:      minted.idleCheckSeconds ?? 45,
-          idleDisconnectSeconds: minted.idleDisconnectSeconds ?? 60,
-          onCheckIn: () => sendSystemTurn("[SYSTEM: The learner has been quiet for a while. In one short, warm sentence, check in naturally — e.g. ask if they're still there or want to keep going. Do not mention time, limits, or anything technical.]"),
-          onDisconnect: () => endSession("idle_timeout"),
-        });
+        // Gate B Stage 4: a safety reconnect continues the SAME HSD
+        // session — it must never re-arm the idle watch, the session-limit
+        // timers, or the overall duration clock, all of which are already
+        // running against the ORIGINAL session's budget. Only a genuinely
+        // new session sets these up.
+        if (!reconnectOpts) {
+          maxSecondsRef.current = minted.maxSessionSeconds ?? 180;
 
-        // Session-limit backstop — server also enforces this on the token
-        // itself (expireTime); this is a client-side belt-and-braces close
-        // so the UI ends the conversation cleanly rather than erroring.
-        hardTimeoutRef.current = setTimeout(() => endSession("session_limit"), maxSecondsRef.current * 1000);
+          idleWatchRef.current = createIdleWatch({
+            idleCheckSeconds:      minted.idleCheckSeconds ?? 45,
+            idleDisconnectSeconds: minted.idleDisconnectSeconds ?? 60,
+            onCheckIn: () => sendSystemTurn("[SYSTEM: The learner has been quiet for a while. In one short, warm sentence, check in naturally — e.g. ask if they're still there or want to keep going. Do not mention time, limits, or anything technical.]"),
+            onDisconnect: () => endSession("idle_timeout"),
+          });
 
-        // ~1-minute-remaining warning — a natural spoken turn via
-        // sendClientContent, never a UI countdown in front of a child. No
-        // separate timer needed if the session itself is already <=60s.
-        const warnDelaySeconds = maxSecondsRef.current - 60;
-        if (warnDelaySeconds > 5) {
-          warningTimeoutRef.current = setTimeout(() => {
-            sendSystemTurn("[SYSTEM: About one minute remains in this session. Wrap up naturally in one short sentence — e.g. ask what they'd like to work on before you finish. Do not mention time, limits, tokens, or anything technical.]");
-          }, warnDelaySeconds * 1000);
+          // Session-limit backstop — server also enforces this on the token
+          // itself (expireTime); this is a client-side belt-and-braces close
+          // so the UI ends the conversation cleanly rather than erroring.
+          hardTimeoutRef.current = setTimeout(() => endSession("session_limit"), maxSecondsRef.current * 1000);
+
+          // ~1-minute-remaining warning — a natural spoken turn via
+          // sendClientContent, never a UI countdown in front of a child. No
+          // separate timer needed if the session itself is already <=60s.
+          const warnDelaySeconds = maxSecondsRef.current - 60;
+          if (warnDelaySeconds > 5) {
+            warningTimeoutRef.current = setTimeout(() => {
+              sendSystemTurn("[SYSTEM: About one minute remains in this session. Wrap up naturally in one short sentence — e.g. ask what they'd like to work on before you finish. Do not mention time, limits, tokens, or anything technical.]");
+            }, warnDelaySeconds * 1000);
+          }
+
+          // Gate B Stage 4 — the ONE server-held record of this session's
+          // safety state (client read-only, per firestore.rules). Reacts to
+          // HIGH_RISK (reconnect into a restricted Live token) and
+          // IMMEDIATE_DANGER (transition to the non-Live restricted
+          // pathway) directives the server writes — never trusts anything
+          // computed client-side.
+          const uidForSafety = auth.currentUser?.uid;
+          if (uidForSafety) {
+            safetyUnsubscribeRef.current = onSnapshot(
+              doc(db, "users", uidForSafety, "liveSessions", minted.sessionId),
+              (snap) => {
+                const data = snap.data();
+                if (!data?.interventionDirective) return;
+                const createdAt = data.interventionDirective.createdAt?.toMillis?.() ?? data.interventionDirective.createdAt;
+                if (handledDirectiveAtRef.current === createdAt) return; // already handled this exact directive
+                handledDirectiveAtRef.current = createdAt;
+                if (data.interventionDirective.action === "reconnect_restricted_live") {
+                  handleHighRiskReconnect();
+                } else if (data.interventionDirective.action === "restricted_safety_pathway") {
+                  handleImmediateDanger();
+                }
+              },
+              (err) => console.error("Talk with Jona: safety-state listener error:", err.message)
+            );
+          }
         }
 
         // apiVersion must match live-token.js's minting call — ephemeral
@@ -390,9 +614,15 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
           callbacks: {
             onopen: () => {
               if (cancelled) return;
+              updatePhase("listening");
+              // Gate B Stage 4: a safety reconnect keeps the ORIGINAL mic
+              // capture running throughout (never torn down — see
+              // handleHighRiskReconnect below) and reuses the existing
+              // heartbeat/duration clock for the same HSD session, so none
+              // of this first-time setup re-runs for a reconnect.
+              if (reconnectOpts) return;
               startedAtRef.current = Date.now();
               startMic();
-              updatePhase("listening");
               // Concurrency-lock heartbeat (2026-09-25 lock-recovery fix)
               // — only starts once the session is genuinely open. A tab
               // that goes fully unresponsive (crash, device sleep, hard
@@ -452,8 +682,25 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
                   playChunk(part.inlineData.data);
                 }
               }
-              if (message.serverContent?.turnComplete && phaseRef.current === "speaking") {
-                updatePhase("listening");
+
+              // Gate B Stage 4 — accumulate the learner's own transcribed
+              // speech (text only, never audio) and forward it once the
+              // turn that followed it is complete. See this file's own
+              // top-of-file note on why turnComplete is used as the flush
+              // point, and that this needs real-device confirmation.
+              const inputText = message.serverContent?.inputTranscription?.text;
+              if (typeof inputText === "string" && inputText) {
+                if (!inputTranscriptBufferRef.current) speechEndAtRef.current = null;
+                inputTranscriptBufferRef.current += inputText;
+              }
+
+              if (message.serverContent?.turnComplete) {
+                if (inputTranscriptBufferRef.current.trim()) {
+                  speechEndAtRef.current = speechEndAtRef.current ?? Date.now();
+                  forwardTranscriptChunk(inputTranscriptBufferRef.current);
+                }
+                inputTranscriptBufferRef.current = "";
+                if (phaseRef.current === "speaking") updatePhase("listening");
               }
             },
             onerror: (e) => {
@@ -468,6 +715,11 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
             onclose: (e) => {
               if (cancelled) return;
               console.warn("Talk with Jona session closed:", e?.code, e?.reason);
+              // Gate B Stage 4: a deliberate close as part of a safety
+              // reconnect/transition (handleHighRiskReconnect,
+              // handleImmediateDanger) must never be mistaken for an
+              // abnormal drop and auto-end the whole HSD session.
+              if (intentionalCloseRef.current) { intentionalCloseRef.current = false; return; }
               if (!endedRef.current) endSession("connection_error");
             },
           },
@@ -575,13 +827,19 @@ export default function TalkWithJona({ context, profileId, lang, onClose, closeS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const label =
-    phase === "connecting" ? t("talk_jona_connecting") :
-    phase === "listening"  ? t("talk_jona_listening")  :
-    phase === "thinking"   ? t("talk_jona_thinking")   :
-    phase === "speaking"   ? t("talk_jona_speaking")   :
-    phase === "error"      ? errorMsg :
-    t("talk_jona_ended");
+  // Gate B Stage 4: the restricted safety pathway (IMMEDIATE_DANGER) gets
+  // its own plain-language label rather than reusing "thinking"/"speaking"
+  // verbatim — this is a rare, admin/adult-tester-only path, so a literal
+  // string (not yet a translated i18n key) is an accepted placeholder
+  // pending real-device verification, not a production-facing gap.
+  const label = restrictedPathwayActive
+    ? (lang === "jp" ? "安全のため会話を切り替えています…" : "Switching to a safety check-in…")
+    : phase === "connecting" ? t("talk_jona_connecting") :
+      phase === "listening"  ? t("talk_jona_listening")  :
+      phase === "thinking"   ? t("talk_jona_thinking")   :
+      phase === "speaking"   ? t("talk_jona_speaking")   :
+      phase === "error"      ? errorMsg :
+      t("talk_jona_ended");
 
   const micActive = phase === "listening" || phase === "thinking" || phase === "speaking";
   if (!pos) return null; // one frame to measure the viewport before first paint
